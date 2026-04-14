@@ -31,7 +31,6 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-change_user_password}
     volumes:
       - ./BE:/var/www/html
-      - ${CV_UPLOADS_HOST_PATH:-./storage/cv-uploads}:/var/www/html/storage/cv-uploads
     depends_on:
       - mysql
     restart: unless-stopped
