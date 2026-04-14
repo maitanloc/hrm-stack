@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 use App\Controllers\Api\V1\AssetController;
 use App\Controllers\Api\V1\AttendanceController;
+use App\Controllers\Api\V1\AttendanceRiskController;
 use App\Controllers\Api\V1\AuthController;
 use App\Controllers\Api\V1\CommunicationController;
 use App\Controllers\Api\V1\ContractChangeLogController;
@@ -325,6 +326,33 @@ $router->group('/api/v1', function ($router): void {
         ]);
         $router->delete('/attendances/{id}', [AttendanceController::class, 'attendanceDelete'], [
             [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'delete'],
+        ]);
+
+        $router->post('/attendance/precheck', [AttendanceRiskController::class, 'precheck'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+            [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
+        ]);
+        $router->post('/attendance/checkin', [AttendanceRiskController::class, 'checkin'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+            [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
+        ]);
+        $router->post('/attendance/checkout', [AttendanceRiskController::class, 'checkout'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+            [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
+        ]);
+        $router->post('/device/reverify', [AttendanceRiskController::class, 'reverifyDevice'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'edit'],
+            [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
+        ]);
+        $router->post('/exceptions/request', [AttendanceRiskController::class, 'requestException'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+            [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
+        ]);
+        $router->post('/exceptions/{id}/approve-once', [AttendanceRiskController::class, 'approveExceptionOnce'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'approve'],
+        ]);
+        $router->get('/risk-alerts', [AttendanceRiskController::class, 'riskAlerts'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
         ]);
 
         $router->get('/overtime-requests', [AttendanceController::class, 'overtimeIndex'], [

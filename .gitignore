@@ -38,5 +38,6 @@ caddy_config/
 *.bak
 *.bak.*
 *.sql
+!BE/scripts/20260415_attendance_risk_flow.sql
 storage/cv-uploads/
 FE/vite_err.txt

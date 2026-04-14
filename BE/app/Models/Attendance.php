@@ -123,4 +123,20 @@ class Attendance extends Model
         $row = $stmt->fetch();
         return $row === false ? null : $row;
     }
+
+    public function findByEmployeeDate(int $employeeId, string $attendanceDate): ?array
+    {
+        $sql = "SELECT *
+                FROM attendances
+                WHERE employee_id = :employee_id
+                  AND attendance_date = :attendance_date
+                LIMIT 1";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            'employee_id' => $employeeId,
+            'attendance_date' => $attendanceDate,
+        ]);
+        $row = $stmt->fetch();
+        return $row === false ? null : $row;
+    }
 }

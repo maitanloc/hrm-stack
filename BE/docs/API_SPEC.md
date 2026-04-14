@@ -276,3 +276,45 @@ Route-level permission checks are mapped to `role_permissions`:
 
 - Version in URL: `/api/v1/...`
 - Add future version side-by-side: `/api/v2/...` with separate route file.
+
+## 17) Attendance Risk Flow (One-tap UX, backend anti-fraud)
+
+OpenAPI draft:
+- `BE/docs/ATTENDANCE_RISK_OPENAPI.yaml`
+- `BE/docs/ATTENDANCE_RISK_RESPONSE_SCHEMAS.json` (JSON schema response cho FE/client validation)
+
+Target UX:
+- Nhân viên chỉ thấy 2 nút lớn: `Đi làm` / `Ra về`.
+- Kiểm tra kỹ thuật (thiết bị, vị trí, risk) chạy ngầm ở backend.
+- Mỗi lỗi chỉ có 1 hành động rõ ràng (`Thử lại` hoặc `Xác minh lại`).
+
+State machine:
+- `UNENROLLED -> OTP_VERIFIED -> QR_BOUND -> DEVICE_BOUND -> READY`
+- `READY -> PRECHECK -> GREEN | YELLOW | RED`
+- `GREEN -> CHECKIN_OK | CHECKOUT_OK`
+- `YELLOW -> CHECKIN_OK_FLAGGED | CHECKOUT_OK_FLAGGED`
+- `RED -> BLOCKED -> RETRY_PRECHECK | REVERIFY_DEVICE | EXCEPTION_APPROVED_ONCE -> READY`
+
+New endpoint set:
+1. `POST /api/v1/attendance/precheck`
+2. `POST /api/v1/attendance/checkin`
+3. `POST /api/v1/attendance/checkout`
+4. `POST /api/v1/device/reverify`
+5. `POST /api/v1/exceptions/request`
+6. `POST /api/v1/exceptions/{id}/approve-once`
+7. `GET /api/v1/risk-alerts`
+
+Core enums:
+- `risk_level`: `GREEN | YELLOW | RED`
+- `action`: `ALLOW | ALLOW_FLAG | BLOCK`
+- `next_action`: `NONE | RETRY | REVERIFY_DEVICE | REQUEST_EXCEPTION`
+
+Security notes:
+- `precheck_token` là token ngắn hạn (TTL 180s), ký HMAC ở backend.
+- Backend chỉ lưu `sha256(precheck_token)` để giảm rủi ro lộ token thô.
+- Commit (`checkin/checkout`) bắt buộc token còn hạn, chưa dùng, đúng chữ ký và đúng time-window precheck.
+
+Business handling:
+- `GREEN`: chấm công bình thường.
+- `YELLOW`: vẫn chấm công, gắn cờ kiểm tra quản lý.
+- `RED`: chặn chấm công, yêu cầu xác minh lại hoặc duyệt ngoại lệ 1 lần.

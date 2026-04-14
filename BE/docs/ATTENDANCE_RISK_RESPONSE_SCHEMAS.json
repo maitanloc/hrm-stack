@@ -1,0 +1,297 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hrm.local/schemas/attendance-risk-response-schemas.json",
+  "title": "Attendance Risk Response Schemas",
+  "description": "Reusable JSON schemas for FE validation and typed client generation.",
+  "$defs": {
+    "RiskLevel": {
+      "type": "string",
+      "enum": ["GREEN", "YELLOW", "RED"]
+    },
+    "PrecheckAction": {
+      "type": "string",
+      "enum": ["ALLOW", "ALLOW_FLAG", "BLOCK"]
+    },
+    "NextAction": {
+      "type": "string",
+      "enum": ["NONE", "RETRY", "REVERIFY_DEVICE", "REQUEST_EXCEPTION"]
+    },
+    "ReasonCode": {
+      "type": "string",
+      "enum": [
+        "OK_IN_ZONE",
+        "GPS_DRIFT_MINOR",
+        "OUT_OF_GEOFENCE",
+        "DEVICE_NOT_TRUSTED",
+        "IMPOSSIBLE_TRAVEL",
+        "MULTI_DEVICE_SHORT_TIME",
+        "SIGNAL_WEAK"
+      ]
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "required": ["success", "message"],
+      "properties": {
+        "success": { "const": false },
+        "message": { "type": "string" },
+        "error": { "type": "string" },
+        "data": {},
+        "meta": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "AttendancePrecheckResponse": {
+      "type": "object",
+      "required": ["success", "message", "data", "meta"],
+      "properties": {
+        "success": { "const": true },
+        "message": { "type": "string" },
+        "data": {
+          "type": "object",
+          "required": [
+            "risk_level",
+            "action",
+            "reason_code",
+            "next_action",
+            "user_message",
+            "requires_manager_review"
+          ],
+          "properties": {
+            "risk_level": { "$ref": "#/$defs/RiskLevel" },
+            "action": { "$ref": "#/$defs/PrecheckAction" },
+            "reason_code": { "$ref": "#/$defs/ReasonCode" },
+            "next_action": { "$ref": "#/$defs/NextAction" },
+            "user_message": { "type": "string", "maxLength": 255 },
+            "precheck_token": {
+              "type": ["string", "null"],
+              "maxLength": 128
+            },
+            "expires_at": {
+              "type": ["string", "null"],
+              "format": "date-time"
+            },
+            "distance_m": {
+              "type": ["number", "null"]
+            },
+            "requires_manager_review": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "meta": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "AttendanceCommitResponse": {
+      "type": "object",
+      "required": ["success", "message", "data", "meta"],
+      "properties": {
+        "success": { "const": true },
+        "message": { "type": "string" },
+        "data": {
+          "type": "object",
+          "required": [
+            "attendance_event_id",
+            "employee_id",
+            "attendance_type",
+            "risk_level",
+            "flagged",
+            "status",
+            "event_time",
+            "user_message"
+          ],
+          "properties": {
+            "attendance_event_id": { "type": "integer" },
+            "employee_id": { "type": "integer" },
+            "attendance_type": {
+              "type": "string",
+              "enum": ["CHECKIN", "CHECKOUT"]
+            },
+            "risk_level": { "$ref": "#/$defs/RiskLevel" },
+            "flagged": { "type": "boolean" },
+            "status": {
+              "type": "string",
+              "enum": [
+                "CHECKIN_OK",
+                "CHECKOUT_OK",
+                "CHECKIN_OK_FLAGGED",
+                "CHECKOUT_OK_FLAGGED"
+              ]
+            },
+            "event_time": { "type": "string", "format": "date-time" },
+            "manager_review_status": {
+              "type": "string",
+              "enum": ["NONE", "PENDING", "DONE"]
+            },
+            "user_message": { "type": "string", "maxLength": 255 }
+          },
+          "additionalProperties": false
+        },
+        "meta": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "DeviceReverifyResponse": {
+      "type": "object",
+      "required": ["success", "message", "data", "meta"],
+      "properties": {
+        "success": { "const": true },
+        "message": { "type": "string" },
+        "data": {
+          "type": "object",
+          "required": [
+            "employee_id",
+            "device_bound",
+            "trusted_device_id",
+            "status",
+            "reverified_at",
+            "user_message"
+          ],
+          "properties": {
+            "employee_id": { "type": "integer" },
+            "device_bound": { "type": "boolean" },
+            "trusted_device_id": { "type": "string" },
+            "status": { "type": "string", "enum": ["VERIFIED"] },
+            "reverified_at": { "type": "string", "format": "date-time" },
+            "user_message": { "type": "string", "maxLength": 255 }
+          },
+          "additionalProperties": false
+        },
+        "meta": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "ExceptionRequestResponse": {
+      "type": "object",
+      "required": ["success", "message", "data", "meta"],
+      "properties": {
+        "success": { "const": true },
+        "message": { "type": "string" },
+        "data": {
+          "type": "object",
+          "required": [
+            "exception_id",
+            "status",
+            "employee_id",
+            "sla_minutes",
+            "user_message"
+          ],
+          "properties": {
+            "exception_id": { "type": "integer" },
+            "status": { "type": "string", "enum": ["PENDING"] },
+            "employee_id": { "type": "integer" },
+            "manager_id": { "type": ["integer", "null"] },
+            "sla_minutes": { "type": "integer", "minimum": 1 },
+            "user_message": { "type": "string", "maxLength": 255 }
+          },
+          "additionalProperties": false
+        },
+        "meta": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "ExceptionApproveOnceResponse": {
+      "type": "object",
+      "required": ["success", "message", "data", "meta"],
+      "properties": {
+        "success": { "const": true },
+        "message": { "type": "string" },
+        "data": {
+          "type": "object",
+          "required": [
+            "exception_id",
+            "status",
+            "approved_by",
+            "approved_at",
+            "user_message"
+          ],
+          "properties": {
+            "exception_id": { "type": "integer" },
+            "status": {
+              "type": "string",
+              "enum": ["APPROVED_ONCE", "REJECTED"]
+            },
+            "valid_until": {
+              "type": ["string", "null"],
+              "format": "date-time"
+            },
+            "approved_by": { "type": "integer" },
+            "approved_at": { "type": "string", "format": "date-time" },
+            "user_message": { "type": "string", "maxLength": 255 }
+          },
+          "additionalProperties": false
+        },
+        "meta": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "RiskAlertListResponse": {
+      "type": "object",
+      "required": ["success", "message", "data", "meta"],
+      "properties": {
+        "success": { "const": true },
+        "message": { "type": "string" },
+        "data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "employee_id",
+              "employee_name",
+              "attendance_type",
+              "risk_level",
+              "reason_code",
+              "happened_at",
+              "status"
+            ],
+            "properties": {
+              "id": { "type": "integer" },
+              "employee_id": { "type": "integer" },
+              "employee_name": { "type": "string" },
+              "attendance_type": {
+                "type": "string",
+                "enum": ["CHECKIN", "CHECKOUT"]
+              },
+              "risk_level": { "$ref": "#/$defs/RiskLevel" },
+              "reason_code": { "$ref": "#/$defs/ReasonCode" },
+              "happened_at": { "type": "string", "format": "date-time" },
+              "distance_m": { "type": ["number", "null"] },
+              "status": { "type": "string", "enum": ["OPEN", "RESOLVED"] }
+            },
+            "additionalProperties": false
+          }
+        },
+        "meta": {
+          "type": "object",
+          "required": ["total", "page", "per_page", "last_page"],
+          "properties": {
+            "total": { "type": "integer" },
+            "page": { "type": "integer" },
+            "per_page": { "type": "integer" },
+            "last_page": { "type": "integer" }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

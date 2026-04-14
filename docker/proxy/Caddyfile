@@ -3,9 +3,9 @@
 
     @api path /api/*
     handle @api {
-        root * /srv/backend/public
+        root * /var/www/html/public
+        rewrite * /index.php
         php_fastcgi hrm-be:9000
-        file_server
     }
 
     handle {

@@ -1,0 +1,800 @@
+openapi: 3.0.3
+info:
+  title: HRM Attendance Risk API
+  version: 1.0.0
+  description: |
+    API proposal for one-tap attendance with backend anti-fraud controls.
+    This spec adds precheck, risk scoring, device reverify, and one-time exception approval.
+servers:
+  - url: /
+    description: Relative to current host
+tags:
+  - name: Attendance Risk
+    description: Employee-facing one-tap attendance workflow
+  - name: Device Trust
+    description: Device re-verification workflow
+  - name: Exception
+    description: Exception request and manager approval
+  - name: Risk Monitoring
+    description: Manager risk-alert list
+paths:
+  /api/v1/attendance/precheck:
+    post:
+      tags: [Attendance Risk]
+      summary: Run backend risk checks before check-in/check-out
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttendancePrecheckRequest'
+      responses:
+        '200':
+          description: Precheck evaluated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendancePrecheckResponse'
+              examples:
+                green:
+                  summary: GREEN - allow direct attendance
+                  value:
+                    success: true
+                    message: Precheck success
+                    data:
+                      risk_level: GREEN
+                      action: ALLOW
+                      reason_code: OK_IN_ZONE
+                      next_action: NONE
+                      user_message: Bạn đang ở đúng khu vực làm việc. Bấm Đi làm để chấm công.
+                      precheck_token: pre_7f8e31a1
+                      expires_at: '2026-04-15T01:59:30Z'
+                      distance_m: 18.2
+                      requires_manager_review: false
+                    meta: {}
+                yellow:
+                  summary: YELLOW - allow and flag
+                  value:
+                    success: true
+                    message: Precheck success
+                    data:
+                      risk_level: YELLOW
+                      action: ALLOW_FLAG
+                      reason_code: GPS_DRIFT_MINOR
+                      next_action: NONE
+                      user_message: Vị trí đang lệch nhẹ, hệ thống vẫn ghi nhận chấm công.
+                      precheck_token: pre_7f8e31a2
+                      expires_at: '2026-04-15T01:59:30Z'
+                      distance_m: 132.4
+                      requires_manager_review: true
+                    meta: {}
+                red:
+                  summary: RED - blocked
+                  value:
+                    success: true
+                    message: Precheck blocked
+                    data:
+                      risk_level: RED
+                      action: BLOCK
+                      reason_code: OUT_OF_GEOFENCE
+                      next_action: RETRY
+                      user_message: Bạn đang ngoài khu vực làm việc. Vui lòng đến đúng vị trí rồi bấm Thử lại.
+                      precheck_token: null
+                      expires_at: null
+                      distance_m: 1240.0
+                      requires_manager_review: true
+                    meta: {}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/attendance/checkin:
+    post:
+      tags: [Attendance Risk]
+      summary: Check in using precheck token
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttendanceCommitRequest'
+      responses:
+        '201':
+          description: Check-in recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceCommitResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Conflict (expired/invalid precheck token or duplicate check-in)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/attendance/checkout:
+    post:
+      tags: [Attendance Risk]
+      summary: Check out using precheck token
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttendanceCommitRequest'
+      responses:
+        '201':
+          description: Check-out recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceCommitResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Conflict (expired/invalid precheck token or duplicate check-out)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/device/reverify:
+    post:
+      tags: [Device Trust]
+      summary: Re-verify and bind a new device
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceReverifyRequest'
+      responses:
+        '200':
+          description: Device re-verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceReverifyResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/exceptions/request:
+    post:
+      tags: [Exception]
+      summary: Employee requests one-time exception
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExceptionRequestCreate'
+      responses:
+        '201':
+          description: Exception request created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExceptionRequestResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/exceptions/{id}/approve-once:
+    post:
+      tags: [Exception]
+      summary: Manager/Admin approves one-time exception
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExceptionApproveOnceRequest'
+      responses:
+        '200':
+          description: Exception decision recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExceptionApproveOnceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Forbidden (not manager/admin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Exception request not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/risk-alerts:
+    get:
+      tags: [Risk Monitoring]
+      summary: List risk alerts for managers
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: date_from
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: date_to
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: risk_level
+          schema:
+            $ref: '#/components/schemas/RiskLevel'
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [OPEN, RESOLVED]
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Risk alert list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskAlertListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Forbidden (not manager/admin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+  schemas:
+    RiskLevel:
+      type: string
+      enum: [GREEN, YELLOW, RED]
+    PrecheckAction:
+      type: string
+      enum: [ALLOW, ALLOW_FLAG, BLOCK]
+    NextAction:
+      type: string
+      enum: [NONE, RETRY, REVERIFY_DEVICE, REQUEST_EXCEPTION]
+    ReasonCode:
+      type: string
+      enum:
+        - OK_IN_ZONE
+        - GPS_DRIFT_MINOR
+        - OUT_OF_GEOFENCE
+        - DEVICE_NOT_TRUSTED
+        - IMPOSSIBLE_TRAVEL
+        - MULTI_DEVICE_SHORT_TIME
+        - SIGNAL_WEAK
+
+    ErrorEnvelope:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Validation failed
+        error:
+          type: string
+          example: validation_error
+        data:
+          nullable: true
+        meta:
+          type: object
+          additionalProperties: true
+
+    AttendancePrecheckRequest:
+      type: object
+      required:
+        - employee_id
+        - device_id
+        - platform
+        - lat
+        - lng
+        - accuracy_m
+        - attendance_type
+        - client_time
+      properties:
+        employee_id:
+          type: integer
+          minimum: 1
+        device_id:
+          type: string
+          minLength: 8
+          maxLength: 128
+        platform:
+          type: string
+          enum: [ANDROID, IOS]
+        app_version:
+          type: string
+          maxLength: 50
+        lat:
+          type: number
+          format: double
+        lng:
+          type: number
+          format: double
+        accuracy_m:
+          type: number
+          format: double
+          minimum: 0
+        wifi_ssid:
+          type: string
+          maxLength: 128
+        qr_area_code:
+          type: string
+          maxLength: 64
+        attendance_type:
+          type: string
+          enum: [CHECKIN, CHECKOUT]
+        client_time:
+          type: string
+          format: date-time
+
+    AttendancePrecheckData:
+      type: object
+      required:
+        - risk_level
+        - action
+        - reason_code
+        - next_action
+        - user_message
+        - requires_manager_review
+      properties:
+        risk_level:
+          $ref: '#/components/schemas/RiskLevel'
+        action:
+          $ref: '#/components/schemas/PrecheckAction'
+        reason_code:
+          $ref: '#/components/schemas/ReasonCode'
+        next_action:
+          $ref: '#/components/schemas/NextAction'
+        user_message:
+          type: string
+          maxLength: 255
+        precheck_token:
+          type: string
+          nullable: true
+          maxLength: 128
+          description: Opaque short-lived token signed by backend.
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        distance_m:
+          type: number
+          format: double
+          nullable: true
+        requires_manager_review:
+          type: boolean
+
+    AttendancePrecheckResponse:
+      type: object
+      required: [success, message, data, meta]
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Precheck success
+        data:
+          $ref: '#/components/schemas/AttendancePrecheckData'
+        meta:
+          type: object
+          additionalProperties: true
+
+    AttendanceCommitRequest:
+      type: object
+      required: [employee_id, precheck_token, client_time]
+      properties:
+        employee_id:
+          type: integer
+          minimum: 1
+        precheck_token:
+          type: string
+          minLength: 8
+          maxLength: 128
+          description: Opaque signed precheck token returned by /attendance/precheck.
+        client_time:
+          type: string
+          format: date-time
+
+    AttendanceCommitData:
+      type: object
+      required:
+        - attendance_event_id
+        - employee_id
+        - attendance_type
+        - risk_level
+        - flagged
+        - status
+        - event_time
+        - user_message
+      properties:
+        attendance_event_id:
+          type: integer
+        employee_id:
+          type: integer
+        attendance_type:
+          type: string
+          enum: [CHECKIN, CHECKOUT]
+        risk_level:
+          $ref: '#/components/schemas/RiskLevel'
+        flagged:
+          type: boolean
+        status:
+          type: string
+          enum:
+            - CHECKIN_OK
+            - CHECKOUT_OK
+            - CHECKIN_OK_FLAGGED
+            - CHECKOUT_OK_FLAGGED
+        event_time:
+          type: string
+          format: date-time
+        manager_review_status:
+          type: string
+          enum: [NONE, PENDING, DONE]
+        user_message:
+          type: string
+          maxLength: 255
+
+    AttendanceCommitResponse:
+      type: object
+      required: [success, message, data, meta]
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Attendance recorded
+        data:
+          $ref: '#/components/schemas/AttendanceCommitData'
+        meta:
+          type: object
+          additionalProperties: true
+
+    DeviceReverifyRequest:
+      type: object
+      required:
+        - employee_id
+        - otp_code
+        - new_device_id
+        - platform
+        - client_time
+      properties:
+        employee_id:
+          type: integer
+          minimum: 1
+        otp_code:
+          type: string
+          minLength: 4
+          maxLength: 12
+        new_device_id:
+          type: string
+          minLength: 8
+          maxLength: 128
+        platform:
+          type: string
+          enum: [ANDROID, IOS]
+        app_version:
+          type: string
+          maxLength: 50
+        client_time:
+          type: string
+          format: date-time
+
+    DeviceReverifyData:
+      type: object
+      required:
+        - employee_id
+        - device_bound
+        - trusted_device_id
+        - status
+        - reverified_at
+        - user_message
+      properties:
+        employee_id:
+          type: integer
+        device_bound:
+          type: boolean
+        trusted_device_id:
+          type: string
+        status:
+          type: string
+          enum: [VERIFIED]
+        reverified_at:
+          type: string
+          format: date-time
+        user_message:
+          type: string
+          maxLength: 255
+
+    DeviceReverifyResponse:
+      type: object
+      required: [success, message, data, meta]
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Device reverified
+        data:
+          $ref: '#/components/schemas/DeviceReverifyData'
+        meta:
+          type: object
+          additionalProperties: true
+
+    ExceptionRequestCreate:
+      type: object
+      required:
+        - employee_id
+        - reason
+        - requested_at
+      properties:
+        employee_id:
+          type: integer
+          minimum: 1
+        attendance_event_id:
+          type: integer
+          nullable: true
+        precheck_token:
+          type: string
+          nullable: true
+          maxLength: 128
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 1000
+        lat:
+          type: number
+          format: double
+          nullable: true
+        lng:
+          type: number
+          format: double
+          nullable: true
+        requested_at:
+          type: string
+          format: date-time
+
+    ExceptionRequestData:
+      type: object
+      required:
+        - exception_id
+        - status
+        - employee_id
+        - sla_minutes
+        - user_message
+      properties:
+        exception_id:
+          type: integer
+        status:
+          type: string
+          enum: [PENDING]
+        employee_id:
+          type: integer
+        manager_id:
+          type: integer
+          nullable: true
+        sla_minutes:
+          type: integer
+          minimum: 1
+        user_message:
+          type: string
+          maxLength: 255
+
+    ExceptionRequestResponse:
+      type: object
+      required: [success, message, data, meta]
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Exception request submitted
+        data:
+          $ref: '#/components/schemas/ExceptionRequestData'
+        meta:
+          type: object
+          additionalProperties: true
+
+    ExceptionApproveOnceRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [APPROVE, REJECT]
+        note:
+          type: string
+          maxLength: 500
+        valid_minutes:
+          type: integer
+          minimum: 1
+          maximum: 240
+          default: 30
+
+    ExceptionApproveOnceData:
+      type: object
+      required:
+        - exception_id
+        - status
+        - approved_by
+        - approved_at
+        - user_message
+      properties:
+        exception_id:
+          type: integer
+        status:
+          type: string
+          enum: [APPROVED_ONCE, REJECTED]
+        valid_until:
+          type: string
+          format: date-time
+          nullable: true
+        approved_by:
+          type: integer
+        approved_at:
+          type: string
+          format: date-time
+        user_message:
+          type: string
+          maxLength: 255
+
+    ExceptionApproveOnceResponse:
+      type: object
+      required: [success, message, data, meta]
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Exception decision recorded
+        data:
+          $ref: '#/components/schemas/ExceptionApproveOnceData'
+        meta:
+          type: object
+          additionalProperties: true
+
+    RiskAlert:
+      type: object
+      required:
+        - id
+        - employee_id
+        - employee_name
+        - attendance_type
+        - risk_level
+        - reason_code
+        - happened_at
+        - status
+      properties:
+        id:
+          type: integer
+        employee_id:
+          type: integer
+        employee_name:
+          type: string
+        attendance_type:
+          type: string
+          enum: [CHECKIN, CHECKOUT]
+        risk_level:
+          $ref: '#/components/schemas/RiskLevel'
+        reason_code:
+          $ref: '#/components/schemas/ReasonCode'
+        happened_at:
+          type: string
+          format: date-time
+        distance_m:
+          type: number
+          format: double
+          nullable: true
+        status:
+          type: string
+          enum: [OPEN, RESOLVED]
+
+    RiskAlertListResponse:
+      type: object
+      required: [success, message, data, meta]
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Risk alerts
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/RiskAlert'
+        meta:
+          type: object
+          required: [total, page, per_page, last_page]
+          properties:
+            total:
+              type: integer
+            page:
+              type: integer
+            per_page:
+              type: integer
+            last_page:
+              type: integer

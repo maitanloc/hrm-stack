@@ -39,6 +39,7 @@ Copy-Item .env.example .env
 ```
 
 Sau khi copy `.env`, cập nhật lại thông tin DB/JWT trong file `.env`.
+Khuyến nghị đặt thêm `ATTENDANCE_PRECHECK_SECRET` để ký token precheck attendance riêng.
 
 ## 4) Import database và migrations
 
@@ -55,6 +56,7 @@ Chạy thêm các migration trong `scripts/`:
 - `20260315_dynamic_frontend_modules.sql`
 - `20260324_recruitment_cv_and_interview_review.sql`
 - `20260325_recruitment_manager_reviews.sql`
+- `20260415_attendance_risk_flow.sql`
 
 ## 5) Chạy server local
 
@@ -114,6 +116,7 @@ curl http://127.0.0.1:8080/api/v1/employees \
 ## 8) Tài liệu kèm theo
 
 - Postman collection: `postman/HRM_API_v1.postman_collection.json`
+- Postman collection (attendance risk flow): `postman/HRM_Attendance_Risk_v1.postman_collection.json`
 - Postman environment: `postman/HRM_API_v1.postman_environment.json`
 - Business spec: `docs/BUSINESS_SPEC.md`
 - API spec: `docs/API_SPEC.md`

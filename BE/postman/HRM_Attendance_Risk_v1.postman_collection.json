@@ -1,0 +1,351 @@
+﻿{
+  "info": {
+    "name": "HRM Attendance Risk API v1",
+    "_postman_id": "2eb87c5d-ccf1-4b65-9cc4-53f83c4f93d1",
+    "description": "Focused Postman collection for one-tap attendance risk flow endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8080/api/v1"
+    },
+    {
+      "key": "company_email",
+      "value": "hai.do@company.com"
+    },
+    {
+      "key": "password",
+      "value": "NV0009"
+    },
+    {
+      "key": "employee_id",
+      "value": "9"
+    },
+    {
+      "key": "device_id",
+      "value": "pixel7-emp09"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "precheck_token",
+      "value": ""
+    },
+    {
+      "key": "exception_id",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "1) Auth - Login",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"company_email\": \"{{company_email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json?.data?.access_token) {",
+              "  pm.collectionVariables.set('token', json.data.access_token);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2) Device - Reverify",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"employee_id\": {{employee_id}},\n  \"otp_code\": \"123456\",\n  \"new_device_id\": \"{{device_id}}\",\n  \"platform\": \"ANDROID\",\n  \"app_version\": \"1.0.0\",\n  \"client_time\": \"2026-04-15T07:58:00+07:00\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/device/reverify",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "device",
+            "reverify"
+          ]
+        }
+      }
+    },
+    {
+      "name": "3) Attendance - Precheck Checkin",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"employee_id\": {{employee_id}},\n  \"device_id\": \"{{device_id}}\",\n  \"platform\": \"ANDROID\",\n  \"app_version\": \"1.0.0\",\n  \"lat\": 10.7769,\n  \"lng\": 106.7009,\n  \"accuracy_m\": 30,\n  \"attendance_type\": \"CHECKIN\",\n  \"client_time\": \"2026-04-15T08:00:00+07:00\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/attendance/precheck",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "attendance",
+            "precheck"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json?.data?.precheck_token) {",
+              "  pm.collectionVariables.set('precheck_token', json.data.precheck_token);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4) Attendance - Checkin",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"employee_id\": {{employee_id}},\n  \"precheck_token\": \"{{precheck_token}}\",\n  \"client_time\": \"2026-04-15T08:01:00+07:00\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/attendance/checkin",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "attendance",
+            "checkin"
+          ]
+        }
+      }
+    },
+    {
+      "name": "5) Attendance - Precheck Checkout",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"employee_id\": {{employee_id}},\n  \"device_id\": \"{{device_id}}\",\n  \"platform\": \"ANDROID\",\n  \"app_version\": \"1.0.0\",\n  \"lat\": 10.7768,\n  \"lng\": 106.7008,\n  \"accuracy_m\": 25,\n  \"attendance_type\": \"CHECKOUT\",\n  \"client_time\": \"2026-04-15T17:00:00+07:00\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/attendance/precheck",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "attendance",
+            "precheck"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json?.data?.precheck_token) {",
+              "  pm.collectionVariables.set('precheck_token', json.data.precheck_token);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6) Attendance - Checkout",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"employee_id\": {{employee_id}},\n  \"precheck_token\": \"{{precheck_token}}\",\n  \"client_time\": \"2026-04-15T17:01:00+07:00\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/attendance/checkout",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "attendance",
+            "checkout"
+          ]
+        }
+      }
+    },
+    {
+      "name": "7) Exceptions - Request",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"employee_id\": {{employee_id}},\n  \"precheck_token\": \"{{precheck_token}}\",\n  \"reason\": \"Lệch GPS trong hầm gửi xe, xin duyệt ngoại lệ một lần.\",\n  \"lat\": 10.7772,\n  \"lng\": 106.7001,\n  \"requested_at\": \"2026-04-15T08:05:00+07:00\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/exceptions/request",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "exceptions",
+            "request"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json?.data?.exception_id) {",
+              "  pm.collectionVariables.set('exception_id', String(json.data.exception_id));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8) Exceptions - Approve Once",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"decision\": \"APPROVE\",\n  \"note\": \"Duyệt tại chỗ do lỗi GPS.\",\n  \"valid_minutes\": 30\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/exceptions/{{exception_id}}/approve-once",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "exceptions",
+            "{{exception_id}}",
+            "approve-once"
+          ]
+        }
+      }
+    },
+    {
+      "name": "9) Risk Alerts - List",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/risk-alerts?page=1&per_page=20&status=OPEN",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "risk-alerts"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "per_page",
+              "value": "20"
+            },
+            {
+              "key": "status",
+              "value": "OPEN"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
