@@ -1,0 +1,1256 @@
+// Generated from: SQL_hackathon v2.sql  (HRM_SYSTEM)  :contentReference[oaicite:1]{index=1}
+
+Table employees {
+  employee_id int [pk, increment]
+  employee_code varchar(20) [not null, unique, note: "Mã nhân viên"]
+  full_name varchar(100) [not null, note: "Họ và tên"]
+  date_of_birth date [note: "Ngày sinh"]
+  gender varchar [note: "Giới tính | ENUM('NAM','NỮ','KHÁC')"]
+  place_of_birth varchar(200) [note: "Nơi sinh"]
+  ethnicity varchar(50) [note: "Dân tộc"]
+  religion varchar(50) [note: "Tôn giáo"]
+  marital_status varchar [note: "Tình trạng hôn nhân | ENUM('ĐỘC_THÂN','ĐÃ_KẾT_HÔN','LY_HÔN','GÓA')"]
+  phone_number varchar(20) [note: "Số điện thoại"]
+  personal_email varchar(100) [note: "Email cá nhân"]
+  company_email varchar(100) [unique, note: "Email công ty"]
+  permanent_address text [note: "Địa chỉ thường trú"]
+  current_address text [note: "Địa chỉ tạm trú"]
+  nationality_id int [note: "Quốc tịch"]
+  avatar_url varchar(500) [note: "Ảnh đại diện"]
+  bank_account varchar(30) [note: "Số tài khoản ngân hàng"]
+  bank_id int [note: "Ngân hàng"]
+  bank_branch varchar(200) [note: "Chi nhánh"]
+  emergency_contact_name varchar(100) [note: "Người liên hệ khẩn cấp"]
+  emergency_contact_phone varchar(20) [note: "SĐT liên hệ khẩn cấp"]
+  emergency_contact_relation varchar(50) [note: "Mối quan hệ"]
+  status varchar [default: 'ĐANG_LÀM_VIỆC', note: "Trạng thái | ENUM('ĐANG_LÀM_VIỆC','ĐÃ_NGHỈ_VIỆC','THỬ_VIỆC','NGHỈ_THAI_SẢN','TẠM_HOÃN_CÔNG_TÁC')"]
+  hire_date date [note: "Ngày vào làm"]
+  resignation_date date [note: "Ngày nghỉ việc"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+  created_by int
+  updated_by int
+
+  Indexes {
+    (employee_code) [name: "idx_employee_code"]
+    (status) [name: "idx_employee_status"]
+    (hire_date) [name: "idx_hire_date"]
+  }
+}
+
+Table nationalities {
+  nationality_id int [pk, increment]
+  nationality_code varchar(10) [not null, unique, note: "Mã quốc tịch"]
+  nationality_name varchar(100) [not null, note: "Tên quốc tịch"]
+}
+
+Table banks {
+  bank_id int [pk, increment]
+  bank_code varchar(20) [not null, unique, note: "Mã ngân hàng"]
+  bank_name varchar(100) [not null, note: "Tên ngân hàng"]
+  swift_code varchar(20) [note: "Mã SWIFT"]
+  status boolean [default: true]
+}
+
+Table departments {
+  department_id int [pk, increment]
+  department_code varchar(20) [not null, unique, note: "Mã phòng ban"]
+  department_name varchar(100) [not null, note: "Tên phòng ban"]
+  parent_department_id int [note: "Phòng ban cha"]
+  manager_id int [note: "Trưởng phòng"]
+  description text [note: "Mô tả"]
+  status boolean [default: true, note: "1-Hoạt động, 0-Ngừng hoạt động"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+}
+
+Table positions {
+  position_id int [pk, increment]
+  position_code varchar(20) [not null, unique, note: "Mã chức vụ"]
+  position_name varchar(100) [not null, note: "Tên chức vụ"]
+  job_description text [note: "Mô tả công việc"]
+  requirements text [note: "Yêu cầu"]
+  salary_range_min decimal(15,2) [note: "Mức lương tối thiểu"]
+  salary_range_max decimal(15,2) [note: "Mức lương tối đa"]
+  status boolean [default: true, note: "1-Hoạt động, 0-Ngừng hoạt động"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+}
+
+Table contract_types {
+  contract_type_id int [pk, increment]
+  contract_type_code varchar(20) [not null, unique, note: "Mã loại hợp đồng"]
+  contract_type_name varchar(100) [not null, note: "Tên loại hợp đồng"]
+  description text [note: "Mô tả"]
+  is_probation boolean [default: false, note: "Là hợp đồng thử việc"]
+  max_duration_months int [note: "Thời hạn tối đa (tháng)"]
+  status boolean [default: true]
+}
+
+Table contract_templates {
+  template_id int [pk, increment]
+  template_code varchar(20) [not null, unique, note: "Mã mẫu"]
+  template_name varchar(200) [not null, note: "Tên mẫu hợp đồng"]
+  contract_type_id int [not null]
+  content text [not null, note: "Nội dung mẫu"]
+  version varchar(20) [note: "Phiên bản"]
+  is_active boolean [default: true, note: "Đang sử dụng"]
+  file_url varchar(500) [note: "Đường dẫn file"]
+  effective_date date [note: "Ngày áp dụng"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+  created_by int
+}
+
+Table contracts {
+  contract_id int [pk, increment]
+  contract_code varchar(20) [not null, unique, note: "Mã hợp đồng"]
+  employee_id int [not null]
+  contract_type_id int [not null, note: "Loại hợp đồng"]
+  contract_number varchar(50) [unique, note: "Số hợp đồng"]
+  sign_date date [not null, note: "Ngày ký"]
+  effective_date date [not null, note: "Ngày hiệu lực"]
+  expiry_date date [note: "Ngày hết hạn"]
+  position_id int [note: "Chức vụ"]
+  department_id int [note: "Phòng ban"]
+  basic_salary decimal(15,2) [not null, note: "Lương cơ bản"]
+  gross_salary decimal(15,2) [not null, note: "Lương gross"]
+  net_salary decimal(15,2) [note: "Lương net"]
+  work_location varchar(200) [note: "Địa điểm làm việc"]
+  job_title varchar(100) [note: "Chức danh công việc"]
+  content text [note: "Nội dung hợp đồng"]
+  file_url varchar(500) [note: "File hợp đồng"]
+  signed_file_url varchar(500) [note: "File đã ký"]
+  contract_template_id int [note: "Mẫu hợp đồng"]
+  status varchar [default: 'CÓ_HIỆU_LỰC', note: "ENUM('CÓ_HIỆU_LỰC','HẾT_HẠN','ĐÃ_CHẤM_DỨT','CHỜ_HIỆU_LỰC')"]
+  is_renewed boolean [default: false, note: "Đã gia hạn chưa"]
+  renewed_from_contract_id int [note: "Hợp đồng được gia hạn từ"]
+  termination_reason text [note: "Lý do chấm dứt"]
+  termination_date date [note: "Ngày chấm dứt"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+  created_by int
+  updated_by int
+
+  Indexes {
+    (employee_id) [name: "idx_contract_employee"]
+    (status) [name: "idx_contract_status"]
+    (expiry_date) [name: "idx_contract_expiry"]
+  }
+}
+
+Table contract_histories {
+  history_id int [pk, increment]
+  contract_id int [not null]
+  action varchar [not null, note: "ENUM('TẠO','GIA_HẠN','CHẤM_DỨT','CẬP_NHẬT','KÝ')"]
+  action_date timestamp [default: `now()`]
+  action_by int [not null]
+  previous_value text [note: "Giá trị trước"]
+  new_value text [note: "Giá trị mới"]
+  notes text [note: "Ghi chú"]
+}
+
+Table qualification_types {
+  qualification_type_id int [pk, increment]
+  qualification_type_code varchar(20) [not null, unique, note: "Mã loại"]
+  qualification_type_name varchar(100) [not null, note: "Tên loại bằng cấp"]
+  description text
+}
+
+Table qualifications {
+  qualification_id int [pk, increment]
+  employee_id int [not null]
+  qualification_type_id int [not null, note: "Loại bằng cấp"]
+  qualification_name varchar(200) [not null, note: "Tên bằng cấp"]
+  major varchar(200) [note: "Chuyên ngành"]
+  school_name varchar(200) [note: "Trường"]
+  graduation_year int [note: "Năm tốt nghiệp"]
+  graduation_grade varchar(20) [note: "Xếp loại"]
+  issued_date date [note: "Ngày cấp"]
+  issued_by varchar(200) [note: "Nơi cấp"]
+  qualification_number varchar(50) [note: "Số hiệu"]
+  file_url varchar(500) [note: "Đường dẫn file"]
+  is_highest boolean [default: false, note: "Là bằng cấp cao nhất"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+
+  Indexes {
+    (employee_id) [name: "idx_employee_qualification"]
+  }
+}
+
+Table certificate_types {
+  certificate_type_id int [pk, increment]
+  certificate_type_code varchar(20) [not null, unique, note: "Mã loại"]
+  certificate_type_name varchar(100) [not null, note: "Tên loại chứng chỉ"]
+  description text
+}
+
+Table certificates {
+  certificate_id int [pk, increment]
+  employee_id int [not null]
+  certificate_type_id int [note: "Loại chứng chỉ"]
+  certificate_name varchar(200) [not null, note: "Tên chứng chỉ"]
+  issued_by varchar(200) [note: "Nơi cấp"]
+  issued_date date [note: "Ngày cấp"]
+  expiry_date date [note: "Ngày hết hạn"]
+  certificate_number varchar(50) [note: "Số chứng chỉ"]
+  score decimal(5,2) [note: "Điểm số"]
+  file_url varchar(500) [note: "Đường dẫn file"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+
+  Indexes {
+    (expiry_date) [name: "idx_certificate_expiry"]
+  }
+}
+
+Table document_types {
+  document_type_id int [pk, increment]
+  document_type_code varchar(20) [not null, unique, note: "Mã loại"]
+  document_type_name varchar(100) [not null, note: "Tên loại giấy tờ"]
+  description text
+}
+
+Table identity_documents {
+  identity_id int [pk, increment]
+  employee_id int [not null]
+  document_type_id int [not null, note: "Loại giấy tờ"]
+  document_number varchar(20) [not null, note: "Số giấy tờ"]
+  full_name varchar(100) [note: "Họ tên trên giấy tờ"]
+  date_of_birth date
+  issue_date date [note: "Ngày cấp"]
+  issue_place varchar(200) [note: "Nơi cấp"]
+  expiry_date date [note: "Ngày hết hạn"]
+  front_image_url varchar(500) [note: "Ảnh mặt trước"]
+  back_image_url varchar(500) [note: "Ảnh mặt sau"]
+  has_chip boolean [default: false, note: "Có gắn chip không"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+
+  Indexes {
+    (document_number) [name: "idx_identity_number"]
+  }
+}
+
+Table social_insurance_info {
+  insurance_info_id int [pk, increment]
+  employee_id int [not null]
+  social_insurance_number varchar(20) [not null, unique, note: "Số BHXH"]
+  health_insurance_number varchar(20) [not null, unique, note: "Số BHYT"]
+  tax_code varchar(20) [unique, note: "Mã số thuế"]
+  issue_date date [note: "Ngày cấp"]
+  issue_place varchar(200) [note: "Nơi cấp"]
+  status varchar [default: 'ACTIVE', note: "ENUM('ACTIVE','SUSPENDED','TERMINATED')"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+
+  Indexes {
+    (employee_id) [unique, name: "unique_employee_insurance"]
+  }
+}
+
+Table dependents {
+  dependent_id int [pk, increment]
+  employee_id int [not null]
+  full_name varchar(100) [not null, note: "Họ tên"]
+  relationship varchar(50) [not null, note: "Quan hệ"]
+  date_of_birth date
+  id_card_number varchar(20) [note: "Số CMND/CCCD"]
+  tax_code varchar(20) [note: "Mã số thuế"]
+  deduction_percent decimal(5,2) [default: 100.00, note: "Phần trăm giảm trừ"]
+  start_date date [note: "Ngày bắt đầu"]
+  end_date date [note: "Ngày kết thúc"]
+  status boolean [default: true, note: "Còn hiệu lực"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+}
+
+Table employment_histories {
+  history_id int [pk, increment]
+  employee_id int [not null]
+  department_id int [not null]
+  position_id int [not null]
+  start_date date [not null]
+  end_date date
+  is_current boolean [default: false]
+  decision_number varchar(50) [note: "Số quyết định"]
+  decision_date date [note: "Ngày quyết định"]
+  notes text
+  created_at timestamp [default: `now()`]
+}
+
+// -------------------- ASSET MANAGEMENT --------------------
+
+Table asset_categories {
+  category_id int [pk, increment]
+  category_code varchar(20) [not null, unique, note: "Mã danh mục"]
+  category_name varchar(100) [not null, note: "Tên danh mục"]
+  description text
+  depreciation_method varchar [default: 'ĐƯỜNG_THẲNG', note: "ENUM('ĐƯỜNG_THẲNG','SỐ_DƯ_GIẢM_DẦN','THEO_SẢN_LƯỢNG')"]
+  depreciation_years int [note: "Số năm khấu hao"]
+  status boolean [default: true, note: "Hoạt động"]
+  created_at timestamp [default: `now()`]
+}
+
+Table suppliers {
+  supplier_id int [pk, increment]
+  supplier_code varchar(20) [not null, unique, note: "Mã nhà cung cấp"]
+  supplier_name varchar(200) [not null, note: "Tên nhà cung cấp"]
+  tax_code varchar(20) [note: "Mã số thuế"]
+  address text
+  phone varchar(20)
+  email varchar(100)
+  contact_person varchar(100)
+  status boolean [default: true]
+  created_at timestamp [default: `now()`]
+}
+
+Table asset_locations {
+  location_id int [pk, increment]
+  location_code varchar(20) [not null, unique, note: "Mã vị trí"]
+  location_name varchar(200) [not null, note: "Tên vị trí"]
+  address text
+  department_id int [note: "Phòng ban quản lý"]
+}
+
+Table assets {
+  asset_id int [pk, increment]
+  asset_code varchar(20) [not null, unique, note: "Mã tài sản"]
+  asset_name varchar(200) [not null, note: "Tên tài sản"]
+  category_id int
+  supplier_id int
+  serial_number varchar(50) [unique, note: "Số serial"]
+  inventory_number varchar(50) [unique, note: "Số kiểm kê"]
+  brand varchar(100) [note: "Thương hiệu"]
+  model varchar(100) [note: "Model"]
+  color varchar(30) [note: "Màu sắc"]
+  purchase_date date [note: "Ngày mua"]
+  purchase_price decimal(15,2) [note: "Giá mua"]
+  original_price decimal(15,2) [note: "Nguyên giá"]
+  current_value decimal(15,2) [note: "Giá trị hiện tại"]
+  warranty_expiry date [note: "Hạn bảo hành"]
+  location_id int [note: "Vị trí"]
+  status varchar [default: 'CÓ_SẴN', note: "ENUM('CÓ_SẴN','ĐÃ_CẤP_PHÁT','ĐANG_BẢO_TRÌ','HỎNG','THANH_LÝ')"]
+  condition_note text [note: "Tình trạng"]
+  specifications text [note: "Thông số kỹ thuật"]
+  image_url varchar(500)
+  notes text
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+
+  Indexes {
+    (status) [name: "idx_asset_status"]
+  }
+}
+
+Table asset_assignments {
+  assignment_id int [pk, increment]
+  asset_id int [not null]
+  employee_id int [not null]
+  assigned_by int [not null]
+  assigned_date datetime [not null, note: "Ngày cấp phát"]
+  expected_return_date date [note: "Ngày dự kiến trả"]
+  actual_return_date datetime [note: "Ngày trả thực tế"]
+  assignment_notes text [note: "Ghi chú cấp phát"]
+  condition_before text [note: "Tình trạng trước khi cấp"]
+  condition_after text [note: "Tình trạng sau khi thu hồi"]
+  status varchar [default: 'ĐANG_SỬ_DỤNG', note: "ENUM('ĐANG_SỬ_DỤNG','ĐÃ_TRẢ','MẤT','HỎNG')"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+
+  Indexes {
+    (asset_id, employee_id, status) [name: "idx_asset_assignment"]
+  }
+}
+
+Table asset_incidents {
+  incident_id int [pk, increment]
+  assignment_id int
+  asset_id int [not null]
+  reported_by int [not null]
+  incident_date datetime [not null, note: "Ngày xảy ra"]
+  incident_type varchar [not null, note: "ENUM('MẤT','HỎNG','TRỤC_TRẶC')"]
+  description text [not null]
+  damage_level varchar [note: "ENUM('NHẸ','TRUNG_BÌNH','NẶNG','MẤT_HOÀN_TOÀN')"]
+  estimated_cost decimal(15,2) [note: "Chi phí dự kiến"]
+  resolution_notes text [note: "Biện pháp xử lý"]
+  resolved_by int [note: "Người xử lý"]
+  resolved_date datetime [note: "Ngày xử lý"]
+  status varchar [default: 'ĐÃ_BÁO_CÁO', note: "ENUM('ĐÃ_BÁO_CÁO','ĐANG_XỬ_LÝ','ĐÃ_XỬ_LÝ','ĐÓNG')"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+}
+
+Table asset_maintenance {
+  maintenance_id int [pk, increment]
+  asset_id int [not null]
+  maintenance_date date [not null]
+  maintenance_type varchar [not null, note: "ENUM('ĐỊNH_KỲ','SỬA_CHỮA','BẢO_HÀNH')"]
+  description text
+  cost decimal(15,2)
+  performed_by varchar(200)
+  next_maintenance_date date
+  notes text
+  created_at timestamp [default: `now()`]
+}
+
+// -------------------- SHIFT & ATTENDANCE --------------------
+
+Table shift_types {
+  shift_type_id int [pk, increment]
+  shift_code varchar(20) [not null, unique, note: "Mã ca"]
+  shift_name varchar(100) [not null, note: "Tên ca"]
+  start_time time [not null, note: "Giờ bắt đầu"]
+  end_time time [not null, note: "Giờ kết thúc"]
+  break_start time [note: "Giờ nghỉ bắt đầu"]
+  break_end time [note: "Giờ nghỉ kết thúc"]
+  working_hours decimal(5,2) [note: "Số giờ làm việc"]
+  is_night_shift boolean [default: false, note: "Ca đêm"]
+  allow_overtime boolean [default: true, note: "Cho phép tăng ca"]
+  allow_wfh boolean [default: false, note: "Cho phép làm việc từ xa"]
+  coefficient decimal(3,2) [default: 1.00, note: "Hệ số ca"]
+  color_code varchar(7) [note: "Mã màu hiển thị"]
+  description text
+  status boolean [default: true, note: "Hoạt động"]
+  created_at timestamp [default: `now()`]
+}
+
+Table shift_schedules {
+  schedule_id int [pk, increment]
+  schedule_code varchar(20) [not null, unique]
+  schedule_name varchar(100) [not null]
+  department_id int
+  effective_from date [not null]
+  effective_to date
+  is_active boolean [default: true]
+  created_at timestamp [default: `now()`]
+}
+
+Table shift_schedule_details {
+  detail_id int [pk, increment]
+  schedule_id int [not null]
+  day_of_week tinyint [note: "1-7: CN-thứ 7"]
+  shift_type_id int
+  is_holiday boolean [default: false]
+}
+
+Table shift_assignments {
+  assignment_id int [pk, increment]
+  employee_id int [not null]
+  shift_type_id int [not null]
+  effective_date date [not null, note: "Ngày hiệu lực"]
+  expiry_date date [note: "Ngày hết hạn"]
+  is_permanent boolean [default: false, note: "Ca cố định"]
+  assigned_by int [not null]
+  notes text
+  status varchar [default: 'HIỆU_LỰC', note: "ENUM('HIỆU_LỰC','HẾT_HIỆU_LỰC','CHỜ_DUYỆT')"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+
+  Indexes {
+    (employee_id, effective_date) [unique, name: "unique_employee_shift"]
+  }
+}
+
+Table shift_swaps {
+  swap_id int [pk, increment]
+  requester_id int [not null, note: "Người yêu cầu"]
+  target_employee_id int [not null, note: "Người muốn đổi"]
+  shift_date date [not null, note: "Ngày đổi ca"]
+  original_shift_id int [not null, note: "Ca hiện tại"]
+  requested_shift_id int [not null, note: "Ca yêu cầu"]
+  swap_reason text [note: "Lý do"]
+  approver_id int [note: "Người duyệt"]
+  approval_status varchar [default: 'CHỜ_DUYỆT', note: "ENUM('CHỜ_DUYỆT','ĐÃ_DUYỆT','TỪ_CHỐI','ĐÃ_HỦY')"]
+  approval_date datetime
+  approval_notes text
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+}
+
+Table attendances {
+  attendance_id int [pk, increment]
+  employee_id int [not null]
+  attendance_date date [not null, note: "Ngày chấm công"]
+  shift_type_id int
+  check_in_time datetime [note: "Giờ check-in"]
+  check_out_time datetime [note: "Giờ check-out"]
+  check_in_method varchar [note: "ENUM('MÁY_QUÉT','MOBILE','MANUAL')"]
+  check_out_method varchar [note: "ENUM('MÁY_QUÉT','MOBILE','MANUAL')"]
+  check_in_latitude decimal(10,8) [note: "Vĩ độ check-in"]
+  check_in_longitude decimal(11,8) [note: "Kinh độ check-in"]
+  check_out_latitude decimal(10,8) [note: "Vĩ độ check-out"]
+  check_out_longitude decimal(11,8) [note: "Kinh độ check-out"]
+  work_type varchar [default: 'VĂN_PHÒNG', note: "ENUM('VĂN_PHÒNG','LÀM_TỪ_XA','CÔNG_TÁC','ĐI_CÔNG_TÁC')"]
+  actual_working_hours decimal(5,2) [note: "Số giờ làm thực tế"]
+  overtime_hours decimal(5,2) [note: "Số giờ tăng ca"]
+  late_minutes int [default: 0, note: "Số phút đi muộn"]
+  early_leave_minutes int [default: 0, note: "Số phút về sớm"]
+  is_holiday boolean [default: false, note: "Ngày lễ"]
+  is_overtime boolean [default: false, note: "Có tăng ca"]
+  status varchar [default: 'CHỜ_DUYỆT', note: "ENUM('CHỜ_DUYỆT','ĐÃ_DUYỆT','TỪ_CHỐI','NHẬP_THỦ_CÔNG')"]
+  notes text
+  approved_by int
+  approved_date datetime
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+
+  Indexes {
+    (employee_id, attendance_date) [unique, name: "unique_attendance"]
+    (attendance_date) [name: "idx_attendance_date"]
+    (status) [name: "idx_attendance_status"]
+  }
+}
+
+Table shift_tasks {
+  task_id int [pk, increment]
+  attendance_id int [not null]
+  task_name varchar(200) [not null, note: "Tên công việc"]
+  description text
+  start_time datetime [note: "Giờ bắt đầu dự kiến"]
+  end_time datetime [note: "Giờ kết thúc dự kiến"]
+  actual_start_time datetime [note: "Giờ bắt đầu thực tế"]
+  actual_end_time datetime [note: "Giờ kết thúc thực tế"]
+  status varchar [default: 'CHỜ_THỰC_HIỆN', note: "ENUM('CHỜ_THỰC_HIỆN','ĐANG_THỰC_HIỆN','HOÀN_THÀNH','ĐÃ_HỦY')"]
+  priority varchar [default: 'TRUNG_BÌNH', note: "ENUM('THẤP','TRUNG_BÌNH','CAO','KHẨN_CẤP')"]
+  notes text
+  completed_by int
+  completion_notes text
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+}
+
+Table overtime_requests {
+  overtime_id int [pk, increment]
+  request_id int [not null]
+  employee_id int [not null]
+  overtime_date date [not null]
+  start_time time [not null]
+  end_time time [not null]
+  break_time int [default: 0, note: "Thời gian nghỉ (phút)"]
+  total_hours decimal(5,2) [note: "GENERATED: TIMESTAMPDIFF(HOUR,start_time,end_time) - break_time/60"]
+  reason text
+  approved_by int
+  approved_date datetime
+  status varchar [default: 'CHỜ_DUYỆT', note: "ENUM('CHỜ_DUYỆT','ĐÃ_DUYỆT','TỪ_CHỐI')"]
+  created_at timestamp [default: `now()`]
+}
+
+// -------------------- REQUESTS & APPROVALS --------------------
+
+Table request_types {
+  request_type_id int [pk, increment]
+  request_type_code varchar(50) [not null, unique, note: "Mã loại đơn"]
+  request_type_name varchar(200) [not null, note: "Tên loại đơn"]
+  category varchar [not null, note: "ENUM('NGHỈ_PHÉP','TĂNG_CA','ĐIỀU_CHỈNH_CÔNG','CÔNG_TÁC','TẠM_ỨNG_LƯƠNG','THANH_TOÁN','KỶ_LUẬT','ĐI_MUỘN_VỀ_SỚM','SUẤT_ĂN','KHÁC')"]
+  requires_approval boolean [default: true, note: "Cần phê duyệt"]
+  approval_flow_id int [note: "Quy trình phê duyệt"]
+  form_template text [note: "Mẫu đơn"]
+  description text
+  is_active boolean [default: true, note: "Còn hoạt động"]
+  created_at timestamp [default: `now()`]
+}
+
+Table approval_flows {
+  approval_flow_id int [pk, increment]
+  flow_name varchar(200) [not null, note: "Tên quy trình"]
+  request_type_id int [not null]
+  description text
+  is_active boolean [default: true, note: "Còn hiệu lực"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+}
+
+Table approval_roles {
+  role_id int [pk, increment]
+  role_code varchar(50) [not null, unique]
+  role_name varchar(100) [not null]
+  description text
+}
+
+Table approval_steps {
+  step_id int [pk, increment]
+  approval_flow_id int [not null]
+  step_order int [not null, note: "Thứ tự bước"]
+  approver_type varchar [not null, note: "ENUM('VAI_TRÒ','CHỨC_VỤ','TRƯỞNG_PHÒNG','NHÂN_VIÊN_CỤ_THỂ')"]
+  approver_value int [note: "ID vai trò/chức vụ/nhân viên"]
+  condition text [note: "Điều kiện áp dụng"]
+  is_parallel boolean [default: false, note: "Phê duyệt song song"]
+  required_votes int [default: 1, note: "Số phiếu cần nếu song song"]
+  allow_reject boolean [default: true, note: "Cho phép từ chối"]
+  reject_to_step int [note: "Bước quay lại nếu từ chối"]
+  auto_approve boolean [default: false, note: "Tự động duyệt"]
+  auto_approve_after_hours int [note: "Tự động duyệt sau (giờ)"]
+  created_at timestamp [default: `now()`]
+}
+
+Table requests {
+  request_id int [pk, increment]
+  request_code varchar(50) [not null, unique, note: "Mã đơn"]
+  request_type_id int [not null]
+  requester_id int [not null, note: "Người yêu cầu"]
+  request_date date [not null, note: "Ngày tạo đơn"]
+  from_date datetime [note: "Từ ngày"]
+  to_date datetime [note: "Đến ngày"]
+  duration decimal(5,2) [note: "Thời gian (số ngày/giờ)"]
+  reason text [note: "Lý do"]
+  status varchar [default: 'NHÁP', note: "ENUM('NHÁP','CHỜ_DUYỆT','ĐANG_XỬ_LÝ','ĐÃ_DUYỆT','TỪ_CHỐI','ĐÃ_HỦY','HOÀN_THÀNH')"]
+  current_step_id int [note: "Bước hiện tại"]
+  is_urgent boolean [default: false, note: "Khẩn cấp"]
+  attachments text [note: "File đính kèm"]
+  notes text [note: "Ghi chú"]
+  completed_date datetime [note: "Ngày hoàn thành"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+  created_by int
+  updated_by int
+
+  Indexes {
+    (status) [name: "idx_request_status"]
+    (request_date) [name: "idx_request_date"]
+  }
+}
+
+Table request_data {
+  data_id int [pk, increment]
+  request_id int [not null]
+  field_name varchar(100) [not null, note: "Tên trường dữ liệu"]
+  field_value text [note: "Giá trị"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+
+  Indexes {
+    (request_id, field_name) [unique, name: "unique_request_field"]
+  }
+}
+
+Table approval_histories {
+  history_id int [pk, increment]
+  request_id int [not null]
+  step_id int
+  approver_id int [not null]
+  action varchar [not null, note: "ENUM('GỬI_DUYỆT','DUYỆT','TỪ_CHỐI','YÊU_CẦU_SỬA','HỦY','NHẮC_DUYỆT')"]
+  action_date datetime [default: `now()`]
+  comments text [note: "Ý kiến"]
+  next_step_id int [note: "Bước tiếp theo"]
+  attachments text
+  ip_address varchar(45)
+  created_at timestamp [default: `now()`]
+}
+
+// -------------------- LEAVE MANAGEMENT --------------------
+
+Table leave_types {
+  leave_type_id int [pk, increment]
+  leave_type_code varchar(20) [not null, unique, note: "Mã loại phép"]
+  leave_type_name varchar(100) [not null, note: "Tên loại phép"]
+  paid_leave boolean [default: true, note: "Có lương"]
+  percentage_salary decimal(5,2) [default: 100.00, note: "Phần trăm lương được hưởng"]
+  max_days_per_year int [note: "Số ngày tối đa/năm"]
+  max_consecutive_days int [note: "Số ngày liên tiếp tối đa"]
+  requires_attachment boolean [default: false, note: "Yêu cầu đính kèm"]
+  requires_doctor_note boolean [default: false, note: "Yêu cầu giấy khám bệnh"]
+  deduct_from_annual boolean [default: true, note: "Trừ vào phép năm"]
+  min_days_advance_notice int [default: 0, note: "Số ngày báo trước tối thiểu"]
+  applicable_for_gender varchar [default: 'TẤT_CẢ', note: "ENUM('TẤT_CẢ','NAM','NỮ')"]
+  carry_forward boolean [default: false, note: "Chuyển sang năm sau"]
+  max_carry_forward_days int [default: 0, note: "Số ngày tối đa được chuyển"]
+  description text
+  status boolean [default: true, note: "Còn hiệu lực"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+}
+
+Table holidays {
+  holiday_id int [pk, increment]
+  holiday_name varchar(200) [not null, note: "Tên ngày lễ"]
+  holiday_date date [not null, note: "Ngày lễ"]
+  is_recurring boolean [default: false, note: "Lặp lại hàng năm"]
+  year int [note: "Năm"]
+  paid_holiday boolean [default: true, note: "Hưởng lương"]
+  description text
+  created_at timestamp [default: `now()`]
+
+  Indexes {
+    (holiday_date, year) [unique, name: "unique_holiday_date"]
+  }
+}
+
+Table leave_balances {
+  balance_id int [pk, increment]
+  employee_id int [not null]
+  year int [not null]
+  leave_type_id int [not null]
+  total_days decimal(5,2) [not null, note: "Tổng số ngày phép"]
+  used_days decimal(5,2) [default: 0, note: "Đã dùng"]
+  pending_days decimal(5,2) [default: 0, note: "Đang chờ duyệt"]
+  remaining_days decimal(5,2) [note: "GENERATED: total_days - used_days - pending_days"]
+  carried_over_days decimal(5,2) [default: 0, note: "Phép chuyển từ năm trước"]
+  expired_days decimal(5,2) [default: 0, note: "Phép hết hạn"]
+  notes text
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+
+  Indexes {
+    (employee_id, leave_type_id, year) [unique, name: "unique_employee_leave_year"]
+  }
+}
+
+Table leave_requests {
+  leave_request_id int [pk, increment]
+  request_id int [not null, unique]
+  leave_type_id int [not null]
+  employee_id int [not null]
+  from_date date [not null, note: "Từ ngày"]
+  to_date date [not null, note: "Đến ngày"]
+  from_session varchar [default: 'CẢ_NGÀY', note: "ENUM('SÁNG','CHIỀU','CẢ_NGÀY')"]
+  to_session varchar [default: 'CẢ_NGÀY', note: "ENUM('SÁNG','CHIỀU','CẢ_NGÀY')"]
+  number_of_days decimal(5,2) [not null, note: "Số ngày nghỉ"]
+  paid_days decimal(5,2) [default: 0, note: "Số ngày hưởng lương"]
+  unpaid_days decimal(5,2) [default: 0, note: "Số ngày không lương"]
+  substitute_employee_id int [note: "Người thay thế"]
+  handover_notes text [note: "Bàn giao"]
+  contact_phone varchar(20) [note: "SĐT liên hệ"]
+  emergency_contact varchar(100) [note: "Liên hệ khẩn cấp"]
+  doctor_note_url varchar(500) [note: "Giấy khám bệnh"]
+  attachment_url varchar(500) [note: "File đính kèm"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+
+  Indexes {
+    (from_date, to_date) [name: "idx_leave_requests_dates"]
+  }
+}
+
+Table leave_transactions {
+  transaction_id int [pk, increment]
+  employee_id int [not null]
+  leave_type_id int [not null]
+  transaction_date date [not null]
+  transaction_type varchar [not null, note: "ENUM('CẤP_PHÉP','SỬ_DỤNG','HOÀN_PHÉP','CHUYỂN_NĂM','ĐIỀU_CHỈNH','HẾT_HẠN')"]
+  quantity decimal(5,2) [not null]
+  before_balance decimal(5,2) [not null]
+  after_balance decimal(5,2) [not null]
+  reference_id int
+  reference_type varchar(50)
+  reason text
+  created_by int
+  created_at timestamp [default: `now()`]
+
+  Indexes {
+    (employee_id) [name: "idx_leave_transaction_employee"]
+  }
+}
+
+// -------------------- PAYROLL --------------------
+
+Table allowances {
+  allowance_id int [pk, increment]
+  allowance_code varchar(20) [not null, unique]
+  allowance_name varchar(100) [not null]
+  allowance_type varchar [not null, note: "ENUM('FIXED','PERCENTAGE_OF_SALARY','PERCENTAGE_OF_BASIC')"]
+  calculation_method varchar [default: 'MONTHLY', note: "ENUM('MONTHLY','DAILY','HOURLY','ONE_TIME')"]
+  is_taxable boolean [default: true]
+  is_insurable boolean [default: true]
+  description text
+  status boolean [default: true]
+  created_at timestamp [default: `now()`]
+}
+
+Table deductions {
+  deduction_id int [pk, increment]
+  deduction_code varchar(20) [not null, unique]
+  deduction_name varchar(100) [not null]
+  deduction_type varchar [not null, note: "ENUM('FIXED','PERCENTAGE_OF_SALARY','PERCENTAGE_OF_BASIC')"]
+  is_mandatory boolean [default: false]
+  description text
+  status boolean [default: true]
+  created_at timestamp [default: `now()`]
+}
+
+Table employee_allowances {
+  employee_allowance_id int [pk, increment]
+  employee_id int [not null]
+  allowance_id int [not null]
+  amount decimal(15,2)
+  percentage decimal(5,2)
+  effective_date date [not null]
+  expiry_date date
+  is_active boolean [default: true]
+  notes text
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+}
+
+Table employee_deductions {
+  employee_deduction_id int [pk, increment]
+  employee_id int [not null]
+  deduction_id int [not null]
+  amount decimal(15,2)
+  percentage decimal(5,2)
+  effective_date date [not null]
+  expiry_date date
+  is_active boolean [default: true]
+  notes text
+  created_at timestamp [default: `now()`]
+}
+
+Table salary_periods {
+  period_id int [pk, increment]
+  period_code varchar(20) [not null, unique, note: "Mã kỳ lương"]
+  period_name varchar(100) [not null, note: "Tên kỳ lương"]
+  period_type varchar [default: 'MONTHLY', note: "ENUM('MONTHLY','BIWEEKLY','WEEKLY')"]
+  year int [not null]
+  month int
+  start_date date [not null]
+  end_date date [not null]
+  payment_date date
+  standard_working_days int [default: 26, note: "Ngày công chuẩn"]
+  status varchar [default: 'OPEN', note: "ENUM('OPEN','CALCULATING','REVIEWING','APPROVED','PAID','CLOSED')"]
+  closed_by int
+  closed_date datetime
+  notes text
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+}
+
+Table salary_attendance_summary {
+  summary_id int [pk, increment]
+  employee_id int [not null]
+  period_id int [not null]
+  standard_days int [not null, note: "Ngày công chuẩn"]
+  actual_working_days int [default: 0, note: "Ngày công thực tế"]
+  paid_leave_days decimal(5,2) [default: 0, note: "Nghỉ có lương"]
+  unpaid_leave_days decimal(5,2) [default: 0, note: "Nghỉ không lương"]
+  holiday_days int [default: 0, note: "Ngày lễ"]
+  overtime_hours decimal(5,2) [default: 0, note: "Giờ tăng ca"]
+  late_minutes int [default: 0]
+  early_leave_minutes int [default: 0]
+  total_paid_days decimal(5,2) [note: "GENERATED: actual_working_days + paid_leave_days"]
+  created_at timestamp [default: `now()`]
+
+  Indexes {
+    (employee_id, period_id) [unique, name: "unique_employee_period"]
+  }
+}
+
+Table salary_details {
+  salary_detail_id int [pk, increment]
+  period_id int [not null]
+  employee_id int [not null]
+  contract_id int
+  basic_salary decimal(15,2) [not null]
+  gross_salary decimal(15,2) [not null]
+  net_salary decimal(15,2) [not null]
+  total_allowances decimal(15,2) [default: 0]
+  total_deductions decimal(15,2) [default: 0]
+  overtime_pay decimal(15,2) [default: 0]
+  leave_pay decimal(15,2) [default: 0]
+  bonus decimal(15,2) [default: 0]
+  penalty decimal(15,2) [default: 0]
+  social_insurance_employee decimal(15,2) [default: 0]
+  social_insurance_company decimal(15,2) [default: 0]
+  health_insurance_employee decimal(15,2) [default: 0]
+  health_insurance_company decimal(15,2) [default: 0]
+  unemployment_insurance_employee decimal(15,2) [default: 0]
+  unemployment_insurance_company decimal(15,2) [default: 0]
+  personal_income_tax decimal(15,2) [default: 0]
+  advance_payment decimal(15,2) [default: 0]
+  final_amount decimal(15,2) [note: "GENERATED: gross_salary + overtime_pay + leave_pay + bonus - total_deductions - social_insurance_employee - health_insurance_employee - unemployment_insurance_employee - personal_income_tax - advance_payment - penalty"]
+  bank_account varchar(30)
+  bank_name varchar(100)
+  transfer_status varchar [default: 'PENDING', note: "ENUM('PENDING','TRANSFERRED','FAILED')"]
+  transfer_date datetime
+  notes text
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+
+  Indexes {
+    (period_id, employee_id) [unique, name: "unique_period_employee"]
+    (period_id) [name: "idx_salary_period"]
+  }
+}
+
+Table salary_breakdowns {
+  breakdown_id int [pk, increment]
+  salary_detail_id int [not null]
+  item_type varchar [not null, note: "ENUM('ALLOWANCE','DEDUCTION','BONUS','PENALTY','OVERTIME','LEAVE','OTHER')"]
+  item_id int
+  item_name varchar(200) [not null]
+  amount decimal(15,2) [not null]
+  is_taxable boolean [default: false]
+  is_insurable boolean [default: false]
+  description text
+  created_at timestamp [default: `now()`]
+}
+
+Table salary_leave_details {
+  salary_leave_id int [pk, increment]
+  salary_detail_id int [not null]
+  leave_request_id int [not null]
+  leave_type_id int [not null]
+  leave_days decimal(5,2) [not null]
+  percentage_salary decimal(5,2) [not null]
+  paid_amount decimal(15,2) [not null]
+  deduction_amount decimal(15,2) [default: 0]
+  notes text
+  created_at timestamp [default: `now()`]
+}
+
+// -------------------- INTERNAL COMMUNICATION --------------------
+
+Table news_categories {
+  category_id int [pk, increment]
+  category_code varchar(20) [not null, unique]
+  category_name varchar(100) [not null]
+  description text
+  status boolean [default: true]
+}
+
+Table news {
+  news_id int [pk, increment]
+  news_code varchar(50) [not null, unique]
+  category_id int
+  title varchar(500) [not null]
+  summary text
+  content longtext
+  priority varchar [default: 'TRUNG_BÌNH', note: "ENUM('THẤP','TRUNG_BÌNH','CAO','KHẨN_CẤP')"]
+  is_important boolean [default: false]
+  is_pinned boolean [default: false]
+  published_date datetime
+  expiry_date datetime
+  published_by int
+  department_id int
+  position_id int
+  attachment_url varchar(500)
+  image_url varchar(500)
+  view_count int [default: 0]
+  status varchar [default: 'NHÁP', note: "ENUM('NHÁP','ĐÃ_XUẤT_BẢN','LƯU_TRỮ')"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+  created_by int
+  updated_by int
+
+  Indexes {
+    (published_date) [name: "idx_news_published"]
+  }
+}
+
+Table news_reads {
+  read_id int [pk, increment]
+  news_id int [not null]
+  employee_id int [not null]
+  read_date datetime [default: `now()`]
+  ip_address varchar(45)
+  device_info varchar(500)
+
+  Indexes {
+    (news_id, employee_id) [unique, name: "unique_news_employee"]
+  }
+}
+
+Table policies {
+  policy_id int [pk, increment]
+  policy_code varchar(50) [not null, unique]
+  policy_name varchar(200) [not null]
+  policy_type varchar [not null, note: "ENUM('QUY_DINH','QUY_TRINH','HUONG_DAN','MAU_BIEU')"]
+  content longtext
+  version varchar(20)
+  effective_date date
+  expiry_date date
+  department_id int
+  file_url varchar(500)
+  is_required_acknowledgment boolean [default: false]
+  status varchar [default: 'NHÁP', note: "ENUM('NHÁP','HIỆU_LỰC','HẾT_HIỆU_LỰC')"]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+  created_by int
+  approved_by int
+  approved_date datetime
+}
+
+Table policy_acknowledgments {
+  acknowledgment_id int [pk, increment]
+  policy_id int [not null]
+  employee_id int [not null]
+  acknowledged_date datetime [default: `now()`]
+  ip_address varchar(45)
+
+  Indexes {
+    (policy_id, employee_id) [unique, name: "unique_policy_employee"]
+  }
+}
+
+// -------------------- RBAC & REPORTS --------------------
+
+Table roles {
+  role_id int [pk, increment]
+  role_code varchar(50) [not null, unique]
+  role_name varchar(100) [not null]
+  description text
+  is_system_role boolean [default: false]
+  created_at timestamp [default: `now()`]
+}
+
+Table permissions {
+  permission_id int [pk, increment]
+  permission_code varchar(100) [not null, unique]
+  permission_name varchar(200) [not null]
+  module varchar(50)
+  description text
+}
+
+Table role_permissions {
+  role_permission_id int [pk, increment]
+  role_id int [not null]
+  permission_id int [not null]
+  can_access boolean [default: true]
+  can_create boolean [default: false]
+  can_edit boolean [default: false]
+  can_delete boolean [default: false]
+  can_approve boolean [default: false]
+  can_export boolean [default: false]
+  created_at timestamp [default: `now()`]
+
+  Indexes {
+    (role_id, permission_id) [unique, name: "unique_role_permission"]
+  }
+}
+
+Table employee_permissions {
+  employee_permission_id int [pk, increment]
+  employee_id int [not null]
+  permission_id int [not null]
+  can_access boolean [default: true]
+  can_create boolean [default: false]
+  can_edit boolean [default: false]
+  can_delete boolean [default: false]
+  can_approve boolean [default: false]
+  can_export boolean [default: false]
+  created_at timestamp [default: `now()`]
+
+  Indexes {
+    (employee_id, permission_id) [unique, name: "unique_employee_permission"]
+  }
+}
+
+Table employee_roles {
+  employee_role_id int [pk, increment]
+  employee_id int [not null]
+  role_id int [not null]
+  department_id int
+  effective_date date [not null]
+  expiry_date date
+  is_active boolean [default: true]
+  created_at timestamp [default: `now()`]
+
+  Indexes {
+    (employee_id, role_id, department_id) [unique, name: "unique_employee_role"]
+  }
+}
+
+Table report_templates {
+  template_id int [pk, increment]
+  template_code varchar(50) [not null, unique]
+  template_name varchar(200) [not null]
+  report_type varchar [not null, note: "ENUM('NHAN_SU','LUONG','CHAM_CONG','NGHI_PHEP','TAI_SAN','TONG_HOP')"]
+  sql_query text
+  columns_config text [note: "JSON cấu hình cột"]
+  filters_config text
+  chart_config text
+  created_by int
+  is_public boolean [default: false]
+  status boolean [default: true]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+}
+
+Table report_histories {
+  history_id int [pk, increment]
+  report_code varchar(50) [not null]
+  report_name varchar(200) [not null]
+  executed_by int [not null]
+  executed_date datetime [default: `now()`]
+  parameters text
+  result_summary text
+  file_url varchar(500)
+  execution_time int [note: "ms"]
+}
+
+// -------------------- SYSTEM CONFIG & NOTIFICATIONS --------------------
+
+Table system_configs {
+  config_id int [pk, increment]
+  config_key varchar(100) [not null, unique]
+  config_value text
+  config_type varchar [default: 'TEXT', note: "ENUM('TEXT','NUMBER','BOOLEAN','JSON','FILE')"]
+  description text
+  module varchar(50)
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`, note: "ON UPDATE CURRENT_TIMESTAMP"]
+}
+
+Table notifications {
+  notification_id int [pk, increment]
+  notification_type varchar [not null, note: "ENUM('HOP_DONG_SAP_HET_HAN','NGHI_PHEP_SAP_HET','DUYET_DON','SINH_NHAT','THONG_BAO_KHAC')"]
+  title varchar(200) [not null]
+  content text
+  sender_id int
+  receiver_id int
+  department_id int
+  is_read boolean [default: false]
+  read_date datetime
+  priority varchar [default: 'TRUNG_BÌNH', note: "ENUM('THẤP','TRUNG_BÌNH','CAO')"]
+  link varchar(500)
+  created_at timestamp [default: `now()`]
+
+  Indexes {
+    (receiver_id, is_read) [name: "idx_notifications_receiver"]
+  }
+}
+
+/* =========================
+   Relationships (Foreign Keys)
+   ========================= */
+
+// departments
+Ref: departments.parent_department_id > departments.department_id
+Ref: departments.manager_id > employees.employee_id
+
+// employees
+Ref: employees.nationality_id > nationalities.nationality_id
+Ref: employees.bank_id > banks.bank_id
+Ref: employees.created_by > employees.employee_id
+Ref: employees.updated_by > employees.employee_id
+
+// contracts
+Ref: contracts.employee_id > employees.employee_id
+Ref: contracts.contract_type_id > contract_types.contract_type_id
+Ref: contracts.position_id > positions.position_id
+Ref: contracts.department_id > departments.department_id
+Ref: contracts.renewed_from_contract_id > contracts.contract_id
+Ref: contracts.created_by > employees.employee_id
+Ref: contracts.updated_by > employees.employee_id
+Ref: contracts.contract_template_id > contract_templates.template_id
+
+// contract_templates
+Ref: contract_templates.contract_type_id > contract_types.contract_type_id
+Ref: contract_templates.created_by > employees.employee_id
+
+// contract_histories
+Ref: contract_histories.contract_id > contracts.contract_id
+Ref: contract_histories.action_by > employees.employee_id
+
+// qualifications, certificates, identity, insurance
+Ref: qualifications.employee_id > employees.employee_id
+Ref: qualifications.qualification_type_id > qualification_types.qualification_type_id
+Ref: certificates.employee_id > employees.employee_id
+Ref: certificates.certificate_type_id > certificate_types.certificate_type_id
+Ref: identity_documents.employee_id > employees.employee_id
+Ref: identity_documents.document_type_id > document_types.document_type_id
+Ref: social_insurance_info.employee_id > employees.employee_id
+Ref: dependents.employee_id > employees.employee_id
+Ref: employment_histories.employee_id > employees.employee_id
+Ref: employment_histories.department_id > departments.department_id
+Ref: employment_histories.position_id > positions.position_id
+
+// assets
+Ref: asset_locations.department_id > departments.department_id
+Ref: assets.category_id > asset_categories.category_id
+Ref: assets.supplier_id > suppliers.supplier_id
+Ref: assets.location_id > asset_locations.location_id
+Ref: asset_assignments.asset_id > assets.asset_id
+Ref: asset_assignments.employee_id > employees.employee_id
+Ref: asset_assignments.assigned_by > employees.employee_id
+Ref: asset_incidents.asset_id > assets.asset_id
+Ref: asset_incidents.assignment_id > asset_assignments.assignment_id
+Ref: asset_incidents.reported_by > employees.employee_id
+Ref: asset_incidents.resolved_by > employees.employee_id
+Ref: asset_maintenance.asset_id > assets.asset_id
+
+// shifts & attendance
+Ref: shift_schedules.department_id > departments.department_id
+Ref: shift_schedule_details.schedule_id > shift_schedules.schedule_id
+Ref: shift_schedule_details.shift_type_id > shift_types.shift_type_id
+Ref: shift_assignments.employee_id > employees.employee_id
+Ref: shift_assignments.shift_type_id > shift_types.shift_type_id
+Ref: shift_assignments.assigned_by > employees.employee_id
+Ref: shift_swaps.requester_id > employees.employee_id
+Ref: shift_swaps.target_employee_id > employees.employee_id
+Ref: shift_swaps.original_shift_id > shift_types.shift_type_id
+Ref: shift_swaps.requested_shift_id > shift_types.shift_type_id
+Ref: shift_swaps.approver_id > employees.employee_id
+Ref: attendances.employee_id > employees.employee_id
+Ref: attendances.shift_type_id > shift_types.shift_type_id
+Ref: attendances.approved_by > employees.employee_id
+Ref: shift_tasks.attendance_id > attendances.attendance_id
+Ref: shift_tasks.completed_by > employees.employee_id
+
+// requests & approvals
+Ref: approval_flows.request_type_id > request_types.request_type_id
+Ref: approval_steps.approval_flow_id > approval_flows.approval_flow_id
+Ref: requests.request_type_id > request_types.request_type_id
+Ref: requests.requester_id > employees.employee_id
+Ref: request_data.request_id > requests.request_id
+Ref: approval_histories.request_id > requests.request_id
+Ref: approval_histories.step_id > approval_steps.step_id
+Ref: approval_histories.approver_id > employees.employee_id
+
+// leave
+Ref: leave_balances.employee_id > employees.employee_id
+Ref: leave_balances.leave_type_id > leave_types.leave_type_id
+Ref: leave_requests.request_id > requests.request_id
+Ref: leave_requests.leave_type_id > leave_types.leave_type_id
+Ref: leave_requests.employee_id > employees.employee_id
+Ref: leave_requests.substitute_employee_id > employees.employee_id
+Ref: leave_transactions.employee_id > employees.employee_id
+Ref: leave_transactions.leave_type_id > leave_types.leave_type_id
+Ref: leave_transactions.created_by > employees.employee_id
+
+// payroll
+Ref: employee_allowances.employee_id > employees.employee_id
+Ref: employee_allowances.allowance_id > allowances.allowance_id
+Ref: employee_deductions.employee_id > employees.employee_id
+Ref: employee_deductions.deduction_id > deductions.deduction_id
+Ref: salary_periods.closed_by > employees.employee_id
+Ref: salary_attendance_summary.employee_id > employees.employee_id
+Ref: salary_attendance_summary.period_id > salary_periods.period_id
+Ref: salary_details.period_id > salary_periods.period_id
+Ref: salary_details.employee_id > employees.employee_id
+Ref: salary_details.contract_id > contracts.contract_id
+Ref: salary_breakdowns.salary_detail_id > salary_details.salary_detail_id
+Ref: salary_leave_details.salary_detail_id > salary_details.salary_detail_id
+Ref: salary_leave_details.leave_request_id > leave_requests.leave_request_id
+Ref: salary_leave_details.leave_type_id > leave_types.leave_type_id
+
+// news & policies
+Ref: news.category_id > news_categories.category_id
+Ref: news.published_by > employees.employee_id
+Ref: news.department_id > departments.department_id
+Ref: news.position_id > positions.position_id
+Ref: news_reads.news_id > news.news_id
+Ref: news_reads.employee_id > employees.employee_id
+Ref: policies.department_id > departments.department_id
+Ref: policies.created_by > employees.employee_id
+Ref: policies.approved_by > employees.employee_id
+Ref: policy_acknowledgments.policy_id > policies.policy_id
+Ref: policy_acknowledgments.employee_id > employees.employee_id
+
+// rbac
+Ref: role_permissions.role_id > roles.role_id
+Ref: role_permissions.permission_id > permissions.permission_id
+Ref: employee_permissions.employee_id > employees.employee_id
+Ref: employee_permissions.permission_id > permissions.permission_id
+Ref: employee_roles.employee_id > employees.employee_id
+Ref: employee_roles.role_id > roles.role_id
+Ref: employee_roles.department_id > departments.department_id
+
+// reports
+Ref: report_templates.created_by > employees.employee_id
+Ref: report_histories.executed_by > employees.employee_id
+
+// notifications
+Ref: notifications.sender_id > employees.employee_id
+Ref: notifications.receiver_id > employees.employee_id
+Ref: notifications.department_id > departments.department_id

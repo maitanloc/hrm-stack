@@ -1,0 +1,1226 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
+
+:root {
+  --sidebar-width: 280px;
+
+  /* 1. Canvas & Surfaces (Backgrounds) */
+  --sys-bg-page: #F8FAFC;         /* Nền tổng thể: Xám cực nhạt (Slate 50) */
+  --sys-bg-surface: #FFFFFF;      /* Nền Thẻ/Card: Trắng tinh */
+  --sys-bg-surface-elevated: #FFFFFF;
+  --sys-bg-hover: #F1F5F9;        /* Nền hover: Xám nhạt (Slate 100) */
+  --sys-bg-active: #E2E8F0;       /* Nền active: Xám rõ (Slate 200) */
+
+  /* 2. Typography (Text & Icons) */
+  --sys-text-primary: #0F172A;    /* Chữ chính: Đen cực nét (Slate 900) */
+  --sys-text-secondary: #475569;  /* Chữ phụ/Tiêu đề cột: Xám đậm rõ ràng (Slate 600) */
+  --sys-text-disabled: #94A3B8;   /* Chữ vô hiệu: Xám vừa (Slate 400) */
+  --sys-text-inverse: #FFFFFF;    /* Chữ trắng trên nền đậm */
+  --sys-text-accent: #2563EB;     /* Chữ nhấn mạnh: Xanh dương (Blue 600) */
+
+  --sys-icon-default: #64748B;    /* Icon mặc định: Xám (Slate 500) */
+  --sys-icon-hover: #0F172A;      /* Icon khi hover: Đen nét (Slate 900) */
+
+  /* 3. Borders & Dividers */
+  --sys-border-subtle: #E2E8F0;   /* Viền mỏng phân cách (Slate 200) -> Khắc phục lỗi mất viền */
+  --sys-border-strong: #CBD5E1;   /* Viền input/form (Slate 300) */
+  --sys-ring-focus: rgba(37, 99, 235, 0.2); 
+
+  /* 4. Primary Brand/Action (Blue 600) */
+  --sys-brand-solid: #2563EB;      /* Nút Primary cơ bản */
+  --sys-brand-hover: #1D4ED8;      /* Hover nút Primary (Blue 700) */
+  --sys-brand-soft: #EFF6FF;       /* Nền mềm: Sidebar active item (Blue 50) */
+  --sys-brand-soft-text: #1E40AF;  /* Chữ nằm trên nền mềm (Blue 800) */
+
+  /* 5. Semantic Feedback (High Contrast) */
+  --sys-success-solid: #16A34A;
+  --sys-success-soft: #F0FDF4;
+  --sys-success-text: #166534;
+  --sys-success-border: #BBF7D0;
+
+  --sys-danger-solid: #DC2626;
+  --sys-danger-soft: #FEF2F2;
+  --sys-danger-text: #991B1B;
+  --sys-danger-border: #FECACA;
+
+  --sys-warning-solid: #EA580C;
+  --sys-warning-soft: #FFF7ED;
+  --sys-warning-text: #9A3412;
+  --sys-warning-border: #FED7AA;
+
+  /* Radius System (Strict B2B) */
+  --radius-sm: 4px;
+  --radius-md: 6px;  /* Inputs, Buttons, Dropdowns */
+  --radius-lg: 8px;  /* Main Cards, Modals, Tables */
+}
+
+
+body {
+  margin: 0;
+  background-color: var(--sys-bg-page);
+  color: var(--sys-text-primary);
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 14px;
+}
+
+/* Optimized transition for smooth dark/light mode toggle without layout lag */
+body, .card, .modal-content, input, select, textarea, .form-control, .form-select, table, th, td, tr {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.material-symbols-outlined, 
+.material-symbols-rounded {
+  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+  text-decoration: none !important;
+}
+
+/* Sidebar Styles */
+.sidebar {
+  width: var(--sidebar-width);
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  background: #111621;
+  border-right: 1px solid #1e293b;
+  z-index: 1000;
+}
+
+.sidebar .nav-link {
+  color: #94a3b8;
+  padding: 0.625rem 1rem;
+  border-radius: var(--radius-md);
+  margin: 0.25rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.sidebar .nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
+}
+
+.sidebar .nav-link.active {
+  background-color: var(--sys-brand-solid);
+  color: white;
+  font-weight: 600;
+}
+
+.main-wrapper {
+  margin-left: var(--sidebar-width);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 991.98px) {
+  .sidebar {
+    transform: translateX(-100%);
+  }
+
+  .sidebar.show {
+    transform: translateX(0);
+  }
+
+  .main-wrapper {
+    margin-left: 0;
+  }
+}
+
+.navbar-custom {
+  height: 64px;
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 999;
+}
+
+.search-input {
+  background-color: #f1f5f9;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.5rem 1rem 0.5rem 3.5rem;
+  font-size: 0.875rem;
+  width: 256px;
+}
+
+.avatar-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: rgba(30, 64, 175, 0.2);
+  color: var(--primary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+/* Helper Classes for Premium Look */
+.fw-black {
+  font-weight: 800;
+}
+
+.tracking-tighter {
+  letter-spacing: -0.05em;
+}
+
+.tracking-tight {
+  letter-spacing: -0.025em;
+}
+
+.tracking-wider {
+  letter-spacing: 0.05em;
+}
+
+.bg-gradient-primary {
+  background: linear-gradient(135deg, var(--primary-color) 0%, #17328A 100%);
+}
+
+.bg-white-20 {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.bg-success-light {
+  background-color: rgba(17, 124, 57, 0.1) !important;
+}
+
+.bg-primary-light {
+  background-color: rgba(30, 64, 175, 0.1) !important;
+}
+
+.backdrop-blur {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.rounded-4 {
+  border-radius: 1rem !important;
+}
+
+.shadow-primary {
+  box-shadow: 0 10px 15px -3px rgba(30, 64, 175, 0.2);
+}
+
+.text-line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.x-small {
+  font-size: 0.75rem !important;
+}
+
+/* Global reset to remove underline from links everywhere (Bootstrap override) */
+a, router-link {
+  text-decoration: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DARK MODE — GLOBAL OVERRIDES
+   Covers Bootstrap components used in child views so they auto-adapt.
+   Applied when html.dark class is present.
+═══════════════════════════════════════════════════════════════════════════ */
+html.dark {
+  /* ── SEMANTIC DESIGN TOKENS (DARK MODE) ── */
+  /* 1. Canvas & Surfaces (Backgrounds) */
+  --sys-bg-page: oklch(0.18 0.01 260);          /* Elevate từ đen tuyệt đối thành slate cực đậm */
+  --sys-bg-surface: oklch(0.22 0.015 260);      /* Nền thẻ sáng hơn một chút */
+  --sys-bg-surface-elevated: oklch(0.26 0.02 260); /* Popup, dropdown sáng hơn nền nền thẻ */
+  --sys-bg-hover: oklch(0.28 0.02 260);         /* Trạng thái hover sáng nhẹ lên */
+  --sys-bg-active: oklch(0.32 0.03 260);        /* Trạng thái active sáng rõ hơn */
+
+  /* 2. Typography (Text & Icons) */
+  --sys-text-primary: oklch(0.95 0.01 260);     /* Off-white text (Tránh trắng tuyền 100%) */
+  --sys-text-secondary: oklch(0.75 0.02 260);   /* Chữ phụ, caption */
+  --sys-text-disabled: oklch(0.45 0.01 260);    /* Chữ disable (low contrast nhưng vẫn thấy được) */
+  --sys-text-inverse: oklch(0.18 0.01 260);     /* Chữ đen/đậm đè lên màu nhạt */
+  --sys-text-accent: oklch(0.75 0.15 260);      /* Chữ link/nổi bật hệ Blue */
+  --sys-icon-default: oklch(0.75 0.02 260);     /* Icon xám nhạt */
+  --sys-icon-hover: oklch(0.95 0.01 260);       /* Hover icon sáng trắng */
+
+  /* 3. Borders & Dividers */
+  --sys-border-subtle: oklch(0.3 0.02 260);     /* Viền nhẹ card/table */
+  --sys-border-strong: oklch(0.45 0.02 260);    /* Viền input rõ rệt */
+  --sys-ring-focus: oklch(0.75 0.15 260 / 0.4); 
+
+  /* 4. Primary Brand/Action (Indigo/Blue) */
+  --sys-brand-solid: oklch(0.65 0.15 260);      /* Button dịu nhẹ hơn so với Light Mode */
+  --sys-brand-hover: oklch(0.72 0.15 260);      /* Hover button sáng lên thay vì tối đi */
+  --sys-brand-soft: oklch(0.3 0.05 260);        /* Nền sidebar item active trong Dark mode */
+  --sys-brand-soft-text: oklch(0.85 0.1 260);   /* Chữ trên nền soft brand */
+
+  /* 5. Semantic Feedback (Sử dụng cặp màu an toàn) */
+  /* Success */
+  --sys-success-solid: oklch(0.65 0.15 150);
+  --sys-success-soft: oklch(0.28 0.05 150);     /* Pill nền tối */
+  --sys-success-text: oklch(0.85 0.1 150);      /* Pill chữ sáng */
+  --sys-success-border: oklch(0.35 0.08 150);
+
+  /* Danger */
+  --sys-danger-solid: oklch(0.65 0.2 25);
+  --sys-danger-soft: oklch(0.3 0.08 25);
+  --sys-danger-text: oklch(0.9 0.1 25);
+  --sys-danger-border: oklch(0.4 0.1 25);
+
+  /* Warning */
+  --sys-warning-solid: oklch(0.75 0.15 70);
+  --sys-warning-hover: oklch(0.82 0.18 75);
+  --sys-warning-soft: oklch(0.3 0.06 70);
+  --sys-warning-text: oklch(0.9 0.1 70);
+  --sys-warning-border: oklch(0.4 0.08 70);
+
+  /* Info */
+  --sys-info-solid: oklch(0.7 0.15 230);
+  --sys-info-soft: oklch(0.28 0.05 230);
+  --sys-info-text: oklch(0.85 0.1 230);
+  --sys-info-border: oklch(0.35 0.08 230);
+
+  background-color: var(--sys-bg-page);
+  color: var(--sys-text-primary);
+}
+
+/* ── Base body & layout ── */
+html.dark body {
+  background-color: oklch(0.135 0.012 265) !important;
+  color: oklch(0.91 0.01 265) !important;
+}
+
+html.dark h1,
+html.dark h2,
+html.dark h3,
+html.dark h4,
+html.dark h5,
+html.dark h6 {
+  color: oklch(0.91 0.01 265) !important;
+}
+
+html.dark p,
+html.dark span:not(.badge):not(.material-symbols-rounded):not(.material-symbols-outlined) {
+  color: inherit;
+}
+
+/* ── Bootstrap Text utilities ── */
+html.dark .text-dark,
+html.dark .text-black {
+  color: oklch(0.91 0.01 265) !important;
+}
+
+html.dark .text-muted {
+  color: oklch(0.72 0.025 265) !important;
+}
+
+html.dark .text-body {
+  color: oklch(0.88 0.015 265) !important;
+}
+
+html.dark .text-secondary {
+  color: oklch(0.75 0.025 265) !important;
+}
+
+/* ── Card ── */
+html.dark .card {
+  background-color: oklch(0.2 0.018 265) !important;
+  border-color: oklch(0.3 0.025 265) !important;
+  color: oklch(0.91 0.01 265) !important;
+}
+
+html.dark .card-body {
+  background-color: transparent !important;
+}
+
+html.dark .card-header {
+  background-color: oklch(0.22 0.02 265) !important;
+  border-bottom-color: oklch(0.3 0.025 265) !important;
+  color: oklch(0.91 0.01 265) !important;
+}
+
+html.dark .card-footer {
+  background-color: oklch(0.22 0.02 265) !important;
+  border-top-color: oklch(0.3 0.025 265) !important;
+}
+
+/* ── Table ── */
+.table {
+  border-collapse: collapse !important;
+}
+
+/* Force all cells inside hoverable or active rows to be transparent to prevent segmentation */
+.table-hover > tbody > tr:hover > td,
+.table-hover > tbody > tr:hover > th,
+.table > tbody > tr.active-row > td,
+.table > tbody > tr.active-row > th,
+.table > tbody > tr.active > td,
+.table > tbody > tr.active > th {
+  background-color: transparent !important;
+}
+
+/* Apply continuous background to the row itself */
+.table-hover > tbody > tr:hover {
+  background-color: var(--bg-hover) !important;
+}
+
+.table > tbody > tr.active-row,
+.table > tbody > tr.active {
+  background-color: var(--bg-active) !important;
+}
+
+/* Ensure hover state takes precedence visually even when a row is active */
+/* Logic: Inactive Row Hover -> Gray | Active Row -> Blue | Active Row Hover -> Darker Blue */
+.table-hover > tbody > tr.active-row:hover,
+.table-hover > tbody > tr.active:hover {
+  background-color: var(--bg-active-hover) !important;
+}
+
+html.dark .table {
+  color: oklch(0.85 0.015 265) !important;
+  border-color: oklch(0.3 0.025 265) !important;
+  --bg-hover: oklch(0.25 0.02 265);
+  --bg-active: oklch(0.28 0.04 255);
+  --bg-active-hover: oklch(0.32 0.06 255);
+  --border-active: oklch(0.65 0.15 255);
+}
+
+html.dark .table th,
+html.dark .table td {
+  color: oklch(0.85 0.015 265) !important;
+  border-color: oklch(0.28 0.02 265) !important;
+}
+
+html.dark .table-hover > tbody > tr:hover,
+html.dark .table > tbody > tr.active-row,
+html.dark .table > tbody > tr.active {
+  color: oklch(0.91 0.01 265) !important;
+}
+
+html.dark .table-hover > tbody > tr:hover > *,
+html.dark .table > tbody > tr.active-row > *,
+html.dark .table > tbody > tr.active > * {
+  background-color: transparent !important;
+}
+
+html.dark .table-light,
+html.dark .table-light > th,
+html.dark .table-light > td,
+html.dark thead.table-light,
+html.dark thead.table-light th {
+  background-color: oklch(0.22 0.02 265) !important;
+  color: oklch(0.65 0.025 265) !important;
+  border-color: oklch(0.3 0.025 265) !important;
+}
+
+html.dark .table > :not(caption) > * > * {
+  border-bottom-color: oklch(0.28 0.02 265) !important;
+  background-color: transparent !important;
+}
+
+html.dark .table-striped > tbody > tr:nth-of-type(odd) > * {
+  background-color: oklch(0.22 0.018 265) !important;
+}
+
+html.dark .table-responsive {
+  border-color: oklch(0.3 0.025 265) !important;
+}
+
+/* ── Border ── */
+html.dark .border,
+html.dark .border-bottom,
+html.dark .border-top,
+html.dark .border-start,
+html.dark .border-end {
+  border-color: oklch(0.3 0.025 265) !important;
+}
+
+html.dark .border-bottom {
+  border-bottom-color: oklch(0.3 0.025 265) !important;
+}
+
+/* ── Background utilities ── */
+html.dark .bg-white {
+  background-color: oklch(0.2 0.018 265) !important;
+}
+
+html.dark .bg-light {
+  background-color: oklch(0.22 0.02 265) !important;
+  color: oklch(0.9 0.015 265) !important;
+}
+
+html.dark .bg-body,
+html.dark .bg-body-secondary {
+  background-color: oklch(0.2 0.018 265) !important;
+}
+
+html.dark .bg-secondary.bg-opacity-10 {
+  background-color: oklch(0.3 0.02 265) !important;
+}
+
+/* ── Form controls ── */
+html.dark .form-control,
+html.dark .form-select,
+html.dark .form-check-input {
+  background-color: oklch(0.22 0.02 265) !important;
+  border-color: oklch(0.35 0.025 265) !important;
+  color: oklch(0.91 0.01 265) !important;
+}
+
+html.dark .form-control::placeholder {
+  color: oklch(0.55 0.02 265) !important;
+}
+
+html.dark .form-control:focus,
+html.dark .form-select:focus {
+  background-color: oklch(0.24 0.022 265) !important;
+  border-color: oklch(0.55 0.15 265) !important;
+  color: oklch(0.91 0.01 265) !important;
+  box-shadow: 0 0 0 0.2rem oklch(0.48 0.195 265 / 0.2) !important;
+}
+
+html.dark .form-label,
+html.dark label {
+  color: oklch(0.82 0.015 265) !important;
+}
+
+/* ── Input group ── */
+html.dark .input-group-text {
+  background-color: oklch(0.25 0.022 265) !important;
+  border-color: oklch(0.35 0.025 265) !important;
+  color: oklch(0.75 0.03 265) !important;
+}
+
+/* ── Button outline variants ── */
+html.dark .btn-outline-secondary {
+  color: oklch(0.75 0.03 265) !important;
+  border-color: oklch(0.45 0.03 265) !important;
+}
+
+html.dark .btn-outline-secondary:hover {
+  background-color: oklch(0.3 0.025 265) !important;
+  color: oklch(0.91 0.01 265) !important;
+}
+
+html.dark .btn-light,
+html.dark .btn-white {
+  background-color: oklch(0.28 0.025 265) !important;
+  border-color: oklch(0.35 0.025 265) !important;
+  color: oklch(0.85 0.015 265) !important;
+}
+
+html.dark .btn-light:hover,
+html.dark .btn-white:hover {
+  background-color: oklch(0.32 0.028 265) !important;
+}
+
+/* ── Badge overrides (keep color variants, fix light ones) ── */
+html.dark .bg-light.text-dark,
+html.dark .badge.bg-light {
+  background-color: oklch(0.3 0.025 265) !important;
+  color: oklch(0.85 0.015 265) !important;
+}
+
+/* ── Progress ── */
+html.dark .progress {
+  background-color: oklch(0.28 0.025 265) !important;
+}
+
+/* ── List group ── */
+html.dark .list-group-item {
+  background-color: oklch(0.2 0.018 265) !important;
+  border-color: oklch(0.3 0.025 265) !important;
+  color: oklch(0.85 0.015 265) !important;
+}
+
+html.dark .list-group-item:hover {
+  background-color: oklch(0.24 0.02 265) !important;
+}
+
+html.dark .list-group-item.active {
+  background-color: oklch(0.34 0.16 265) !important;
+  border-color: oklch(0.34 0.16 265) !important;
+}
+
+/* ── Modal ── */
+html.dark .modal-content {
+  background-color: oklch(0.2 0.018 265) !important;
+  border-color: oklch(0.3 0.025 265) !important;
+  color: oklch(0.91 0.01 265) !important;
+}
+
+html.dark .modal-header {
+  border-bottom-color: oklch(0.3 0.025 265) !important;
+}
+
+html.dark .modal-footer {
+  border-top-color: oklch(0.3 0.025 265) !important;
+}
+
+html.dark .modal-backdrop {
+  background-color: oklch(0 0 0) !important;
+}
+
+/* ── Dropdown ── */
+html.dark .dropdown-menu {
+  background-color: oklch(0.2 0.018 265) !important;
+  border-color: oklch(0.3 0.025 265) !important;
+  color: oklch(0.85 0.015 265) !important;
+}
+
+html.dark .dropdown-item {
+  color: oklch(0.85 0.015 265) !important;
+}
+
+html.dark .dropdown-item:hover {
+  background-color: oklch(0.28 0.025 265) !important;
+  color: oklch(0.91 0.01 265) !important;
+}
+
+html.dark .dropdown-divider {
+  border-color: oklch(0.3 0.025 265) !important;
+}
+
+/* ── Nav tabs / pills ── */
+html.dark .nav-tabs {
+  border-bottom-color: oklch(0.3 0.025 265) !important;
+}
+
+html.dark .nav-tabs .nav-link {
+  color: oklch(0.65 0.025 265) !important;
+}
+
+html.dark .nav-tabs .nav-link.active {
+  background-color: oklch(0.2 0.018 265) !important;
+  border-color: oklch(0.3 0.025 265) oklch(0.3 0.025 265) oklch(0.2 0.018 265) !important;
+  color: oklch(0.91 0.01 265) !important;
+}
+
+/* ── Alert ── */
+html.dark .alert-light {
+  background-color: oklch(0.25 0.02 265) !important;
+  border-color: oklch(0.35 0.025 265) !important;
+  color: oklch(0.82 0.015 265) !important;
+}
+
+/* ── Pagination ── */
+html.dark .page-link {
+  background-color: oklch(0.22 0.02 265) !important;
+  border-color: oklch(0.3 0.025 265) !important;
+  color: oklch(0.75 0.1 265) !important;
+}
+
+html.dark .page-link:hover {
+  background-color: oklch(0.28 0.025 265) !important;
+}
+
+html.dark .page-item.active .page-link {
+  background-color: oklch(0.48 0.195 265) !important;
+  border-color: oklch(0.48 0.195 265) !important;
+}
+
+html.dark .page-item.disabled .page-link {
+  background-color: oklch(0.2 0.018 265) !important;
+  color: oklch(0.45 0.025 265) !important;
+}
+
+/* ── Breadcrumb ── */
+html.dark .breadcrumb-item,
+html.dark .breadcrumb-item a {
+  color: oklch(0.65 0.1 265) !important;
+}
+
+html.dark .breadcrumb-item.active {
+  color: oklch(0.82 0.015 265) !important;
+}
+
+/* ── Offcanvas ── */
+html.dark .offcanvas {
+  background-color: oklch(0.2 0.018 265) !important;
+  color: oklch(0.91 0.01 265) !important;
+}
+
+/* ── Accordion ── */
+html.dark .accordion-item {
+  background-color: oklch(0.2 0.018 265) !important;
+  border-color: oklch(0.3 0.025 265) !important;
+}
+
+html.dark .accordion-button {
+  background-color: oklch(0.22 0.02 265) !important;
+  color: oklch(0.91 0.01 265) !important;
+}
+
+html.dark .accordion-button:not(.collapsed) {
+  background-color: oklch(0.26 0.05 265) !important;
+  color: oklch(0.9 0.09 265) !important;
+}
+
+html.dark .accordion-body {
+  background-color: oklch(0.2 0.018 265) !important;
+  color: oklch(0.82 0.015 265) !important;
+}
+
+/* ── Misc selects / group ── */
+html.dark .btn-group > .btn:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-warning) {
+  background-color: oklch(0.25 0.022 265) !important;
+  border-color: oklch(0.35 0.025 265) !important;
+  color: oklch(0.82 0.015 265) !important;
+}
+
+html.dark .btn-group > .btn-check:checked + .btn,
+html.dark .btn-group > .btn.active {
+  background-color: oklch(0.34 0.16 265) !important;
+  color: oklch(0.9 0.09 265) !important;
+}
+
+/* ── Shadow softening ── */
+html.dark .shadow-sm {
+  box-shadow: 0 1px 6px oklch(0 0 0 / 0.35) !important;
+}
+
+html.dark .shadow {
+  box-shadow: 0 2px 12px oklch(0 0 0 / 0.4) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DARK MODE — TAILWIND SLATE OVERRIDES
+   Views use Tailwind classes (text-slate-*, bg-white, bg-slate-*, border-slate-*)
+   not Bootstrap. These overrides make all views adapt automatically.
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Tailwind Text Colors ── */
+html.dark .text-slate-900,
+html.dark .text-slate-800 {
+  color: oklch(0.93 0.01 265) !important;
+}
+
+html.dark .text-slate-700,
+html.dark .text-slate-600 {
+  color: oklch(0.82 0.015 265) !important;
+}
+
+html.dark .text-slate-500 {
+  color: oklch(0.75 0.025 265) !important;
+}
+
+html.dark .text-slate-400 {
+  color: oklch(0.7 0.022 265) !important;
+}
+
+html.dark .text-slate-300 {
+  color: oklch(0.5 0.018 265) !important;
+}
+
+html.dark .text-gray-900,
+html.dark .text-gray-800 {
+  color: oklch(0.93 0.01 265) !important;
+}
+
+html.dark .text-gray-700,
+html.dark .text-gray-600 {
+  color: oklch(0.82 0.015 265) !important;
+}
+
+html.dark .text-gray-500,
+html.dark .text-gray-400 {
+  color: oklch(0.65 0.022 265) !important;
+}
+
+/* ── White / near-white backgrounds → dark surface ── */
+html.dark .bg-white {
+  background-color: oklch(0.2 0.018 265) !important;
+}
+
+html.dark .bg-slate-50,
+html.dark .bg-gray-50 {
+  background-color: oklch(0.22 0.02 265) !important;
+}
+
+html.dark .bg-slate-100,
+html.dark .bg-gray-100 {
+  background-color: oklch(0.26 0.022 265) !important;
+}
+
+html.dark .bg-slate-200,
+html.dark .bg-gray-200 {
+  background-color: oklch(0.3 0.025 265) !important;
+}
+
+html.dark .bg-slate-50\/50 {
+  background-color: oklch(0.22 0.018 265 / 0.85) !important;
+}
+
+/* ── Borders ── */
+html.dark .border-slate-50 {
+  border-color: oklch(0.26 0.018 265) !important;
+}
+
+html.dark .border-slate-100 {
+  border-color: oklch(0.28 0.022 265) !important;
+}
+
+html.dark .border-slate-200 {
+  border-color: oklch(0.33 0.025 265) !important;
+}
+
+html.dark .border-slate-300 {
+  border-color: oklch(0.38 0.025 265) !important;
+}
+
+html.dark .divide-slate-50 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: oklch(0.28 0.022 265) !important;
+}
+
+/* ── Custom non-Bootstrap table rows (used in views) ── */
+
+/* Table container */
+html.dark table {
+  color: oklch(0.88 0.015 265) !important;
+}
+
+/* Table header row (tr with bg-slate-50/50 class) */
+html.dark tr.bg-slate-50\/50,
+html.dark thead tr {
+  background-color: oklch(0.22 0.02 265) !important;
+}
+
+/* Table header cells (th) */
+html.dark th {
+  color: oklch(0.62 0.025 265) !important;
+  border-color: oklch(0.3 0.025 265) !important;
+}
+
+/* Table body cells (td) */
+html.dark td {
+  color: oklch(0.88 0.015 265) !important;
+  border-color: oklch(0.28 0.022 265) !important;
+}
+
+/* Table row hover */
+html.dark tr:hover:not(thead tr),
+html.dark .hover\:bg-slate-50\/50:hover {
+  background-color: oklch(0.24 0.02 265) !important;
+}
+
+/* ── Form inputs with Tailwind ── */
+html.dark input[type="text"],
+html.dark input[type="email"],
+html.dark input[type="tel"],
+html.dark input[type="date"],
+html.dark input[type="number"],
+html.dark input[type="password"],
+html.dark textarea,
+html.dark select {
+  background-color: oklch(0.22 0.02 265) !important;
+  border-color: oklch(0.35 0.025 265) !important;
+  color: oklch(0.91 0.01 265) !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: oklch(0.52 0.02 265) !important;
+}
+
+html.dark input:focus,
+html.dark textarea:focus,
+html.dark select:focus {
+  background-color: oklch(0.24 0.022 265) !important;
+  border-color: oklch(0.55 0.15 265) !important;
+  box-shadow: 0 0 0 4px oklch(0.48 0.195 265 / 0.15) !important;
+}
+
+html.dark option {
+  background-color: oklch(0.22 0.02 265) !important;
+  color: oklch(0.88 0.015 265) !important;
+}
+
+/* ── Labels ── */
+html.dark label {
+  color: oklch(0.72 0.022 265) !important;
+}
+
+/* ── Modal overlays (custom, not Bootstrap) ── */
+html.dark .bg-white.rounded-\[2\.5rem\],
+html.dark .bg-white.rounded-3xl,
+html.dark .bg-white.rounded-\[2rem\] {
+  background-color: oklch(0.2 0.018 265) !important;
+  color: oklch(0.91 0.01 265) !important;
+}
+
+html.dark .bg-slate-50\/50.rounded-\[2\.5rem\] {
+  background-color: oklch(0.22 0.018 265) !important;
+}
+
+/* Modal header/footer separator */
+html.dark .border-slate-100,
+html.dark .border-slate-50 {
+  border-color: oklch(0.28 0.022 265) !important;
+}
+
+/* ── Star cards: bg-white with rounded-* ── */
+html.dark [class*="bg-white"][class*="rounded"],
+html.dark [class*="rounded"][class*="bg-white"] {
+  background-color: oklch(0.2 0.018 265) !important;
+  border-color: oklch(0.3 0.025 265) !important;
+}
+
+/* ── Specific: stat card wrappers ── */
+html.dark .bg-indigo-50 {
+  background-color: oklch(0.25 0.08 265) !important;
+}
+
+html.dark .bg-green-50 {
+  background-color: oklch(0.22 0.06 155) !important;
+}
+
+html.dark .bg-amber-50,
+html.dark .bg-yellow-50 {
+  background-color: oklch(0.25 0.06 75) !important;
+}
+
+html.dark .bg-red-50 {
+  background-color: oklch(0.23 0.06 25) !important;
+}
+
+html.dark .bg-blue-50 {
+  background-color: oklch(0.23 0.07 240) !important;
+}
+
+html.dark .bg-orange-50 {
+  background-color: oklch(0.24 0.07 55) !important;
+}
+
+html.dark .bg-purple-50 {
+  background-color: oklch(0.24 0.07 300) !important;
+}
+
+/* ── Scrollbar customization ── */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--sys-border);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ── Button groups (Tailwind) ── */
+html.dark .bg-indigo-600 {
+  background-color: oklch(0.48 0.195 265) !important;
+}
+
+html.dark .hover\:bg-indigo-700:hover {
+  background-color: oklch(0.43 0.18 265) !important;
+}
+
+/* ── Action buttons (slate text in dark) ── */
+html.dark .text-slate-400.hover\:text-indigo-600:hover {
+  color: oklch(0.75 0.14 265) !important;
+}
+
+html.dark .hover\:bg-indigo-50:hover {
+  background-color: oklch(0.28 0.08 265) !important;
+}
+
+html.dark .hover\:bg-red-50:hover {
+  background-color: oklch(0.26 0.08 25) !important;
+}
+
+html.dark .hover\:bg-blue-50:hover {
+  background-color: oklch(0.24 0.07 240) !important;
+}
+
+/* ── Blue card info boxes (Mã nhân viên) ── */
+html.dark .bg-blue-50\/50 {
+  background-color: oklch(0.22 0.06 240 / 0.6) !important;
+}
+
+html.dark .border-blue-100 {
+  border-color: oklch(0.35 0.1 240) !important;
+}
+
+html.dark .text-blue-900 {
+  color: oklch(0.92 0.05 245) !important;
+}
+
+html.dark .text-blue-600 {
+  color: oklch(0.8 0.12 255) !important;
+}
+
+html.dark .text-blue-700 {
+  color: oklch(0.82 0.14 255) !important;
+}
+
+html.dark .text-brand-blue {
+  color: oklch(0.8 0.12 255) !important;
+}
+
+/* ── Hover row icon buttons (group-hover) ── */
+html.dark .group:hover .group-hover\:bg-indigo-100 {
+  background-color: oklch(0.3 0.1 265) !important;
+}
+
+html.dark .group:hover .group-hover\:text-indigo-600 {
+  color: oklch(0.75 0.14 265) !important;
+}
+
+/* ── w-10.h-10 avatar chips (slate-100 bg) ── */
+html.dark .bg-slate-100.text-slate-500 {
+  background-color: oklch(0.28 0.022 265) !important;
+  color: oklch(0.65 0.025 265) !important;
+}
+
+html.dark .bg-slate-100.rounded-lg,
+html.dark .bg-slate-100.rounded-xl {
+  background-color: oklch(0.28 0.025 265) !important;
+  color: oklch(0.72 0.022 265) !important;
+}
+
+/* ── Employee code chip ── */
+html.dark .px-3.py-1.bg-slate-100,
+html.dark span.bg-slate-100 {
+  background-color: oklch(0.3 0.022 265) !important;
+  color: oklch(0.72 0.022 265) !important;
+}
+
+/* ── Sidebar: ensure ALL nav text turns white/light in dark mode ── */
+html.dark aside .text-slate-900,
+html.dark aside .text-slate-700,
+html.dark aside .text-slate-600,
+html.dark aside h1,
+html.dark aside h2,
+html.dark aside h3,
+html.dark aside p,
+html.dark aside span:not(.material-symbols-rounded):not(.material-symbols-outlined) {
+  color: oklch(0.88 0.015 265) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DEEP DARK MODE REFINEMENTS
+   Fixes badges, button glows, and action hover states
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Status Badges (Semantic Tokens) ── */
+html.dark .bg-green-100, .status-success {
+  background-color: var(--sys-success-bg) !important;
+  color: var(--sys-success-text) !important;
+}
+
+html.dark .bg-blue-100, .status-primary {
+  background-color: oklch(0.25 0.1 265) !important; /* Will map to --sys-primary-bg later */
+  color: var(--sys-accent) !important;
+}
+
+html.dark .bg-red-100 {
+  background-color: oklch(0.25 0.1 25) !important;
+  color: oklch(0.88 0.18 25) !important;
+}
+
+/* ── Sidebar Badge Numbers ── */
+html.dark aside .bg-blue-600,
+html.dark aside .bg-indigo-600,
+html.dark aside [class*="bg-blue-600"] {
+  background-color: oklch(0.48 0.195 265) !important;
+  color: oklch(0.98 0.01 265) !important;
+}
+
+/* ── Action Icons Default & Hover (Table Edit/Delete) ── */
+/* Make default state more visible */
+html.dark td .p-2.text-slate-400,
+html.dark .group .p-2.text-slate-400 {
+  color: oklch(0.7 0.02 265) !important;
+}
+
+/* Hover background for action icons */
+html.dark .hover\:bg-blue-50:hover,
+html.dark .hover\:bg-indigo-50:hover {
+  background-color: oklch(0.28 0.1 265) !important;
+  color: oklch(0.85 0.15 265) !important;
+}
+
+html.dark .hover\:bg-red-50:hover {
+  background-color: oklch(0.28 0.1 25) !important;
+  color: oklch(0.85 0.15 25) !important;
+}
+
+/* ── Disable white glow on Buttons (shadow-indigo-100) ── */
+html.dark .shadow-indigo-100,
+html.dark .shadow-indigo-200,
+html.dark .shadow-blue-100,
+html.dark .shadow-blue-200 {
+  box-shadow: 0 4px 14px 0 oklch(0 0 0 / 0.5) !important;
+}
+
+/* ── Orange/Yellow Badges (Đang sửa chữa...) ── */
+html.dark .bg-orange-100.text-orange-700,
+html.dark [class*="bg-orange-100"][class*="text-orange-700"] {
+  background-color: oklch(0.25 0.1 55) !important;
+  color: oklch(0.85 0.15 55) !important;
+}
+
+html.dark [class*="bg-emerald-100"],
+html.dark .bg-emerald-100 {
+  background-color: oklch(0.25 0.08 145) !important;
+}
+html.dark [class*="text-emerald-700"],
+html.dark .text-emerald-700 {
+  color: oklch(0.85 0.15 145) !important;
+}
+
+html.dark .bg-cyan-100.text-cyan-700 {
+  background-color: oklch(0.25 0.08 200) !important;
+  color: oklch(0.85 0.15 200) !important;
+}
+
+/* ── "Hủy" / Cancel buttons (text-slate-400) ── */
+html.dark button.text-slate-400.hover\:text-slate-600,
+html.dark .btn-light.text-muted,
+html.dark .border-t button.text-slate-400 {
+  color: oklch(0.9 0.04 20) !important; /* Brighter reddish text */
+  background-color: oklch(0.28 0.06 20) !important; /* Slightly darker pop bg */
+  border-color: oklch(0.38 0.06 20) !important;
+}
+html.dark button.text-slate-400.hover\:text-slate-600:hover,
+html.dark .btn-light.text-muted:hover,
+html.dark .border-t button.text-slate-400:hover {
+  color: oklch(1 0.02 20) !important;
+  background-color: oklch(0.38 0.12 20) !important;
+}
+
+/* ── Calendar Text / Event Fixes ── */
+html.dark .fc-event,
+html.dark .fc-daygrid-event,
+html.dark [class*="bg-indigo-50"][class*="text-indigo-700"] {
+  background-color: oklch(0.3 0.1 265) !important;
+  color: oklch(0.9 0.05 265) !important;
+  border: none !important;
+}
+html.dark .fc-col-header-cell-cushion,
+html.dark .fc-daygrid-day-number {
+  color: oklch(0.88 0.015 265) !important;
+}
+html.dark .fc-theme-standard td, 
+html.dark .fc-theme-standard th, 
+html.dark .fc-theme-standard .fc-scrollgrid {
+  border-color: oklch(0.28 0.022 265) !important;
+}
+
+/* ── Unified Shadow System (Prevents white glow in Dark Mode) ── */
+html.dark [class*="shadow-"] {
+  box-shadow: 0 4px 14px 0 oklch(0 0 0 / 0.6) !important;
+}
+
+/* ── Darken "THAO TÁC" Column Text & Icons ── */
+html.dark th:last-child,
+html.dark th {
+  color: oklch(0.7 0.025 265) !important; /* Ensure header text is visible! */
+}
+
+html.dark td .p-2.text-slate-400,
+html.dark .group .p-2.text-slate-400,
+html.dark td button.text-slate-400,
+html.dark .material-symbols-outlined.text-slate-400 {
+  color: oklch(0.92 0.012 265) !important; /* Extra bright icons in dark mode */
+  opacity: 1 !important; /* Force them to be visible */
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   HRM DASHBOARD — GLOBAL CSS CUSTOM PROPERTIES
+   Light mode tokens at :root, Dark mode tokens at html.dark
+   These power Layout_GiamDoc & Dashboard_GiamDoc via var()
+═══════════════════════════════════════════════════════════════════ */
+
+
+/* ── Unified Action Buttons for Tables ── */
+.btn-action-icon {
+  padding: 0.5rem !important;
+  color: oklch(0.65 0.025 265) !important;
+  border-radius: 0.75rem !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+.btn-action-icon:hover {
+  background-color: white !important;
+  color: oklch(0.45 0.18 255) !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
+  transform: translateY(-1px);
+}
+
+.btn-action-icon .material-symbols-outlined {
+  font-size: 18px !important;
+}
+
+/* Danger variant for delete buttons */
+.btn-action-icon.btn-danger-action:hover {
+  color: oklch(0.6 0.18 25) !important;
+}
+
+/* Success variant for add/assign buttons */
+.btn-action-icon.btn-success-action:hover {
+  color: oklch(0.6 0.18 145) !important;
+}
+
+/* Dark mode support */
+html.dark .btn-action-icon {
+  color: oklch(0.92 0.012 265) !important;
+}
+
+html.dark .btn-action-icon:hover {
+  background-color: oklch(0.28 0.02 265) !important;
+  color: oklch(0.8 0.12 255) !important;
+  box-shadow: 0 4px 12px oklch(0 0 0 / 0.5) !important;
+}
+
+html.dark .btn-action-icon.btn-danger-action:hover {
+  color: oklch(0.8 0.15 25) !important;
+}
+
+html.dark .btn-action-icon.btn-success-action:hover {
+  color: oklch(0.8 0.15 145) !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   CHART & KPI DASHBOARD LOADING ANIMATIONS
+   ───────────────────────────────────────────────────────── */
+@keyframes fadeSlideUpDashboard {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-chart {
+  opacity: 0;
+  animation: fadeSlideUpDashboard 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.delay-75 { animation-delay: 75ms; }
+.delay-150 { animation-delay: 150ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-600 { animation-delay: 600ms; }
+.delay-700 { animation-delay: 700ms; }

@@ -1,0 +1,10 @@
+services:
+  backend:
+    environment:
+      MYSQL_HOST: host.docker.internal
+      MYSQL_PORT: 13306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: HRM_SYSTEM
+      BE_API_BASE_URL: https://anhsinhvienfpoly.click/api/v1
+      BE_API_TOKEN: ${BE_API_TOKEN}

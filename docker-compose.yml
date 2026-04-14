@@ -1,0 +1,79 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: hrm-mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-hrm_db}
+      MYSQL_USER: ${MYSQL_USER:-hrm_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change_user_password}
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+    networks:
+      - hrm_net
+
+  hrm-be:
+    build:
+      context: .
+      dockerfile: docker/be/Dockerfile
+    container_name: hrm-be
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      DB_DRIVER: ${DB_DRIVER:-mysql}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-hrm_db}
+      DB_USERNAME: ${DB_USERNAME:-hrm_user}
+      DB_PASSWORD: ${DB_PASSWORD:-change_user_password}
+    volumes:
+      - ./BE:/var/www/html
+      - ${CV_UPLOADS_HOST_PATH:-./storage/cv-uploads}:/var/www/html/storage/cv-uploads
+    depends_on:
+      - mysql
+    restart: unless-stopped
+    networks:
+      - hrm_net
+
+  hrm-fe:
+    build:
+      context: .
+      dockerfile: docker/fe/Dockerfile
+      args:
+        VITE_BE_API_BASE: /api/v1
+    container_name: hrm-fe
+    depends_on:
+      - hrm-be
+    restart: unless-stopped
+    networks:
+      - hrm_net
+
+  hrm-proxy:
+    image: caddy:2.8-alpine
+    container_name: hrm-proxy
+    depends_on:
+      - hrm-be
+      - hrm-fe
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./BE:/srv/backend:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    networks:
+      - hrm_net
+
+networks:
+  hrm_net:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  caddy_data:
+  caddy_config:

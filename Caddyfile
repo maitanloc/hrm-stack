@@ -1,0 +1,23 @@
+anhsinhvienfpoly.click {
+    encode gzip
+
+    route {
+        @api path /api/*
+        handle @api {
+            reverse_proxy be:8080
+        }
+
+        handle_path /hrm-api/* {
+            reverse_proxy 100.95.45.103:8000
+        }
+
+        handle {
+            reverse_proxy fe:80
+        }
+    }
+}
+
+www.anhsinhvienfpoly.click {
+    redir https://anhsinhvienfpoly.click{uri}
+}
+

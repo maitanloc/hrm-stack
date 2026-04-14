@@ -1,0 +1,9 @@
+ADMINs:
+1 - Phan Thành Danh - dept:1 - Ban Giám Đốc
+4 - Lê Minh Tuấn - dept:1 - Ban Giám Đốc
+MANAGERs:
+2 - Mai Tấn Lộc - dept:2 - Phòng Công Nghệ Thông Tin
+13 - Bùi Đức Sơn - dept:3 - Phòng Hành Chính Nhân Sự
+21 - Đỗ Hải Phát - dept:4 - Phòng Kinh Doanh
+38 - Trần Ngọc Linh - dept:5 - Phòng Kế Toán
+44 - Trần Minh Hoàng - dept:6 - Phòng Marketing

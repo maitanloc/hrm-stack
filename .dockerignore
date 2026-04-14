@@ -1,0 +1,10 @@
+.git
+.gitignore
+
+FE/node_modules
+FE/dist
+FE/.vscode
+
+BE/storage
+
+hrm

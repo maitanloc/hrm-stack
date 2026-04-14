@@ -1,0 +1,12 @@
+anhsinhvienfpoly.click {
+    encode gzip
+
+    @api path /api/*
+    reverse_proxy @api be:8080
+
+    reverse_proxy fe:80
+}
+
+www.anhsinhvienfpoly.click {
+    redir https://anhsinhvienfpoly.click{uri}
+}

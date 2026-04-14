@@ -1,0 +1,42 @@
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Secrets / env
+.env
+.env.local
+.env.*.local
+be.env
+*.pem
+*.key
+
+# PHP backend
+BE/vendor/
+BE/.git_backup_*/
+BE/storage/*.key
+BE/storage/logs/*
+BE/storage/framework/cache/*
+BE/storage/framework/sessions/*
+BE/storage/framework/views/*
+BE/bootstrap/cache/*.php
+
+# Node frontend
+FE/node_modules/
+FE/dist/
+FE/.vite/
+FE/.cache/
+
+# Docker runtime artifacts
+docker-data/
+mysql_data/
+caddy_data/
+caddy_config/
+*.pid
+
+# Misc backups / dumps
+*.bak
+*.bak.*
+*.sql
+storage/cv-uploads/
+FE/vite_err.txt

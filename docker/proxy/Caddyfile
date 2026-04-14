@@ -1,0 +1,14 @@
+:80 {
+    encode gzip
+
+    @api path /api/*
+    handle @api {
+        root * /srv/backend/public
+        php_fastcgi hrm-be:9000
+        file_server
+    }
+
+    handle {
+        reverse_proxy hrm-fe:80
+    }
+}
