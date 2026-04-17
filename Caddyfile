@@ -1,10 +1,14 @@
-anhsinhvienfpoly.click {
-    encode gzip
+(hrm_routes) {
+    @compress {
+        not path /api/*
+    }
+    encode @compress gzip
 
     route {
         @api path /api/*
         handle @api {
-            reverse_proxy be:8080
+            root * /srv/app/public
+            php_fastcgi be:9000
         }
 
         handle_path /hrm-api/* {
@@ -17,7 +21,14 @@ anhsinhvienfpoly.click {
     }
 }
 
-www.anhsinhvienfpoly.click {
+http://157.66.46.75 {
     redir https://anhsinhvienfpoly.click{uri}
 }
 
+anhsinhvienfpoly.click {
+    import hrm_routes
+}
+
+www.anhsinhvienfpoly.click {
+    redir https://anhsinhvienfpoly.click{uri}
+}

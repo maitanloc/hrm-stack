@@ -1,14 +1,39 @@
-:80 {
+{
+    auto_https off
+}
+
+http://localhost {
     encode gzip
 
     @api path /api/*
     handle @api {
         root * /var/www/html/public
-        rewrite * /index.php
         php_fastcgi hrm-be:9000
     }
 
     handle {
         reverse_proxy hrm-fe:80
     }
+}
+
+anhsinhvienfpoly.click {
+    encode gzip
+
+    @api path /api/*
+    handle @api {
+        root * /var/www/html/public
+        php_fastcgi hrm-be:9000
+    }
+
+    handle {
+        reverse_proxy hrm-fe:80
+    }
+}
+
+www.anhsinhvienfpoly.click {
+    redir https://anhsinhvienfpoly.click{uri}
+}
+
+http://157.66.46.75 {
+    redir https://anhsinhvienfpoly.click{uri}
 }
