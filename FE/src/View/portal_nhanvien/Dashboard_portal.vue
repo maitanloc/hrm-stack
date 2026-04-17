@@ -45,11 +45,37 @@
                 <div class="mt-6 flex flex-col gap-3 bg-transparent">
                   <div class="flex items-center gap-2 text-[12px] font-semibold text-[var(--sys-text-secondary)] bg-transparent">
                     <span class="material-symbols-outlined text-[20px] text-[var(--sys-brand-solid)]">location_on</span>
-                    Văn phòng TP. Hồ Chí Minh
+                    {{ geoPrimaryLine }}
                   </div>
-                  <div class="flex items-center gap-2 text-[11px] font-bold text-[var(--sys-success-text)] uppercase tracking-wide bg-transparent">
-                    <span class="w-2 h-2 rounded-full bg-[var(--sys-success-solid)] animate-pulse shadow-sm"></span>
-                    IP: 113.161.x.x (Hợp lệ)
+                  <div class="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide bg-transparent" :class="geoAccentClass">
+                    <span class="w-2 h-2 rounded-full animate-pulse shadow-sm" :class="geoDotClass"></span>
+                    {{ geoSecondaryLine }}
+                  </div>
+                  <div class="rounded-md border px-3 py-2 text-left" :class="geoBannerClass">
+                    <p class="m-0 text-[11px] font-bold uppercase tracking-wide">{{ geoHeadline }}</p>
+                    <p class="m-0 mt-1 text-[12px] font-medium leading-5">{{ geoBody }}</p>
+                  </div>
+                  <div v-if="geoNeedsAttention" class="flex flex-wrap gap-2 bg-transparent">
+                    <button
+                      type="button"
+                      class="h-9 px-4 rounded-md bg-[var(--sys-brand-solid)] text-white text-[11px] font-bold uppercase tracking-wide hover:brightness-95 transition-all"
+                      @click="handleGeoAction"
+                    >
+                      {{ geoActionLabel }}
+                    </button>
+                  </div>
+                  <div class="rounded-md border border-[var(--sys-border-subtle)] bg-[var(--sys-bg-page)] px-4 py-3 text-left shadow-sm">
+                    <div class="flex items-start justify-between gap-3 bg-transparent">
+                      <div class="bg-transparent">
+                        <p class="m-0 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--sys-text-secondary)] opacity-60">Ca hôm nay</p>
+                        <p class="m-0 mt-1 text-[15px] font-bold text-[var(--sys-text-primary)]">{{ todayShiftCard.title }}</p>
+                      </div>
+                      <span class="rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide" :class="todayShiftCard.badgeClass">
+                        {{ todayShiftCard.badge }}
+                      </span>
+                    </div>
+                    <p class="m-0 mt-3 text-[12px] font-semibold text-[var(--sys-text-primary)]">{{ todayShiftCard.time }}</p>
+                    <p class="m-0 mt-1 text-[11px] font-medium leading-5 text-[var(--sys-text-secondary)]">{{ todayShiftCard.meta }}</p>
                   </div>
                 </div>
               </div>
@@ -59,29 +85,17 @@
                 <div class="grid grid-cols-2 gap-4 bg-transparent">
                   <button 
                     @click="handleCheckIn" 
-                    :disabled="attendanceToday?.checkOut2"
-                    :class="[
-                      'font-bold py-5 px-4 rounded-md flex flex-col items-center justify-center gap-2 shadow-sm transition-all group',
-                      attendanceToday?.checkOut2 
-                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60' 
-                        : 'bg-[var(--sys-brand-solid)] hover:brightness-90 text-white active:scale-95'
-                    ]"
+                    class="font-bold py-5 px-4 rounded-md flex flex-col items-center justify-center gap-2 shadow-sm transition-all group bg-[var(--sys-brand-solid)] hover:brightness-90 text-white active:scale-95"
                   >
                     <span class="material-symbols-outlined text-3xl group-hover:scale-105 transition-transform">login</span>
-                    <span class="text-[12px] uppercase tracking-wide">Vào {{ !attendanceToday ? 'lần 1' : (!attendanceToday.checkIn2 ? 'lần 2' : '') }}</span>
+                    <span class="text-[12px] uppercase tracking-wide">Đi làm</span>
                   </button>
                   <button 
                     @click="handleCheckOut" 
-                    :disabled="!attendanceToday?.checkIn2 || attendanceToday?.checkOut2"
-                    :class="[
-                      'font-bold py-5 px-4 rounded-md flex flex-col items-center justify-center gap-2 shadow-sm transition-all group',
-                      (!attendanceToday?.checkIn2 || attendanceToday?.checkOut2)
-                        ? 'bg-gray-50 text-gray-400 cursor-not-allowed border-gray-100'
-                        : 'bg-white hover:bg-[var(--sys-bg-page)] text-[var(--sys-text-primary)] border border-[var(--sys-border-strong)] active:scale-95'
-                    ]"
+                    class="font-bold py-5 px-4 rounded-md flex flex-col items-center justify-center gap-2 shadow-sm transition-all group bg-white hover:bg-[var(--sys-bg-page)] text-[var(--sys-text-primary)] border border-[var(--sys-border-strong)] active:scale-95"
                   >
-                    <span class="material-symbols-outlined text-3xl group-hover:scale-105 transition-transform" :class="(!attendanceToday?.checkIn2 || attendanceToday?.checkOut2) ? 'text-gray-300' : 'text-[var(--sys-text-secondary)]'">logout</span>
-                    <span class="text-[12px] uppercase tracking-wide opacity-80">Ra {{ attendanceToday?.checkIn2 && !attendanceToday?.checkOut1 ? 'lần 1' : (attendanceToday?.checkOut1 ? 'lần 2' : '') }}</span>
+                    <span class="material-symbols-outlined text-3xl group-hover:scale-105 transition-transform text-[var(--sys-text-secondary)]">logout</span>
+                    <span class="text-[12px] uppercase tracking-wide opacity-80">Ra về</span>
                   </button>
                 </div>
                 <div class="py-3 px-4 bg-[var(--sys-bg-page)] rounded-md border border-[var(--sys-border-subtle)] text-center">
@@ -131,23 +145,57 @@
                 <div class="flex flex-col items-center justify-center p-3 rounded-md bg-[var(--sys-success-soft)] border border-[var(--sys-success-border)] group hover:brightness-95 transition-all shadow-sm">
                   <span class="material-symbols-outlined text-[var(--sys-success-text)] mb-2 text-[24px]">done_all</span>
                   <span class="text-[9px] font-bold text-[var(--sys-success-text)] uppercase tracking-tighter mb-1 opacity-80">Ngày công</span>
-                  <span class="text-xl font-bold text-[var(--sys-text-primary)]">18.5</span>
+                  <span class="text-xl font-bold text-[var(--sys-text-primary)]">{{ monthlySummary.worked }}</span>
                 </div>
                 <div class="flex flex-col items-center justify-center p-3 rounded-md bg-[var(--sys-danger-soft)] border border-[var(--sys-danger-border)] group hover:brightness-95 transition-all shadow-sm">
                   <span class="material-symbols-outlined text-[var(--sys-danger-text)] mb-2 text-[24px]">event_busy</span>
                   <span class="text-[9px] font-bold text-[var(--sys-danger-text)] uppercase tracking-tighter mb-1 opacity-80">Vắng mặt</span>
-                  <span class="text-xl font-bold text-[var(--sys-text-primary)]">0.0</span>
+                  <span class="text-xl font-bold text-[var(--sys-text-primary)]">{{ monthlySummary.absent }}</span>
                 </div>
                 <div class="flex flex-col items-center justify-center p-3 rounded-md bg-[var(--sys-warning-soft)] border border-[var(--sys-warning-border)] group hover:brightness-95 transition-all shadow-sm">
                   <span class="material-symbols-outlined text-[var(--sys-warning-text)] mb-2 text-[24px]">history</span>
                   <span class="text-[9px] font-bold text-[var(--sys-warning-text)] uppercase tracking-tighter mb-1 opacity-80">Đi muộn</span>
-                  <span class="text-xl font-bold text-[var(--sys-text-primary)]">15p</span>
+                  <span class="text-xl font-bold text-[var(--sys-text-primary)]">{{ monthlySummary.late }}</span>
                 </div>
               </div>
               <div class="mt-6 pt-4 flex justify-center bg-transparent border-t border-[var(--sys-border-subtle)]">
                 <button type="button" @click.stop="router.push('/nhanvien/chamcong')" class="text-[var(--sys-brand-solid)] text-[11px] font-bold uppercase tracking-wide hover:opacity-80 transition-opacity flex items-center gap-1">
                   Bảng chi tiết <span class="material-symbols-outlined text-[18px]">chevron_right</span>
                 </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-[var(--sys-bg-surface)] rounded-lg shadow-sm border border-[var(--sys-border-subtle)] overflow-hidden">
+            <div class="px-6 py-4 border-b border-[var(--sys-border-subtle)] flex justify-between items-center bg-[var(--sys-bg-page)]/50">
+              <h3 class="text-sm font-semibold text-[var(--sys-text-primary)] uppercase tracking-wide flex items-center gap-2 m-0">
+                <span class="material-symbols-outlined text-[var(--sys-brand-solid)] text-[22px]">calendar_month</span>
+                Lịch làm việc của tôi
+              </h3>
+              <button type="button" @click="router.push('/nhanvien/chamcong')" class="text-[var(--sys-brand-solid)] text-[11px] font-bold uppercase tracking-wide hover:opacity-80 transition-opacity flex items-center gap-1">
+                Xem chấm công <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+              </button>
+            </div>
+
+            <div class="p-4 md:p-5 bg-transparent">
+              <div v-if="!upcomingScheduleRows.length" class="rounded-md border border-[var(--sys-border-subtle)] bg-[var(--sys-bg-page)] px-4 py-5 text-[12px] font-medium text-[var(--sys-text-secondary)] text-center">
+                Chưa có lịch làm việc hiển thị trong 7 ngày tới. Nếu đây là tuần làm việc, bạn nên kiểm tra lại với trưởng phòng hoặc HR.
+              </div>
+
+              <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 bg-transparent">
+                <div v-for="item in upcomingScheduleRows" :key="item.workDate" class="rounded-md border border-[var(--sys-border-subtle)] bg-white px-4 py-3 shadow-sm">
+                  <div class="flex items-start justify-between gap-3 bg-transparent">
+                    <div class="bg-transparent">
+                      <p class="m-0 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--sys-text-secondary)] opacity-60">{{ item.dayLabel }}</p>
+                      <p class="m-0 mt-1 text-[13px] font-bold text-[var(--sys-text-primary)]">{{ item.title }}</p>
+                    </div>
+                    <span class="rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide" :class="item.badgeClass">
+                      {{ item.badge }}
+                    </span>
+                  </div>
+                  <p class="m-0 mt-3 text-[12px] font-semibold text-[var(--sys-text-primary)]">{{ item.timeLabel }}</p>
+                  <p class="m-0 mt-1 text-[11px] font-medium leading-5 text-[var(--sys-text-secondary)]">{{ item.meta }}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -161,11 +209,11 @@
                 <span class="material-symbols-outlined text-[var(--sys-brand-solid)] text-[22px]">notifications_active</span>
                 Thông báo mới
               </h3>
-              <span class="bg-[var(--sys-danger-solid)] text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm">3</span>
+              <span v-if="unreadNotificationsCount > 0" class="bg-[var(--sys-danger-solid)] text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm">{{ unreadNotificationsCount }}</span>
             </div>
             
             <div class="flex-grow overflow-y-auto custom-scrollbar bg-transparent divide-y divide-[var(--sys-border-subtle)]">
-              <router-link v-for="notif in notifications" :key="notif.id" :to="{ name: 'thong-bao' }" class="block px-5 py-4 hover:bg-[var(--sys-bg-hover)] transition-all cursor-pointer group no-underline text-left">
+              <button v-for="notif in notifications" :key="notif.id" type="button" class="w-full block px-5 py-4 hover:bg-[var(--sys-bg-hover)] transition-all cursor-pointer group no-underline text-left bg-transparent border-0" @click="handleNotificationClick(notif)">
                 <div class="flex gap-4 bg-transparent text-left">
                   <div :class="['w-10 h-10 rounded-md flex items-center justify-center shrink-0 border transition-all', 
                     notif.type === 'success' ? 'bg-[var(--sys-success-soft)] text-[var(--sys-success-text)] border-[var(--sys-success-border)] group-hover:bg-[var(--sys-success-solid)] group-hover:text-white' : 
@@ -179,7 +227,10 @@
                     <span class="text-[10px] font-bold text-[var(--sys-text-disabled)] uppercase tracking-widest opacity-60">{{ notif.time }}</span>
                   </div>
                 </div>
-              </router-link>
+              </button>
+              <div v-if="notifications.length === 0" class="px-5 py-10 text-center text-[12px] font-medium text-[var(--sys-text-secondary)]">
+                Chưa có thông báo mới cho tài khoản của bạn.
+              </div>
             </div>
 
             <div class="px-5 py-3 bg-[var(--sys-bg-page)]/50 border-t border-[var(--sys-border-subtle)] text-center">
@@ -244,13 +295,15 @@
   </div>
 </template>
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCurrentUser } from '@/composables/useCurrentUser';
+import { loadGeoState, requestAttendancePrecheck } from '@/services/attendanceGeo.js';
+import { fetchAttendanceResults, fetchMySchedule, fetchMyShiftToday } from '@/services/workforceApi.js';
+import { fetchNotifications as fetchNotificationsService, markNotificationRead } from '@/services/notificationsApi.js';
 
 const router = useRouter();
-const { fullName, baseLeaveDays, employeeId: currentEmpId } = useCurrentUser();
-const userId = computed(() => currentEmpId.value);
+const { employeeId, fullName, baseLeaveDays } = useCurrentUser();
 
 const currentHours = ref('00');
 const currentMinutes = ref('00');
@@ -260,14 +313,267 @@ let timerInterval = null;
 
 const activities = ref([]);
 const notifications = ref([]);
-const attendanceToday = ref(null);
 const showToast = ref(false);
 const toastMsg = ref('');
 const toastType = ref('success');
+const lastLogTime = ref(localStorage.getItem('attendance_last_event_label') || '--:-- --/--/----');
+const geoState = ref(loadGeoState());
+const geoBusy = ref(false);
+const lastGeoToastKey = ref('');
+const todayShift = ref(null);
+const mySchedule = ref([]);
+const monthlyResults = ref([]);
+let notificationInterval = null;
 
-const lastLogTime = computed(() => {
-  if (!attendanceToday.value) return '--:--:--';
-  return attendanceToday.value.checkOut2 || attendanceToday.value.checkOut1 || attendanceToday.value.checkIn2 || attendanceToday.value.checkIn1 || '--:--:--';
+const geoRiskLevel = computed(() => String(geoState.value?.riskLevel || '').toUpperCase());
+const geoReasonCode = computed(() => String(geoState.value?.reasonCode || '').toUpperCase());
+const geoPrimaryLine = computed(() => {
+  const location = geoState.value?.location;
+  if (location?.lat && location?.lng) {
+    return `GPS thật: ${Number(location.lat).toFixed(6)}, ${Number(location.lng).toFixed(6)}`;
+  }
+  return 'Chưa có GPS thật từ thiết bị';
+});
+const geoSecondaryLine = computed(() => {
+  const anchor = String(geoState.value?.companyAnchorLabel || '').trim();
+  const distance = Number(geoState.value?.companyAnchorDistanceM);
+  if (anchor && Number.isFinite(distance) && distance >= 0) {
+    return `${anchor} · cách ${Math.round(distance)}m`;
+  }
+  if (Number.isFinite(distance) && distance >= 0) {
+    return `Khoảng cách đến mốc công ty: ${Math.round(distance)}m`;
+  }
+  return 'GPS được đọc trực tiếp từ trình duyệt, không dùng nhãn IP tĩnh';
+});
+const geoHeadline = computed(() => {
+  if (geoReasonCode.value === 'INSECURE_CONTEXT') return 'Cần mở bản HTTPS';
+  if (geoReasonCode.value === 'PERMISSION_DENIED') return 'Cần bật GPS';
+  if (geoRiskLevel.value === 'GREEN') return 'Trong vùng cho phép';
+  if (geoRiskLevel.value === 'YELLOW') return 'Gần vùng công ty';
+  if (geoRiskLevel.value === 'RED') return 'Ngoài vùng cho phép';
+  return 'Đang chờ GPS';
+});
+const geoBody = computed(() => {
+  if (geoState.value?.userMessage) return geoState.value.userMessage;
+  return 'Khi vào hệ thống, trình duyệt sẽ xin quyền GPS để kiểm tra vị trí trước khi chấm công.';
+});
+const geoBannerClass = computed(() => {
+  if (geoRiskLevel.value === 'GREEN') return 'bg-[var(--sys-success-soft)] border-[var(--sys-success-border)] text-[var(--sys-success-text)]';
+  if (geoRiskLevel.value === 'YELLOW') return 'bg-[var(--sys-warning-soft)] border-[var(--sys-warning-border)] text-[var(--sys-warning-text)]';
+  if (geoRiskLevel.value === 'RED' || geoReasonCode.value === 'INSECURE_CONTEXT' || geoReasonCode.value === 'PERMISSION_DENIED') {
+    return 'bg-[var(--sys-danger-soft)] border-[var(--sys-danger-border)] text-[var(--sys-danger-text)]';
+  }
+  return 'bg-[var(--sys-info-soft)] border-[var(--sys-info-border)] text-[var(--sys-info-text)]';
+});
+const geoAccentClass = computed(() => {
+  if (geoRiskLevel.value === 'GREEN') return 'text-[var(--sys-success-text)]';
+  if (geoRiskLevel.value === 'YELLOW') return 'text-[var(--sys-warning-text)]';
+  if (geoRiskLevel.value === 'RED') return 'text-[var(--sys-danger-text)]';
+  return 'text-[var(--sys-text-secondary)]';
+});
+const geoDotClass = computed(() => {
+  if (geoRiskLevel.value === 'GREEN') return 'bg-[var(--sys-success-solid)]';
+  if (geoRiskLevel.value === 'YELLOW') return 'bg-[var(--sys-warning-solid)]';
+  if (geoRiskLevel.value === 'RED') return 'bg-[var(--sys-danger-solid)]';
+  return 'bg-[var(--sys-brand-solid)]';
+});
+const geoNeedsAttention = computed(() => geoRiskLevel.value !== 'GREEN');
+const geoActionLabel = computed(() => {
+  if (geoReasonCode.value === 'INSECURE_CONTEXT') return 'Mở bản HTTPS';
+  if (geoReasonCode.value === 'PERMISSION_DENIED') return 'Bật GPS';
+  return 'Mở chấm công';
+});
+const todayShiftCard = computed(() => {
+  const payload = todayShift.value || {};
+  const shift = payload.shift || null;
+  const holiday = payload.holiday || null;
+  const leave = payload.leave || null;
+  const remote = payload.remote || null;
+  const businessTrip = payload.business_trip || null;
+
+  if (holiday) {
+    return {
+      title: holiday.holiday_name || 'Ngày nghỉ hệ thống',
+      time: 'Không yêu cầu chấm công theo lịch chuẩn',
+      meta: holiday.description || 'Hệ thống đang áp lịch nghỉ lễ cho ngày hôm nay.',
+      badge: 'Holiday',
+      badgeClass: 'bg-[var(--sys-info-soft)] text-[var(--sys-info-text)] border-[var(--sys-info-border)]',
+    };
+  }
+
+  if (leave) {
+    return {
+      title: leave.leave_type_name || 'Nghỉ phép đã duyệt',
+      time: 'Ngày làm việc được thay bằng đơn nghỉ',
+      meta: 'Bạn đã có đơn nghỉ hợp lệ trong ngày, hệ thống sẽ đối chiếu theo trạng thái này.',
+      badge: 'Leave',
+      badgeClass: 'bg-[var(--sys-warning-soft)] text-[var(--sys-warning-text)] border-[var(--sys-warning-border)]',
+    };
+  }
+
+  if (businessTrip) {
+    return {
+      title: 'Lịch công tác',
+      time: shift?.shift_name ? `${shift.shift_name} · ${shift.start_time || '--:--'} - ${shift.end_time || '--:--'}` : 'Theo lịch công tác đã duyệt',
+      meta: 'Ngày hôm nay đang được gắn trạng thái công tác. Manager và HR sẽ thấy lịch này trên bảng phòng ban.',
+      badge: 'CT',
+      badgeClass: 'bg-[var(--sys-brand-soft)] text-[var(--sys-brand-solid)] border-[var(--sys-brand-border)]',
+    };
+  }
+
+  if (remote) {
+    return {
+      title: shift?.shift_name || 'Làm việc từ xa',
+      time: shift?.start_time ? `${shift.start_time} - ${shift.end_time || '--:--'}` : 'Theo khung giờ remote đã duyệt',
+      meta: 'Ngày hôm nay hệ thống đang ghi nhận bạn làm việc từ xa. Vẫn nên check-in đúng giờ nếu policy yêu cầu.',
+      badge: 'Remote',
+      badgeClass: 'bg-[var(--sys-success-soft)] text-[var(--sys-success-text)] border-[var(--sys-success-border)]',
+    };
+  }
+
+  if (shift) {
+    const sourceMap = {
+      override: 'Ca được chỉnh riêng cho hôm nay.',
+      assignment: 'Ca mặc định cá nhân đang có hiệu lực.',
+      department_schedule: 'Ca lấy từ lịch phòng ban đã phân.',
+    };
+    return {
+      title: shift.shift_name || 'Ca làm việc',
+      time: shift.start_time ? `${shift.start_time} - ${shift.end_time || '--:--'}` : 'Đang chờ khung giờ ca',
+      meta: sourceMap[shift.source] || 'Hệ thống đang lấy ca theo lịch làm việc hiện hành.',
+      badge: 'Shift',
+      badgeClass: 'bg-[var(--sys-brand-soft)] text-[var(--sys-brand-solid)] border-[var(--sys-brand-border)]',
+    };
+  }
+
+  return {
+    title: 'Chưa được phân ca',
+    time: 'Hôm nay chưa có lịch làm việc chính thức',
+    meta: 'Nếu đây là ngày làm việc, bạn nên liên hệ trưởng phòng hoặc HR để cập nhật ca trước khi chấm công.',
+    badge: 'Pending',
+    badgeClass: 'bg-[var(--sys-danger-soft)] text-[var(--sys-danger-text)] border-[var(--sys-danger-border)]',
+  };
+});
+const monthlySummary = computed(() => {
+  const summary = {
+    worked: 0,
+    absent: 0,
+    lateMinutes: 0,
+  };
+
+  for (const item of monthlyResults.value) {
+    const status = String(item?.primary_status_code || '').toUpperCase();
+    if (['P', 'OT', 'NS', 'REMOTE', 'CT', 'H'].includes(status)) {
+      summary.worked += 1;
+    } else if (['AL', 'SL', 'UNP'].includes(status)) {
+      summary.worked += 0.5;
+    } else if (status === 'AB') {
+      summary.absent += 1;
+    }
+    summary.lateMinutes += Number(item?.late_minutes || 0);
+  }
+
+  return {
+    worked: summary.worked.toFixed(1),
+    absent: summary.absent.toFixed(1),
+    late: summary.lateMinutes > 0 ? `${summary.lateMinutes}p` : '0p',
+  };
+});
+const unreadNotificationsCount = computed(() => notifications.value.filter((item) => !item.isRead).length || 0);
+
+const upcomingScheduleRows = computed(() => {
+  const scheduleRows = Array.isArray(mySchedule.value) ? mySchedule.value : [];
+  return scheduleRows
+    .slice()
+    .sort((left, right) => String(left?.work_date || '').localeCompare(String(right?.work_date || '')))
+    .slice(0, 7)
+    .map((item) => {
+      const shift = item?.shift || null;
+      const holiday = item?.holiday || null;
+      const leave = item?.leave || null;
+      const remote = item?.remote || null;
+      const businessTrip = item?.business_trip || null;
+      const workDate = String(item?.work_date || '');
+      const date = new Date(`${workDate}T00:00:00`);
+      const dayLabel = Number.isNaN(date.getTime())
+        ? workDate
+        : date.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit' });
+
+      if (holiday) {
+        return {
+          workDate,
+          dayLabel,
+          title: holiday.holiday_name || 'Ngày nghỉ hệ thống',
+          timeLabel: 'Không cần chấm công theo lịch chuẩn',
+          meta: holiday.description || 'Hệ thống đang áp dụng lịch nghỉ lễ cho ngày này.',
+          badge: 'Holiday',
+          badgeClass: 'bg-[var(--sys-info-soft)] text-[var(--sys-info-text)] border-[var(--sys-info-border)]',
+        };
+      }
+
+      if (leave) {
+        return {
+          workDate,
+          dayLabel,
+          title: leave.leave_type_name || 'Nghỉ phép đã duyệt',
+          timeLabel: 'Ngày làm việc được thay bằng đơn nghỉ',
+          meta: 'Lịch làm việc đã được thay thế bằng trạng thái nghỉ phép hợp lệ.',
+          badge: 'Leave',
+          badgeClass: 'bg-[var(--sys-warning-soft)] text-[var(--sys-warning-text)] border-[var(--sys-warning-border)]',
+        };
+      }
+
+      if (businessTrip) {
+        return {
+          workDate,
+          dayLabel,
+          title: 'Công tác',
+          timeLabel: shift?.start_time ? `${shift.start_time} - ${shift.end_time || '--:--'}` : 'Theo lịch công tác đã duyệt',
+          meta: 'Ngày này đang được đánh dấu công tác trên planning layer.',
+          badge: 'CT',
+          badgeClass: 'bg-[var(--sys-brand-soft)] text-[var(--sys-brand-solid)] border-[var(--sys-brand-border)]',
+        };
+      }
+
+      if (remote) {
+        return {
+          workDate,
+          dayLabel,
+          title: shift?.shift_name || 'Làm việc từ xa',
+          timeLabel: shift?.start_time ? `${shift.start_time} - ${shift.end_time || '--:--'}` : 'Theo lịch remote đã duyệt',
+          meta: 'Ngày này được ghi nhận làm việc từ xa theo workflow đã phê duyệt.',
+          badge: 'Remote',
+          badgeClass: 'bg-[var(--sys-success-soft)] text-[var(--sys-success-text)] border-[var(--sys-success-border)]',
+        };
+      }
+
+      if (shift) {
+        const sourceMap = {
+          override: 'Ca chỉnh riêng theo ngày đang được ưu tiên áp dụng.',
+          assignment: 'Ca mặc định cá nhân đang có hiệu lực.',
+          department_schedule: 'Ca lấy từ lịch phòng ban đã publish.',
+        };
+        return {
+          workDate,
+          dayLabel,
+          title: shift.shift_name || 'Ca làm việc',
+          timeLabel: shift.start_time ? `${shift.start_time} - ${shift.end_time || '--:--'}` : 'Đang chờ khung giờ ca',
+          meta: sourceMap[shift.source] || 'Hệ thống đang đọc ca từ lịch làm việc hiện hành.',
+          badge: 'Shift',
+          badgeClass: 'bg-[var(--sys-brand-soft)] text-[var(--sys-brand-solid)] border-[var(--sys-brand-border)]',
+        };
+      }
+
+      return {
+        workDate,
+        dayLabel,
+        title: 'Chưa phân ca',
+        timeLabel: 'Không có lịch làm việc chính thức',
+        meta: 'Bạn nên liên hệ trưởng phòng hoặc HR để bổ sung lịch nếu đây là ngày làm việc.',
+        badge: 'Pending',
+        badgeClass: 'bg-[var(--sys-danger-soft)] text-[var(--sys-danger-text)] border-[var(--sys-danger-border)]',
+      };
+    });
 });
 
 const triggerToast = (msg, type = 'success') => {
@@ -277,136 +583,103 @@ const triggerToast = (msg, type = 'success') => {
   setTimeout(() => { showToast.value = false; }, 3000);
 };
 
-const notifyManager = async (msg) => {
+const handleCheckIn = () => {
+  router.push('/nhanvien/chamcong');
+};
+
+const handleCheckOut = () => {
+  router.push('/nhanvien/chamcong');
+};
+
+const handleGeoAction = () => {
+  if (geoReasonCode.value === 'INSECURE_CONTEXT') {
+    window.location.href = `https://anhsinhvienfpoly.click${window.location.pathname}`;
+    return;
+  }
+  router.push('/nhanvien/chamcong');
+};
+
+const refreshGeoState = async () => {
+  if (!employeeId.value || geoBusy.value) return;
+  geoBusy.value = true;
   try {
-    const userRes = await fetch(`http://localhost:3000/employees/${userId.value}`);
-    const user = await userRes.json();
-    if (user && user.managerId) {
-      await fetch('http://localhost:3000/notifications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.managerId,
-          type: 'info',
-          title: 'Thông báo Chấm công',
-          desc: `${user.name} ${msg}`,
-          time: 'Vừa xong',
-          isRead: false,
-          icon: 'history'
-        })
-      });
+    const { state } = await requestAttendancePrecheck({
+      employeeId: employeeId.value,
+      attendanceType: 'CHECKIN',
+    });
+    geoState.value = state;
+    const distance = Number(state?.companyAnchorDistanceM);
+    const distanceLabel = Number.isFinite(distance) && distance >= 0 ? ` · cách ${Math.round(distance)}m` : '';
+    const toastKey = `${state?.riskLevel || ''}:${state?.reasonCode || ''}:${Math.round(distance || -1)}`;
+    if (toastKey !== lastGeoToastKey.value) {
+      lastGeoToastKey.value = toastKey;
+      if (state?.riskLevel === 'RED') {
+        triggerToast(`${state?.userMessage || 'Bạn đang ngoài khu vực làm việc.'}${distanceLabel}`, 'danger');
+      } else if (state?.riskLevel === 'YELLOW') {
+        triggerToast(`${state?.userMessage || 'Bạn đang gần khu vực làm việc.'}${distanceLabel}`, 'warning');
+      }
     }
-  } catch (e) { console.error('Notify Error:', e); }
-};
-
-const fetchData = async () => {
-  try {
-    const res = await fetch(`http://localhost:3000/attendances?employeeId=${userId.value}`);
-    const data = await res.json();
-    const todayStr = new Date().toISOString().split('T')[0];
-    attendanceToday.value = data.find(item => item.date === todayStr);
-
-    activities.value = data.slice(0, 4).map(item => ({
-      date: item.date,
-      type: 'Chấm công',
-      time: `${item.checkIn1}${item.checkIn2 ? ' | ' + item.checkIn2 : ''} Vào - ${item.checkOut1 || '--'}${item.checkOut2 ? ' | ' + item.checkOut2 : ''} Ra`,
-      color: 'success',
-      status: item.status === 'ontime' ? 'Hợp lệ' : 'Hợp lệ'
-    }));
-
-    notifications.value = [
-        { id: 1, type: 'warning', icon: 'campaign', title: 'Thông báo Nội bộ', desc: 'Cuộc họp toàn công ty vào Thứ 6 lúc 15:00.', time: '10 phút trước' },
-        { id: 2, type: 'success', icon: 'done_all', title: 'Nghỉ phép', desc: 'Đơn nghỉ phép ngày 15/10 đã được duyệt.', time: '2 giờ trước' },
-        { id: 3, type: 'success', icon: 'payments', title: 'Lương & Thưởng', desc: 'Bảng lương tháng 9 đã được cập nhật.', time: '1 ngày trước' }
-    ];
   } catch (error) {
-    console.error('Lỗi khi tải dữ liệu nhân viên:', error);
-  }
-};
-
-const handleCheckIn = async () => {
-  const now = new Date();
-  const timeStr = now.toTimeString().split(' ')[0];
-  const dateStr = now.toISOString().split('T')[0];
-
-  // Nếu đã chấm ra lần 2 rồi thì không cho làm gì nữa
-  if (attendanceToday.value?.checkOut2) {
-    triggerToast('Bạn đã hoàn tất tất cả lượt chấm công cho hôm nay (Check-out lần 2).', 'warning');
-    return;
-  }
-
-  if (!attendanceToday.value) {
-    const newEntry = {
-      employeeId: userId.value,
-      date: dateStr,
-      checkIn1: timeStr,
-      checkIn2: null,
-      checkOut1: null,
-      checkOut2: null,
-      status: 'ontime',
-      location: 'Văn phòng HCM'
+    geoState.value = {
+      ...loadGeoState(),
+      riskLevel: 'RED',
+      reasonCode: String(error?.reason || '').toUpperCase(),
+      userMessage: error?.message || 'Không lấy được GPS thật từ thiết bị.',
     };
-    await fetch('http://localhost:3000/attendances', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newEntry)
-    });
-    triggerToast('Khởi tạo chấm công thành công!');
-    notifyManager(`đã chấm công vào lúc ${timeStr}`);
-  } else if (!attendanceToday.value.checkIn2) {
-    await fetch(`http://localhost:3000/attendances/${attendanceToday.value.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ checkIn2: timeStr })
-    });
-    triggerToast('Ghi nhận vào lần 2 thành công!');
-    notifyManager(`đã chấm công vào (lần 2) lúc ${timeStr}`);
-  } else {
-    triggerToast('Bạn đã ghi nhận vào đủ 2 lần cho hôm nay.', 'warning');
-    return;
+    const toastKey = `ERROR:${geoState.value.reasonCode}:${geoState.value.userMessage}`;
+    if (toastKey !== lastGeoToastKey.value) {
+      lastGeoToastKey.value = toastKey;
+      triggerToast(geoState.value.userMessage, 'danger');
+    }
+  } finally {
+    geoBusy.value = false;
   }
-  fetchData();
 };
 
-const handleCheckOut = async () => {
-  const now = new Date();
-  const timeStr = now.toTimeString().split(' ')[0];
+const refreshWorkforcePanel = async () => {
+  if (!employeeId.value) return;
+  const today = new Date();
+  const attendanceFromDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
+  const attendanceToDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const scheduleToDate = new Date(today);
+  scheduleToDate.setDate(today.getDate() + 6);
+  const scheduleFromDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const scheduleUntilDate = `${scheduleToDate.getFullYear()}-${String(scheduleToDate.getMonth() + 1).padStart(2, '0')}-${String(scheduleToDate.getDate()).padStart(2, '0')}`;
 
-  if (!attendanceToday.value || !attendanceToday.value.checkIn1) {
-    triggerToast('Bạn chưa ghi nhận vào lần 1 hôm nay!', 'danger');
-    return;
-  }
+  try {
+    const [todayPayload, schedulePayload, attendancePayload] = await Promise.all([
+      fetchMyShiftToday(),
+      fetchMySchedule({ fromDate: scheduleFromDate, toDate: scheduleUntilDate }),
+      fetchAttendanceResults({ fromDate: attendanceFromDate, toDate: attendanceToDate, perPage: 120 }),
+    ]);
 
-  // Ràng buộc: Chỉ cho chấm ra nếu đã chấm vào đủ 2 lần
-  if (!attendanceToday.value.checkIn2) {
-    triggerToast('Bạn phải hoàn tất ghi nhận VÀO lần 2 trước khi ghi nhận RA.', 'warning');
-    return;
+    todayShift.value = todayPayload;
+    mySchedule.value = Array.isArray(schedulePayload) ? schedulePayload : [];
+    monthlyResults.value = Array.isArray(attendancePayload) ? attendancePayload.filter((item) => Number(item?.employee_id) === Number(employeeId.value)) : [];
+  } catch (error) {
+    console.warn('Không tải được dữ liệu workforce cho dashboard nhân viên:', error);
   }
+};
 
-  // Nếu đã chấm ra lần 2 rồi thì không cho làm gì nữa
-  if (attendanceToday.value.checkOut2) {
-    triggerToast('Bạn đã hoàn tất tất cả lượt chấm công cho hôm nay.', 'warning');
-    return;
+const refreshNotifications = async () => {
+  try {
+    notifications.value = await fetchNotificationsService({ perPage: 6 });
+  } catch (error) {
+    console.warn('Không tải được thông báo dashboard nhân viên:', error);
   }
+};
 
-  if (!attendanceToday.value.checkOut1) {
-    await fetch(`http://localhost:3000/attendances/${attendanceToday.value.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ checkOut1: timeStr })
-    });
-    triggerToast('Ghi nhận ra lần 1 thành công!');
-    notifyManager(`đã chấm công ra lúc ${timeStr}`);
-  } else {
-    await fetch(`http://localhost:3000/attendances/${attendanceToday.value.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ checkOut2: timeStr })
-    });
-    triggerToast('Ghi nhận ra lần 2 (Kết thúc ngày) thành công!');
-    notifyManager(`đã chấm công ra (lần 2) lúc ${timeStr}`);
+const handleNotificationClick = async (notification) => {
+  try {
+    if (!notification?.isRead) {
+      await markNotificationRead(notification.id);
+      await refreshNotifications();
+    }
+  } catch (error) {
+    console.warn('Không cập nhật được trạng thái thông báo:', error);
+  } finally {
+    router.push({ name: 'thong-bao' });
   }
-  fetchData();
 };
 
 const updateTime = () => {
@@ -419,18 +692,21 @@ const updateTime = () => {
   currentDateStr.value = `Hôm nay là ${days[now.getDay()]}, ${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}.`;
 };
 
-let pollInterval = null;
-
 onMounted(() => {
   updateTime();
   timerInterval = setInterval(updateTime, 1000);
-  fetchData();
-  pollInterval = setInterval(fetchData, 10000); // Live sync data every 10s
+  void refreshGeoState();
+  void refreshWorkforcePanel();
+  void refreshNotifications();
+  notificationInterval = setInterval(() => {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    void refreshNotifications();
+  }, 45000);
 });
 
 onUnmounted(() => {
   if (timerInterval) clearInterval(timerInterval);
-  if (pollInterval) clearInterval(pollInterval);
+  if (notificationInterval) clearInterval(notificationInterval);
 });
 </script>
 

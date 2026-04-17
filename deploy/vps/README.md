@@ -1,82 +1,98 @@
-# VPS Docker Deploy (BE + FE + MySQL + HTTPS)
+# VPS Docker Deploy (BE + FE + MySQL + Caddy)
 
-This folder contains all files you need to upload to your VPS for deployment.
+## 1) Clone repo on VPS
 
-## 1) Folder structure on VPS
-
-Create `/opt/hrm-stack` and upload:
-
-- `BE/`
-- `FE/`
-- `SQL_hackathon v4.sql`
-- `data.sql`
-- all files in this `deploy/vps/` folder
-
-Final structure (example):
-
-```text
-/opt/hrm-stack
-  BE/
-  FE/
-  SQL_hackathon v4.sql
-  data.sql
-  docker-compose.yml
-  Dockerfile.be
-  Dockerfile.fe
-  Caddyfile
-  nginx-fe.conf
-  be.env
-  .env.deploy
-  import-db.sh
+```bash
+sudo mkdir -p /opt
+cd /opt
+git clone <YOUR_GITHUB_REPO_URL> hrm-stack
+cd /opt/hrm-stack/deploy/vps
 ```
 
-## 2) Prepare env files
+## 2) Install Docker and Compose plugin (Ubuntu)
 
-Copy and edit:
+```bash
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo usermod -aG docker $USER
+```
+
+Đăng xuất rồi đăng nhập lại một lần để dùng `docker` không cần `sudo`.
+
+## 3) Chuẩn bị file môi trường
 
 ```bash
 cp .env.deploy.example .env.deploy
 cp be.env.example be.env
 ```
 
-Set the same DB password in both files:
+Đặt cùng mật khẩu DB ở hai file:
+- `.env.deploy` -> `MYSQL_ROOT_PASSWORD`
+- `be.env` -> `DB_PASSWORD`
 
-- `.env.deploy` -> `MYSQL_ROOT_PASSWORD=...`
-- `be.env` -> `DB_PASSWORD=...`
+Đặt thêm:
+- `JWT_SECRET` mạnh trong `be.env`
+- `ATTENDANCE_PRECHECK_SECRET` mạnh trong `be.env`
 
-Also set a strong `JWT_SECRET` in `be.env`.
-
-## 3) Start stack
+## 4) Khởi động stack
 
 ```bash
 docker compose --env-file .env.deploy up -d --build
 ```
 
-## 4) Import database
+## 5) Import dữ liệu + migration + quyền
 
 ```bash
 chmod +x import-db.sh
 ./import-db.sh
 ```
 
-## 5) Verify
+Script đã tự chạy:
+- Import `SQL_hackathon v4.sql`, `data.sql`
+- Các migration attendance risk
+- Hardening quyền để tránh lỗi `Permission denied: ATTENDANCE_VIEW (access)`
+
+## 6) Kiểm tra nhanh
 
 ```bash
 docker compose ps
 curl -s http://127.0.0.1/api/v1/health
 ```
 
-Open:
+Kiểm tra route chấm công đã lên đúng (kết quả kỳ vọng `401` hoặc `422`, không phải `404`):
 
-- `https://anhsinhvienfpoly.click`
-- `https://anhsinhvienfpoly.click/api/v1/health`
+```bash
+curl -i -X POST http://127.0.0.1/api/v1/attendance/precheck -H "Content-Type: application/json" -d '{}'
+curl -i -X POST http://127.0.0.1/api/v1/attendance/pre-check -H "Content-Type: application/json" -d '{}'
+curl -i -X POST http://127.0.0.1/api/v1/attendance/clock-in -H "Content-Type: application/json" -d '{}'
+curl -i -X POST http://127.0.0.1/api/v1/attendance/clock-out -H "Content-Type: application/json" -d '{}'
+```
 
-## 6) DNS and firewall
+Nếu response là `404`, chạy lại:
 
-- Domain A record must point to your VPS IP.
-- Open TCP `80` and `443`.
+```bash
+cd /opt/hrm-stack
+chmod +x import-db.sh
+docker compose --env-file .env.deploy up -d --build --remove-orphans
+./import-db.sh
+docker compose --env-file .env.deploy restart hrm-be hrm-fe hrm-proxy
+```
 
-## 7) Notes
+Truy cập:
+- `http://<IP_VPS>`
+- `http://<IP_VPS>/api/v1/health`
+- hoặc domain đã trỏ DNS.
 
-- Do not upload `FE/node_modules` and `FE/dist`.
-- If Caddy cannot issue SSL, check DNS and firewall first.
+## 7) DNS và firewall
+
+- Mở TCP `80` và `443`.
+- Nếu dùng domain, A record phải trỏ về VPS.

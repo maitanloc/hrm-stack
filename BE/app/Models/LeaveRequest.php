@@ -76,7 +76,11 @@ class LeaveRequest extends Model
 
         $whereSql = $where === [] ? '' : 'WHERE ' . implode(' AND ', $where);
         $sql = "SELECT lr.*,
+                       e.employee_code,
                        e.full_name AS employee_name,
+                       d.department_name,
+                       p.position_name,
+                       lt.leave_type_code,
                        lt.leave_type_name,
                        r.request_code,
                        r.request_type_id,
@@ -87,6 +91,18 @@ class LeaveRequest extends Model
                 JOIN employees e ON e.employee_id = lr.employee_id
                 JOIN leave_types lt ON lt.leave_type_id = lr.leave_type_id
                 JOIN requests r ON r.request_id = lr.request_id
+                LEFT JOIN (
+                    SELECT eh1.employee_id, eh1.department_id, eh1.position_id
+                    FROM employment_histories eh1
+                    JOIN (
+                        SELECT employee_id, MAX(history_id) AS max_history_id
+                        FROM employment_histories
+                        WHERE is_current = 1
+                        GROUP BY employee_id
+                    ) current_eh ON current_eh.max_history_id = eh1.history_id
+                ) eh ON eh.employee_id = e.employee_id
+                LEFT JOIN departments d ON d.department_id = eh.department_id
+                LEFT JOIN positions p ON p.position_id = eh.position_id
                 $whereSql
                 ORDER BY lr.leave_request_id DESC
                 LIMIT :limit OFFSET :offset";

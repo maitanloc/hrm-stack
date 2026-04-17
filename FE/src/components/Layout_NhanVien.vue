@@ -76,6 +76,7 @@
             <span class="material-symbols-rounded" style="font-size:24px;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24">notifications</span>
             <!-- M3 Badge dot -->
             <span
+              v-if="unreadNotificationsCount > 0"
               class="absolute top-1.5 right-1.5 flex h-2.5 w-2.5 rounded-full bg-[oklch(0.55_0.22_25)] items-center justify-center ring-2"
               :class="isDark ? 'ring-[oklch(0.165_0.015_265)]' : 'ring-white'"
             ></span>
@@ -97,42 +98,34 @@
                 <h6
                   class="text-sm font-bold mb-0 text-[var(--sys-text-primary)]"
                 >Thông báo</h6>
-                <span class="text-[10px] font-bold text-[var(--sys-accent)] uppercase tracking-widest">3 Mới</span>
+                <span v-if="unreadNotificationsCount > 0" class="text-[10px] font-bold text-[var(--sys-accent)] uppercase tracking-widest">{{ unreadNotificationsCount }} Mới</span>
               </div>
               <div class="max-h-[300px] overflow-y-auto">
-                <div
-                  class="p-4 flex gap-3 transition-colors cursor-default border-b border-[var(--sys-border)] hover:bg-[var(--sys-bg-page)]"
+                <button
+                  v-for="notif in topNotifications"
+                  :key="notif.id"
+                  type="button"
+                  class="w-full p-4 flex gap-3 text-left transition-colors border-b border-[var(--sys-border)] hover:bg-[var(--sys-bg-page)]"
+                  @click="handleNotificationClick(notif)"
                 >
                   <div
-                    class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-[var(--sys-accent)]/10 text-[var(--sys-accent)]"
+                    class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                    :class="notif.type === 'success'
+                      ? 'bg-[var(--sys-success-soft)] text-[var(--sys-success-text)]'
+                      : notif.type === 'warning'
+                        ? 'bg-[var(--sys-warning-soft)] text-[var(--sys-warning-text)]'
+                        : 'bg-[var(--sys-accent)]/10 text-[var(--sys-accent)]'"
                   >
-                    <span class="material-symbols-rounded text-base" style="font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20">payments</span>
+                    <span class="material-symbols-rounded text-base" style="font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20">{{ notif.icon }}</span>
                   </div>
-                  <div>
-                    <p
-                      class="text-xs font-semibold mb-0.5 text-[var(--sys-text-primary)]"
-                    >Phiếu lương tháng 10/2023 đã cập nhật</p>
-                    <p
-                      class="text-[10px] text-[var(--sys-text-secondary)]"
-                    >Tài chính · 10 phút trước</p>
+                  <div class="min-w-0">
+                    <p class="text-xs font-semibold mb-0.5 text-[var(--sys-text-primary)]">{{ notif.title }}</p>
+                    <p class="text-[10px] text-[var(--sys-text-secondary)] line-clamp-2">{{ notif.desc }}</p>
+                    <p class="text-[10px] text-[var(--sys-text-secondary)] mt-1">{{ notif.time }}</p>
                   </div>
-                </div>
-                <div
-                  class="p-4 flex gap-3 transition-colors cursor-default hover:bg-[var(--sys-bg-page)]"
-                >
-                  <div
-                    class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-[var(--sys-success-bg)] text-[var(--sys-success-text)]"
-                  >
-                    <span class="material-symbols-rounded text-base" style="font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20">task_alt</span>
-                  </div>
-                  <div>
-                    <p
-                      class="text-xs font-semibold mb-0.5 text-[var(--sys-text-primary)]"
-                    >Đơn xin nghỉ phép đã được duyệt</p>
-                    <p
-                      class="text-[10px] text-[var(--sys-text-secondary)]"
-                    >Nhân sự · 1 giờ trước</p>
-                  </div>
+                </button>
+                <div v-if="topNotifications.length === 0" class="p-8 text-center text-xs text-[var(--sys-text-disabled)]">
+                  Không có thông báo mới
                 </div>
               </div>
               <!-- Custom Xem Tất Cả Thông Báo Link -->
@@ -341,7 +334,7 @@
           
           <SidebarItem 
             :expanded="sidebarExpanded" 
-            :is-active="isActive('/nhanvien/chamcong')" 
+            :is-active="isChamCongClassicActive" 
             icon="schedule" 
             label="Chấm công" 
             :is-dark="isDark" 
@@ -410,6 +403,7 @@ import { useRoute, useRouter, RouterLink } from 'vue-router';
 import { useConfirm } from '@/composables/useConfirm';
 import { useCurrentUser } from '@/composables/useCurrentUser';
 import { clearAuthSession, getCurrentUserRole } from '@/services/session.js';
+import { fetchNotifications, markNotificationRead } from '@/services/notificationsApi.js';
 
 const { fullName, email, avatar, positionName } = useCurrentUser();
 const { showConfirm } = useConfirm();
@@ -436,6 +430,8 @@ const isProfileOpen = ref(false);
 
 const notificationDropdownRef = ref(null);
 const profileDropdownRef = ref(null);
+const liveNotifications = ref([]);
+let notificationInterval = null;
 
 // ── Dark mode effect ───────────────────────────────────────────────────────
 watch(isDark, (val) => {
@@ -445,6 +441,7 @@ watch(isDark, (val) => {
 // ── Router helpers ─────────────────────────────────────────────────────────
 const isActive = (path) => route.path.startsWith(path) && path !== '/';
 const isExactActive = (path) => route.path === path;
+const isChamCongClassicActive = computed(() => route.path === '/nhanvien/chamcong');
 
 const currentPageLabel = computed(() => {
   const path = route.path;
@@ -456,6 +453,35 @@ const currentPageLabel = computed(() => {
   if (path.startsWith('/nhanvien/hoso')) return 'Hồ sơ cá nhân';
   return 'Trang chủ';
 });
+const unreadNotificationsCount = computed(() => liveNotifications.value.filter((item) => !item.isRead).length || 0);
+const topNotifications = computed(() => liveNotifications.value.slice(0, 6));
+
+const refreshNotifications = async () => {
+  try {
+    liveNotifications.value = await fetchNotifications({ perPage: 20 });
+  } catch (error) {
+    console.error('Không tải được thông báo nhân viên:', error);
+  }
+};
+
+const handleNotificationClick = async (notification) => {
+  try {
+    if (!notification?.isRead) {
+      await markNotificationRead(notification.id);
+      await refreshNotifications();
+    }
+  } catch (error) {
+    console.error('Không đánh dấu đã đọc được:', error);
+  } finally {
+    isNotificationOpen.value = false;
+    const actionUrl = String(notification?.actionUrl || '').trim();
+    if (actionUrl.startsWith('/nhanvien')) {
+      router.push(actionUrl);
+      return;
+    }
+    router.push('/nhanvien/thongbao');
+  }
+};
 
 // ── Sidebar / Menu toggle ──────────────────────────────────────────────────
 const handleMenuToggle = () => {
@@ -482,6 +508,11 @@ const handleClickOutside = (event) => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
+  void refreshNotifications();
+  notificationInterval = setInterval(() => {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    void refreshNotifications();
+  }, 45000);
   
   // Check authentication
   const userRole = getCurrentUserRole();
@@ -489,7 +520,10 @@ onMounted(() => {
     router.push('/login');
   }
 });
-onUnmounted(() => document.removeEventListener('click', handleClickOutside));
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+  if (notificationInterval) clearInterval(notificationInterval);
+});
 
 // ── Logout ─────────────────────────────────────────────────────────────────
 const logout = async () => {

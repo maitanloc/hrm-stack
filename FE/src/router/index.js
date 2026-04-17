@@ -129,6 +129,12 @@ const routes = [
                         meta: { index: 7 }
                   },
                   {
+                        path: 'phanca',
+                        name: 'admin-phan-ca',
+                        component: () => import('../View/admin/QuanLy/QuanLyPhanCa.vue'),
+                        meta: { index: 7.5 }
+                  },
+                  {
                         path: 'nghiphep',
                         name: 'admin-nghi-phep',
                         component: () => import('../View/admin/HR/NghiPhep.vue'),
@@ -171,16 +177,233 @@ const routes = [
                         meta: { index: 14 }
                   },
                   {
+                        path: 'policy-center',
+                        name: 'admin-policy-center',
+                        component: () => import('../views/system/PolicyCenterView.vue'),
+                        meta: { index: 14.1 }
+                  },
+                  {
+                        path: 'audit-logs',
+                        name: 'admin-audit-logs',
+                        component: () => import('../views/system/AuditLogsView.vue'),
+                        meta: { index: 14.2 }
+                  },
+                  {
+                        path: 'giam-sat-gps',
+                        name: 'admin-giam-sat-gps',
+                        component: () => import('../views/attendance/RiskAlertsView.vue'),
+                        meta: { index: 15 }
+                  },
+                  {
+                        path: 'timesheet-period',
+                        name: 'admin-timesheet-period',
+                        component: () => import('../views/attendance/TimesheetPeriodView.vue'),
+                        meta: { index: 15.1 }
+                  },
+                  {
+                        path: 'timesheet-exceptions',
+                        name: 'admin-timesheet-exceptions',
+                        component: () => import('../views/attendance/ExceptionDashboardView.vue'),
+                        meta: { index: 15.2 }
+                  },
+                  {
+                        path: 'timesheet-import',
+                        name: 'admin-timesheet-import',
+                        component: () => import('../views/attendance/ImportLogsView.vue'),
+                        meta: { index: 15.3 }
+                  },
+                  {
+                        path: 'payroll-export',
+                        name: 'admin-payroll-export',
+                        component: () => import('../views/attendance/PayrollExportView.vue'),
+                        meta: { index: 15.4 }
+                  },
+                  {
+                        path: 'api-ui',
+
+                        name: 'admin-api-workflow',
+                        component: () => import('../views/api/WorkflowHub.vue'),
+                        meta: { index: 40 }
+                  },
+                  {
+                        path: 'api-ui/hrm/employees',
+                        name: 'admin-api-hrm-employees',
+                        component: () => import('../views/hrm/EmployeesView.vue'),
+                        meta: { index: 41 }
+                  },
+                  {
+                        path: 'api-ui/hrm/departments',
+                        name: 'admin-api-hrm-departments',
+                        component: () => import('../views/hrm/DepartmentsView.vue'),
+                        meta: { index: 42 }
+                  },
+                  {
+                        path: 'api-ui/hrm/contracts',
+                        name: 'admin-api-hrm-contracts',
+                        component: () => import('../views/hrm/ContractsView.vue'),
+                        meta: { index: 43 }
+                  },
+                  {
+                        path: 'api-ui/attendance/records',
+                        name: 'admin-api-attendance-records',
+                        component: () => import('../views/attendance/AttendancesView.vue'),
+                        meta: { index: 44 }
+                  },
+                  {
+                        path: 'api-ui/attendance/leave-requests',
+                        name: 'admin-api-attendance-leave-requests',
+                        component: () => import('../views/attendance/LeaveRequestsView.vue'),
+                        meta: { index: 45 }
+                  },
+                  {
+                        path: 'api-ui/attendance/risk-alerts',
+                        name: 'admin-api-attendance-risk-alerts',
+                        component: () => import('../views/attendance/RiskAlertsView.vue'),
+                        meta: { index: 46 }
+                  },
+                  {
+                        path: 'api-ui/attendance/mobile-one-tap',
+                        name: 'admin-api-attendance-mobile-one-tap',
+                        component: () => import('../views/attendance/MobileClockOneTap.vue'),
+                        meta: { index: 53 }
+                  },
+                  {
+                        path: 'api-ui/recruitment/positions',
+                        name: 'admin-api-recruitment-positions',
+                        component: () => import('../views/recruitment/RecruitmentPositionsView.vue'),
+                        meta: { index: 47 }
+                  },
+                  {
+                        path: 'api-ui/recruitment/candidates',
+                        name: 'admin-api-recruitment-candidates',
+                        component: () => import('../views/recruitment/RecruitmentCandidatesView.vue'),
+                        meta: { index: 48 }
+                  },
+                  {
+                        path: 'api-ui/recruitment/interviews',
+                        name: 'admin-api-recruitment-interviews',
+                        component: () => import('../views/recruitment/InterviewsView.vue'),
+                        meta: { index: 49 }
+                  },
+                  {
+                        path: 'api-ui/payroll/periods',
+                        name: 'admin-api-payroll-periods',
+                        component: () => import('../views/payroll/SalaryPeriodsView.vue'),
+                        meta: { index: 50 }
+                  },
+                  {
+                        path: 'api-ui/payroll/details',
+                        name: 'admin-api-payroll-details',
+                        component: () => import('../views/payroll/SalaryDetailsView.vue'),
+                        meta: { index: 51 }
+                  },
+                  {
+                        path: 'api-ui/payroll/adjustments',
+                        name: 'admin-api-payroll-adjustments',
+                        component: () => import('../views/payroll/PayrollAdjustmentsView.vue'),
+                        meta: { index: 52 }
+                  },
+                  {
+                        path: 'api-ui/payroll/breakdowns',
+                        name: 'admin-api-payroll-breakdowns',
+                        component: () => import('../views/payroll/SalaryBreakdownsView.vue'),
+                        meta: { index: 54 }
+                  },
+                  {
+                        path: 'api-ui/hrm/positions',
+                        name: 'admin-api-hrm-positions',
+                        component: () => import('../views/hrm/PositionsView.vue'),
+                        meta: { index: 55 }
+                  },
+                  {
+                        path: 'api-ui/hrm/request-types',
+                        name: 'admin-api-hrm-request-types',
+                        component: () => import('../views/hrm/RequestTypesView.vue'),
+                        meta: { index: 56 }
+                  },
+                  {
+                        path: 'api-ui/hrm/requests',
+                        name: 'admin-api-hrm-requests',
+                        component: () => import('../views/hrm/RequestsView.vue'),
+                        meta: { index: 57 }
+                  },
+                  {
+                        path: 'api-ui/attendance/overtime',
+                        name: 'admin-api-attendance-overtime',
+                        component: () => import('../views/attendance/OvertimeRequestsView.vue'),
+                        meta: { index: 58 }
+                  },
+                  {
+                        path: 'api-ui/attendance/leave-balances',
+                        name: 'admin-api-attendance-leave-balances',
+                        component: () => import('../views/attendance/LeaveBalancesView.vue'),
+                        meta: { index: 59 }
+                  },
+                  {
+                        path: 'api-ui/asset/assets',
+                        name: 'admin-api-asset-assets',
+                        component: () => import('../views/asset/AssetsView.vue'),
+                        meta: { index: 60 }
+                  },
+                  {
+                        path: 'api-ui/asset/assignments',
+                        name: 'admin-api-asset-assignments',
+                        component: () => import('../views/asset/AssetAssignmentsView.vue'),
+                        meta: { index: 61 }
+                  },
+                  {
+                        path: 'api-ui/comm/news-categories',
+                        name: 'admin-api-comm-news-categories',
+                        component: () => import('../views/communication/NewsCategoriesView.vue'),
+                        meta: { index: 62 }
+                  },
+                  {
+                        path: 'api-ui/comm/news',
+                        name: 'admin-api-comm-news',
+                        component: () => import('../views/communication/NewsView.vue'),
+                        meta: { index: 63 }
+                  },
+                  {
+                        path: 'api-ui/comm/policies',
+                        name: 'admin-api-comm-policies',
+                        component: () => import('../views/communication/PoliciesView.vue'),
+                        meta: { index: 64 }
+                  },
+                  {
+                        path: 'api-ui/service/tickets',
+                        name: 'admin-api-service-tickets',
+                        component: () => import('../views/service/ServiceTicketsView.vue'),
+                        meta: { index: 65 }
+                  },
+                  {
+                        path: 'api-ui/system/notifications',
+                        name: 'admin-api-system-notifications',
+                        component: () => import('../views/system/NotificationsView.vue'),
+                        meta: { index: 66 }
+                  },
+                  {
+                        path: 'api-ui/hrm/contract-change-logs',
+                        name: 'admin-api-hrm-contract-change-logs',
+                        component: () => import('../views/hrm/ContractChangeLogsView.vue'),
+                        meta: { index: 67 }
+                  },
+                  {
+                        path: 'api-ui/system/settings',
+                        name: 'admin-api-system-settings',
+                        component: () => import('../views/system/SettingsView.vue'),
+                        meta: { index: 68 }
+                  },
+                  {
                         path: 'hoso',
                         name: 'admin-ho-so',
                         component: () => import('../View/portal_nhanvien/HoSoCaNhan.vue'),
-                        meta: { index: 15 }
+                        meta: { index: 16 }
                   },
                   {
                         path: 'donnghiviec',
                         name: 'admin-don-nghi-viec',
                         component: () => import('../View/portal_nhanvien/GiayPhep/DonNghiViec.vue'),
-                        meta: { index: 16 }
+                        meta: { index: 17 }
                   }
             ]
       },
@@ -257,6 +480,12 @@ const routes = [
                         name: 'tp-cham-cong',
                         component: () => import('../View/truongphong/TP_ChamCong.vue'),
                         meta: { index: 3 }
+                  },
+                  {
+                        path: 'phanca',
+                        name: 'tp-phan-ca',
+                        component: () => import('../View/admin/QuanLy/QuanLyPhanCa.vue'),
+                        meta: { index: 3.5 }
                   },
                   {
                         path: 'nghiphep',

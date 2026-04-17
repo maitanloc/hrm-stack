@@ -246,6 +246,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useConfirm } from '@/composables/useConfirm';
 import { BE_API_BASE, getAccessToken } from '@/services/runtimeConfig.js';
 import { handleUnauthorized } from '@/services/session.js';
+import { fixMojibake, parseJsonResponseSafely } from '@/utils/textEncodingFixed.js';
 
 const { showAlert, showConfirm } = useConfirm();
 
@@ -267,6 +268,7 @@ const toNumber = (value, fallback = 0) => {
 };
 
 const normalizeText = (value) => String(value ?? '').trim().toLowerCase();
+const displayText = (value) => fixMojibake(String(value ?? '')).replace(/\s+/g, ' ').trim();
 
 const formatCurrency = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(toNumber(val));
 
@@ -289,7 +291,7 @@ const apiRequest = async (path, { method = 'GET', body } = {}) => {
     handleUnauthorized();
     throw new Error('Phiên đăng nhập đã hết hạn');
   }
-  const payload = await response.json().catch(() => ({}));
+  const payload = await parseJsonResponseSafely(response);
   if (!response.ok || payload?.success === false) {
     throw new Error(payload?.message || `Request failed (${response.status})`);
   }
@@ -365,14 +367,19 @@ const employees = computed(() => {
       const net = toNumber(item.net_salary ?? item.netSalary, gross - deductions);
       const statusRaw = String(item.transfer_status ?? item.transferStatus ?? '').toUpperCase();
       const status = statusRaw === 'TRANSFERRED' ? 'Đã thanh toán' : 'Chờ thanh toán';
+      const employeeCode = displayText(item.employee_code ?? item.employeeCode ?? emp.employee_code ?? emp.employeeCode);
+      const employeeName = displayText(item.full_name ?? item.fullName ?? emp.full_name ?? emp.fullName);
+      const departmentName = displayText(item.department_name ?? item.departmentName ?? emp.department_name ?? emp.departmentName);
+      const positionName = displayText(item.position_name ?? item.positionName ?? emp.position_name ?? emp.positionName);
+      const displayRole = departmentName || positionName || 'Chưa gán phòng ban';
       return {
         id: salaryId,
         salaryId,
         period_id: periodId,
         employee_id: employeeId,
-        empId: emp.employee_code ?? emp.employeeCode ?? `NV${String(employeeId).padStart(4, '0')}`,
-        name: emp.full_name ?? emp.fullName ?? `Nhân viên #${employeeId}`,
-        role: emp.department_name ?? emp.departmentName ?? emp.position_name ?? 'Phòng ban N/A',
+        empId: employeeCode || `NV${String(employeeId).padStart(4, '0')}`,
+        name: employeeName || (employeeCode ? `Nhân sự ${employeeCode}` : 'Nhân sự chưa cập nhật'),
+        role: displayRole,
         baseSalary: base,
         totalIncome: gross,
         deduction: deductions,

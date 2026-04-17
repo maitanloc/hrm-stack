@@ -688,6 +688,7 @@ function stopAiPolling() {
 function startAiPolling() {
   if (aiPollingTimer) return;
   aiPollingTimer = setInterval(async () => {
+    if (typeof document !== 'undefined' && document.hidden) return;
     if (!hasPendingAiScoring.value) {
       stopAiPolling();
       return;
@@ -697,7 +698,7 @@ function startAiPolling() {
     } catch (error) {
       console.warn('[tuyendung] auto refresh failed:', error?.message || error);
     }
-  }, 5000);
+  }, 15000);
 }
 
 watch([passedCandidates, rejectedCandidates], ([passed, rejected]) => {
@@ -918,12 +919,13 @@ onMounted(async () => {
   }
 
   candidateSyncTimer = setInterval(async () => {
+    if (typeof document !== 'undefined' && document.hidden) return;
     try {
       await refreshRecruitmentCandidates();
     } catch {
       // best-effort periodic sync between HR and manager sessions
     }
-  }, 10000);
+  }, 45000);
 });
 
 onUnmounted(() => {

@@ -341,6 +341,7 @@ const loadData = async () => {
 };
 
 let pollInterval = null;
+const APPROVAL_POLL_INTERVAL_MS = 45000;
 onMounted(() => {
   void loadData().then(() => {
     const focusId = Number(route.query.request_id || 0);
@@ -351,7 +352,10 @@ onMounted(() => {
       showDetailModal.value = true;
     }
   });
-  pollInterval = setInterval(loadData, 15000);
+  pollInterval = setInterval(() => {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    loadData();
+  }, APPROVAL_POLL_INTERVAL_MS);
 });
 
 onUnmounted(() => {

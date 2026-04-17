@@ -21,6 +21,10 @@ class SettingController extends Controller
         'security_require_2fa',
         'security_session_timeout',
         'backup_last_run_at',
+        'attendance_company_geo_lock_enabled',
+        'attendance_company_anchor_points_json',
+        'attendance_green_radius_m',
+        'attendance_yellow_radius_m',
     ];
 
     private SystemConfig $systemConfigs;
@@ -45,6 +49,10 @@ class SettingController extends Controller
             'security_require_2fa' => (int) ($rows['security_require_2fa']['config_value'] ?? 0) === 1,
             'security_session_timeout' => (string) ($rows['security_session_timeout']['config_value'] ?? '60'),
             'backup_last_run_at' => (string) ($rows['backup_last_run_at']['config_value'] ?? ''),
+            'attendance_company_geo_lock_enabled' => (int) ($rows['attendance_company_geo_lock_enabled']['config_value'] ?? 1) === 1,
+            'attendance_company_anchor_points_json' => (string) ($rows['attendance_company_anchor_points_json']['config_value'] ?? ''),
+            'attendance_green_radius_m' => (string) ($rows['attendance_green_radius_m']['config_value'] ?? '120'),
+            'attendance_yellow_radius_m' => (string) ($rows['attendance_yellow_radius_m']['config_value'] ?? '250'),
         ];
 
         return $this->ok($data, 'General setting');
@@ -61,15 +69,19 @@ class SettingController extends Controller
             'security_require_2fa' => ['boolean'],
             'security_session_timeout' => ['string'],
             'backup_last_run_at' => ['string'],
+            'attendance_company_geo_lock_enabled' => ['boolean'],
+            'attendance_company_anchor_points_json' => ['string'],
+            'attendance_green_radius_m' => ['string'],
+            'attendance_yellow_radius_m' => ['string'],
         ]);
 
         foreach ($payload as $key => $value) {
             $configType = 'TEXT';
             $storedValue = is_bool($value) ? ($value ? '1' : '0') : (string) $value;
 
-            if (in_array($key, ['security_require_2fa'], true)) {
+            if (in_array($key, ['security_require_2fa', 'attendance_company_geo_lock_enabled'], true)) {
                 $configType = 'BOOLEAN';
-            } elseif (in_array($key, ['security_session_timeout'], true)) {
+            } elseif (in_array($key, ['security_session_timeout', 'attendance_green_radius_m', 'attendance_yellow_radius_m'], true)) {
                 $configType = 'NUMBER';
             }
 

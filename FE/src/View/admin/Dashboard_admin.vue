@@ -220,6 +220,7 @@ import Dropdown from '@/components/Dropdown.vue';
 import { AUTH_USER_KEY, BE_API_BASE, getAccessToken } from '@/services/runtimeConfig.js';
 import { getSessionItem, handleUnauthorized } from '@/services/session.js';
 import { useConfirm } from '@/composables/useConfirm';
+import { parseJsonResponseSafely } from '@/utils/textEncodingFixed.js';
 
 const router = useRouter();
 const { showAlert } = useConfirm();
@@ -266,7 +267,7 @@ const apiRequest = async (path, { method = 'GET', body } = {}) => {
     handleUnauthorized();
     throw new Error('Phiên đăng nhập đã hết hạn');
   }
-  const payload = await response.json().catch(() => ({}));
+  const payload = await parseJsonResponseSafely(response);
   if (!response.ok || payload?.success === false) {
     throw new Error(payload?.message || `Request failed (${response.status})`);
   }

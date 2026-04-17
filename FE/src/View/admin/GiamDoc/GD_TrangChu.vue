@@ -438,7 +438,7 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import GD_DateFilter from '@/components/GD_DateFilter.vue';
-import { mockEmployees, mockDepartments, mockLeaveRequests, mockRequestTypes, mockSalaryDetails, mockAttendances } from '@/mock-data/index.js';
+import { apiRequest } from '@/services/beApi.js';
 import { getInitials, getAvatarColors, getRequestTypeUI } from '@/utils/uiMapper.js';
 import { useConfirm } from '@/composables/useConfirm';
 
@@ -454,21 +454,60 @@ const barChartData = ref([]);
 const barChartYLabels = ref([]);
 const reminderText = ref('');
 const timelineEvents = ref([]);
+const employees = ref([]);
+const departments = ref([]);
+const leaveRequests = ref([]);
+const attendances = ref([]);
+const salaryDetails = ref([]);
+const requestTypes = ref([]);
+
+const normalizeStatus = (value) => {
+  const raw = String(value || '').trim().toUpperCase();
+  if (raw.includes('ĐANG') || raw.includes('ACTIVE')) return 'ĐANG_LÀM_VIỆC';
+  if (raw.includes('NGHỈ') || raw.includes('INACTIVE') || raw.includes('TERMIN')) return 'ĐÃ_NGHỈ_VIỆC';
+  return raw || 'ĐANG_LÀM_VIỆC';
+};
 
 const fetchData = async () => {
   try {
-    // Fetch real-time data from API if available, fallback to mock
-    const [resReqs, resEmp, resAtt] = await Promise.all([
-      fetch('http://localhost:3000/leaveRequests').then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch('http://localhost:3000/employees').then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch('http://localhost:3000/attendances').then(r => r.ok ? r.json() : null).catch(() => null)
+    const [resReqs, resEmp, resAtt, resDept, resSalary, resReqTypes] = await Promise.all([
+      apiRequest('/leave-requests', { query: { page: 1, per_page: 3000 }, noGetCache: true }).catch(() => ({ data: [] })),
+      apiRequest('/employees', { query: { page: 1, per_page: 5000 }, noGetCache: true }).catch(() => ({ data: [] })),
+      apiRequest('/attendances', { query: { page: 1, per_page: 5000 }, noGetCache: true }).catch(() => ({ data: [] })),
+      apiRequest('/departments', { query: { page: 1, per_page: 1000 }, noGetCache: true }).catch(() => ({ data: [] })),
+      apiRequest('/salary-details', { query: { page: 1, per_page: 5000 }, noGetCache: true }).catch(() => ({ data: [] })),
+      apiRequest('/request-types', { query: { page: 1, per_page: 1000 }, noGetCache: true }).catch(() => ({ data: [] })),
     ]);
 
-    const allReqs = resReqs || mockLeaveRequests;
-    const allEmps = resEmp || mockEmployees;
-    const allAtts = resAtt || mockAttendances;
-    
-    const allDepts = mockDepartments;
+    leaveRequests.value = resReqs?.data || [];
+    employees.value = (resEmp?.data || []).map((e) => ({
+      ...e,
+      employeeId: e.employee_id ?? e.employeeId,
+      fullName: e.full_name ?? e.fullName ?? '',
+      departmentId: e.department_id ?? e.departmentId,
+      status: normalizeStatus(e.status),
+      hireDate: e.hire_date ?? e.hireDate ?? '',
+      dateOfBirth: e.date_of_birth ?? e.dateOfBirth ?? '',
+      role: e.role ?? '',
+    }));
+    attendances.value = resAtt?.data || [];
+    departments.value = (resDept?.data || []).map((d) => ({
+      ...d,
+      departmentId: d.department_id ?? d.departmentId,
+      departmentName: d.department_name ?? d.departmentName ?? '',
+    }));
+    salaryDetails.value = resSalary?.data || [];
+    requestTypes.value = (resReqTypes?.data || []).map((r) => ({
+      ...r,
+      requestTypeId: r.request_type_id ?? r.requestTypeId,
+      requestTypeName: r.request_type_name ?? r.requestTypeName,
+      category: r.category ?? 'KHÁC',
+    }));
+
+    const allReqs = leaveRequests.value;
+    const allEmps = employees.value;
+    const allAtts = attendances.value;
+    const allDepts = departments.value;
 
     const activeEmps = allEmps.filter(e => e.status !== 'ĐÃ_NGHỈ_VIỆC');
     const totalHeadcount = activeEmps.length;
@@ -479,7 +518,7 @@ const fetchData = async () => {
     const bienDongRate = totalAll > 0 ? ((soNghiViec / totalAll) * 100).toFixed(1) : '0.0';
 
     // Tổng quỹ lương từ salaryDetails
-    const tongLuong = mockSalaryDetails.reduce((sum, s) => sum + (s.netSalary || s.basicSalary || 0), 0);
+    const tongLuong = salaryDetails.value.reduce((sum, s) => sum + Number(s.net_salary ?? s.total_salary ?? s.basic_salary ?? 0), 0);
     const NGAN_SACH_LUONG = 5000000000; // 5 tỷ ngân sách dự tính cho quy mô hiện tại
     const nganSachPct = Math.min(Math.round((tongLuong / NGAN_SACH_LUONG) * 100), 100);
     let tongLuongFormatted;
@@ -491,7 +530,10 @@ const fetchData = async () => {
 
     // Chuyên cần
     const totalAttRec = allAtts.length;
-    const onTimeRec = allAtts.filter(a => a.status === 'ĐÚNG_GIỜ' || a.status === 'ON_TIME' || a.checkIn).length;
+    const onTimeRec = allAtts.filter((a) => {
+      const st = String(a.status || '').toUpperCase();
+      return st.includes('ĐÚNG_GIỜ') || st.includes('ON_TIME') || st.includes('P') || Boolean(a.check_in_time || a.checkIn);
+    }).length;
     const chuyenCanRate = totalAttRec > 0 ? Math.min(((onTimeRec / totalAttRec) * 100).toFixed(1), 100) : 98.2;
 
     kpiCards.value = [
@@ -588,16 +630,17 @@ const fetchData = async () => {
         const isVisible = r.visible_to ? r.visible_to.includes('Director') : true;
         return isDirectorQueue && isVisible;
     }).map(r => {
-        const emp = allEmps.find(e => e.employeeId === r.requesterId) || {};
-        const dept = allDepts.find(d => d.departmentId === emp.departmentId || (emp.department && emp.department.departmentId === d.departmentId)) || {};
-        const reqTypeObj = mockRequestTypes.getById(r.requestTypeId) || {};
+        const requesterId = r.requester_id ?? r.requesterId ?? r.employee_id ?? r.employeeId;
+        const emp = allEmps.find(e => String(e.employeeId) === String(requesterId)) || {};
+        const dept = allDepts.find(d => String(d.departmentId) === String(emp.departmentId)) || {};
+        const reqTypeObj = requestTypes.value.find((t) => String(t.requestTypeId) === String(r.request_type_id ?? r.requestTypeId)) || {};
         const ui = getRequestTypeUI(reqTypeObj.category || 'KHÁC') || {
           icon: 'help', color: 'text-gray-600', bg: 'bg-gray-50', catKey: 'khac'
         };
         const avatarUI = getAvatarColors(emp.employeeId || 1);
         return {
-            id: r.id || r.requestId,
-            requestId: r.requestId,
+            id: r.request_id ?? r.id ?? r.requestId,
+            requestId: r.request_id ?? r.requestId,
             isReal: true,
             statusRaw: r.status,
             title: r.title,
@@ -616,11 +659,11 @@ const fetchData = async () => {
             reasonText: r.reason || r.notes || r.title,
             
             // Detailed leave info
-            requestCode: r.requestCode || `REQ-${r.requestId}`,
-            startDate: r.startDate,
-            endDate: r.endDate,
-            totalDays: r.days || 0,
-            requestDate: r.requestDate,
+            requestCode: r.request_code || r.requestCode || `REQ-${r.request_id ?? r.requestId}`,
+            startDate: r.start_date || r.startDate,
+            endDate: r.end_date || r.endDate,
+            totalDays: (r.total_days ?? r.days) || 0,
+            requestDate: r.request_date || r.requestDate,
             
             // New UI fields from TTThongBao
             initials: getInitials(emp.fullName || '?'),
@@ -629,7 +672,7 @@ const fetchData = async () => {
             typeIcon: ui.icon,
             typeColor: ui.color,
             typeBg: ui.bg,
-            time: r.requestDate || new Date().toISOString()
+            time: r.request_date || r.requestDate || new Date().toISOString()
         };
     }).slice(0, 5);
 
@@ -648,7 +691,10 @@ const fetchData = async () => {
 
 onMounted(() => {
   fetchData();
-  const interval = setInterval(fetchData, 10000); // Tự động cập nhật mỗi 10 giây
+  const interval = setInterval(() => {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    fetchData();
+  }, 45000);
   onUnmounted(() => clearInterval(interval));
 });
 
@@ -693,41 +739,28 @@ const confirmApprove = async () => {
     const newStatus = isLeaveRequest ? 'CHỜ_XÁC_NHẬN_HR' : 'ĐÃ_DUYỆT';
     const newStatusText = isLeaveRequest ? 'Chờ HR xác nhận' : 'Đã duyệt';
 
-    const res = await fetch(`http://localhost:3000/leaveRequests/${requestId}`, {
+    await apiRequest(`/leave-requests/${requestId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: {
         status: newStatus,
         statusText: newStatusText,
         approver_director: 'Ban Giám Đốc'
-      })
+      },
     });
-
-    if (res.ok) {
-       // Notify HR
-       const hrs = mockEmployees.filter(e => e.role === 'HR' || e.role === 'ADMIN');
-       for (const hr of hrs) {
-         fetch('http://localhost:3000/notifications', {
-           method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({
-             userId: hr.employeeId || hr.id,
-             type: 'info',
-             title: 'Đơn nghỉ phép chờ xác nhận',
-             desc: `Nhân viên ${selectedApproval.value.name} nghỉ đã được Giám đốc duyệt nhanh, cần bạn xác nhận & chấm công.`,
-             time: 'Vừa xong',
-             isRead: false,
-             icon: 'pending'
-           })
-         }).catch(() => {});
-       }
-    }
-    
-    // Fallback/Sync for mock data in memory
-    if (selectedApproval.value.statusRaw === 'CHỜ_GIÁM_ĐỐC_DUYỆT') {
-      mockLeaveRequests.directorApprove(requestId);
-    } else {
-      mockLeaveRequests.approve(requestId);
+    const hrs = employees.value.filter((e) => {
+      const role = String(e.role || '').toUpperCase();
+      return role === 'HR' || role === 'ADMIN';
+    });
+    for (const hr of hrs) {
+      await apiRequest('/notifications', {
+        method: 'POST',
+        body: {
+          user_id: hr.employeeId,
+          title: 'Đơn nghỉ phép chờ xác nhận',
+          content: `Nhân viên ${selectedApproval.value.name} nghỉ đã được Giám đốc duyệt nhanh, cần bạn xác nhận & chấm công.`,
+          notification_type: 'SYSTEM',
+        },
+      }).catch(() => null);
     }
     
     await fetchData();
@@ -749,19 +782,15 @@ const confirmReject = async () => {
   const requestId = selectedApproval.value.id; // Đây là r.id nhờ vào mapping mới
 
   try {
-    await fetch(`http://localhost:3000/leaveRequests/${requestId}`, {
+    await apiRequest(`/leave-requests/${requestId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: {
         status: 'TỪ_CHỐI',
         statusText: 'Đã từ chối',
         notes: reason,
         rejectionReason: reason
-      })
+      },
     });
-    
-    // Sync for mock
-    mockLeaveRequests.reject(requestId, reason);
     await fetchData();
   } catch (error) {
     console.error('Lỗi khi từ chối đơn:', error);
@@ -781,7 +810,7 @@ const dynamicBarChart = computed(() => {
   const range = maxLabel - minLabel;
 
   return barChartData.value.map(col => {
-    // Trực tiếp dùng dữ liệu dạng raw integer mới từ sampleData_GiamDoc
+    // Trực tiếp dùng dữ liệu raw integer theo dữ liệu API hiện tại
     const valCurrentNum = col.current || 0;
     const targetNum = col.target || 0;
 

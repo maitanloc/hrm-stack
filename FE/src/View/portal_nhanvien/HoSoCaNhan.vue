@@ -356,6 +356,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import { useCurrentUser } from '@/composables/useCurrentUser.js';
 import { BE_API_BASE, getAccessToken } from '@/services/runtimeConfig.js';
 import { getCurrentUserRole, handleUnauthorized } from '@/services/session.js';
+import { parseJsonResponseSafely } from '@/utils/textEncodingFixed.js';
 
 const {
   fullName, employeeCode, deptName, positionName, employeeId,
@@ -415,7 +416,7 @@ const apiRequest = async (path, { method = 'GET', body } = {}) => {
     throw new Error('Phiên đăng nhập đã hết hạn.');
   }
 
-  const payload = await response.json().catch(() => ({}));
+  const payload = await parseJsonResponseSafely(response);
   if (!response.ok || payload?.success === false) {
     throw new Error(payload?.message || `Request failed (${response.status})`);
   }

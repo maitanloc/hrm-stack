@@ -90,6 +90,9 @@ set_exception_handler(static function (Throwable $exception): void {
         $message = $exception->getMessage();
     }
 
+    $message = (string) App\Core\TextEncoding::fixMojibake($message);
+    $error = (string) App\Core\TextEncoding::fixMojibake($error);
+
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode([

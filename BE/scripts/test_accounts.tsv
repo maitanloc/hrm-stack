@@ -1,0 +1,142 @@
+employee_id	employee_code	full_name	company_email	employee_status	department_name	role_codes	default_password
+1	NV0001	Nguyễn Văn An	an.nguyen@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE, MANAGER	NV0001
+2	NV0002	Trần Thị Mai	mai.tran@company.com	ÄANG_LÃ€M_VIá»†C	Kế toán	EMPLOYEE, HR	NV0002
+3	NV0003	Lê Văn Cường	cuong.le@company.com	ÄANG_LÃ€M_VIá»†C	Kinh doanh	ADMIN, EMPLOYEE, MANAGER	NV0003
+4	NV0004	Phạm Thị Hương	huong.pham@company.com	ÄANG_LÃ€M_VIá»†C	Công nghệ thông tin	EMPLOYEE, HR	NV0004
+5	NV0005	Hoàng Văn Đức	duc.hoang@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE, HR	NV0005
+6	NV0006	Đặng Thị Ngọc	ngoc.dang@company.com	ÄANG_LÃ€M_VIá»†C	Marketing	EMPLOYEE, HR	NV0006
+7	NV0007	Bùi Văn Quân	quan.bui@company.com	ÄANG_LÃ€M_VIá»†C	Chăm sóc khách hàng	ADMIN, EMPLOYEE, MANAGER	NV0007
+8	NV0008	Vũ Thị Lan	lan.vu@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý kho	EMPLOYEE	NV0008
+9	NV0009	Đỗ Văn Hải	hai.do@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	ADMIN, EMPLOYEE	NV0009
+10	NV0010	Lý Thị Hoa	hoa.ly@company.com	ÄANG_LÃ€M_VIá»†C	Sản xuất	EMPLOYEE	NV0010
+11	NV0011	Ngô Văn Tùng	tung.ngo@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	ADMIN, EMPLOYEE, MANAGER	NV0011
+12	NV0012	Dương Thị Hồng	hong.duong@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	NV0012
+13	NV0013	Trịnh Văn Phúc	phuc.trinh@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	NV0013
+14	NV0014	Đinh Thị Nhung	nhung.dinh@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	NV0014
+15	NV0015	Lương Văn Kiên	kien.luong@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	NV0015
+16	NV0016	Mai Thị Quỳnh	quynh.mai@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	NV0016
+17	NV0017	Hà Văn Phát	phat.ha@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	NV0017
+18	NV0018	Lâm Thị Ngọc	ngoc.lam@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	NV0018
+19	NV0019	Tô Văn Tài	tai.to@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	NV0019
+20	NV0020	Nguyễn Hoàng Nam	nam.nh@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	NV0020
+21	E999	Test	test@example.com	THá»¬_VIá»†C	Hành chính Nhân sự	EMPLOYEE	E999
+22	SEED0001	Nhân sự Seed 001	seed.emp001@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE, MANAGER	SEED0001
+23	SEED0002	Nhân sự Seed 002	seed.emp002@company.com	ÄANG_LÃ€M_VIá»†C	Kế toán	EMPLOYEE, MANAGER	SEED0002
+24	SEED0003	Nhân sự Seed 003	seed.emp003@company.com	ÄANG_LÃ€M_VIá»†C	Kinh doanh	EMPLOYEE, MANAGER	SEED0003
+25	SEED0004	Nhân sự Seed 004	seed.emp004@company.com	ÄANG_LÃ€M_VIá»†C	Công nghệ thông tin	EMPLOYEE, MANAGER	SEED0004
+26	SEED0005	Nhân sự Seed 005	seed.emp005@company.com	ÄANG_LÃ€M_VIá»†C	Marketing	EMPLOYEE, MANAGER	SEED0005
+27	SEED0006	Nhân sự Seed 006	seed.emp006@company.com	ÄANG_LÃ€M_VIá»†C	Chăm sóc khách hàng	EMPLOYEE, MANAGER	SEED0006
+28	SEED0007	Nhân sự Seed 007	seed.emp007@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý kho	EMPLOYEE, MANAGER	SEED0007
+29	SEED0008	Nhân sự Seed 008	seed.emp008@company.com	ÄANG_LÃ€M_VIá»†C	Sản xuất	EMPLOYEE, MANAGER	SEED0008
+30	SEED0009	Nhân sự Seed 009	seed.emp009@company.com	ÄANG_LÃ€M_VIá»†C	Pháp chế	EMPLOYEE, MANAGER	SEED0009
+31	SEED0010	Nhân sự Seed 010	seed.emp010@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý dự án	EMPLOYEE, MANAGER	SEED0010
+32	SEED0011	Nhân sự Seed 011	seed.emp011@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	SEED0011
+33	SEED0012	Nhân sự Seed 012	seed.emp012@company.com	ÄANG_LÃ€M_VIá»†C	Kế toán	EMPLOYEE	SEED0012
+34	SEED0013	Nhân sự Seed 013	seed.emp013@company.com	ÄANG_LÃ€M_VIá»†C	Kinh doanh	EMPLOYEE	SEED0013
+35	SEED0014	Nhân sự Seed 014	seed.emp014@company.com	ÄANG_LÃ€M_VIá»†C	Công nghệ thông tin	EMPLOYEE	SEED0014
+36	SEED0015	Nhân sự Seed 015	seed.emp015@company.com	ÄANG_LÃ€M_VIá»†C	Marketing	EMPLOYEE	SEED0015
+37	SEED0016	Nhân sự Seed 016	seed.emp016@company.com	ÄANG_LÃ€M_VIá»†C	Chăm sóc khách hàng	EMPLOYEE	SEED0016
+38	SEED0017	Nhân sự Seed 017	seed.emp017@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý kho	EMPLOYEE	SEED0017
+39	SEED0018	Nhân sự Seed 018	seed.emp018@company.com	ÄANG_LÃ€M_VIá»†C	Sản xuất	EMPLOYEE	SEED0018
+40	SEED0019	Nhân sự Seed 019	seed.emp019@company.com	ÄANG_LÃ€M_VIá»†C	Pháp chế	EMPLOYEE	SEED0019
+41	SEED0020	Nhân sự Seed 020	seed.emp020@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý dự án	EMPLOYEE	SEED0020
+42	SEED0021	Nhân sự Seed 021	seed.emp021@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	SEED0021
+43	SEED0022	Nhân sự Seed 022	seed.emp022@company.com	ÄANG_LÃ€M_VIá»†C	Kế toán	EMPLOYEE	SEED0022
+44	SEED0023	Nhân sự Seed 023	seed.emp023@company.com	ÄANG_LÃ€M_VIá»†C	Kinh doanh	EMPLOYEE	SEED0023
+45	SEED0024	Nhân sự Seed 024	seed.emp024@company.com	ÄANG_LÃ€M_VIá»†C	Công nghệ thông tin	EMPLOYEE	SEED0024
+46	SEED0025	Nhân sự Seed 025	seed.emp025@company.com	ÄANG_LÃ€M_VIá»†C	Marketing	EMPLOYEE	SEED0025
+47	SEED0026	Nhân sự Seed 026	seed.emp026@company.com	ÄANG_LÃ€M_VIá»†C	Chăm sóc khách hàng	EMPLOYEE	SEED0026
+48	SEED0027	Nhân sự Seed 027	seed.emp027@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý kho	EMPLOYEE	SEED0027
+49	SEED0028	Nhân sự Seed 028	seed.emp028@company.com	ÄANG_LÃ€M_VIá»†C	Sản xuất	EMPLOYEE	SEED0028
+50	SEED0029	Nhân sự Seed 029	seed.emp029@company.com	ÄANG_LÃ€M_VIá»†C	Pháp chế	EMPLOYEE	SEED0029
+51	SEED0030	Nhân sự Seed 030	seed.emp030@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý dự án	EMPLOYEE	SEED0030
+52	SEED0031	Nhân sự Seed 031	seed.emp031@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	SEED0031
+53	SEED0032	Nhân sự Seed 032	seed.emp032@company.com	ÄANG_LÃ€M_VIá»†C	Kế toán	EMPLOYEE	SEED0032
+54	SEED0033	Nhân sự Seed 033	seed.emp033@company.com	ÄANG_LÃ€M_VIá»†C	Kinh doanh	EMPLOYEE	SEED0033
+55	SEED0034	Nhân sự Seed 034	seed.emp034@company.com	ÄANG_LÃ€M_VIá»†C	Công nghệ thông tin	EMPLOYEE	SEED0034
+56	SEED0035	Nhân sự Seed 035	seed.emp035@company.com	ÄANG_LÃ€M_VIá»†C	Marketing	EMPLOYEE	SEED0035
+57	SEED0036	Nhân sự Seed 036	seed.emp036@company.com	ÄANG_LÃ€M_VIá»†C	Chăm sóc khách hàng	EMPLOYEE	SEED0036
+58	SEED0037	Nhân sự Seed 037	seed.emp037@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý kho	EMPLOYEE	SEED0037
+59	SEED0038	Nhân sự Seed 038	seed.emp038@company.com	ÄANG_LÃ€M_VIá»†C	Sản xuất	EMPLOYEE	SEED0038
+60	SEED0039	Nhân sự Seed 039	seed.emp039@company.com	ÄANG_LÃ€M_VIá»†C	Pháp chế	EMPLOYEE	SEED0039
+61	SEED0040	Nhân sự Seed 040	seed.emp040@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý dự án	EMPLOYEE	SEED0040
+62	SEED0041	Nhân sự Seed 041	seed.emp041@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	SEED0041
+63	SEED0042	Nhân sự Seed 042	seed.emp042@company.com	ÄANG_LÃ€M_VIá»†C	Kế toán	EMPLOYEE	SEED0042
+64	SEED0043	Nhân sự Seed 043	seed.emp043@company.com	ÄANG_LÃ€M_VIá»†C	Kinh doanh	EMPLOYEE	SEED0043
+65	SEED0044	Nhân sự Seed 044	seed.emp044@company.com	ÄANG_LÃ€M_VIá»†C	Công nghệ thông tin	EMPLOYEE	SEED0044
+66	SEED0045	Nhân sự Seed 045	seed.emp045@company.com	ÄANG_LÃ€M_VIá»†C	Marketing	EMPLOYEE	SEED0045
+67	SEED0046	Nhân sự Seed 046	seed.emp046@company.com	ÄANG_LÃ€M_VIá»†C	Chăm sóc khách hàng	EMPLOYEE	SEED0046
+68	SEED0047	Nhân sự Seed 047	seed.emp047@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý kho	EMPLOYEE	SEED0047
+69	SEED0048	Nhân sự Seed 048	seed.emp048@company.com	ÄANG_LÃ€M_VIá»†C	Sản xuất	EMPLOYEE	SEED0048
+70	SEED0049	Nhân sự Seed 049	seed.emp049@company.com	ÄANG_LÃ€M_VIá»†C	Pháp chế	EMPLOYEE	SEED0049
+71	SEED0050	Nhân sự Seed 050	seed.emp050@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý dự án	EMPLOYEE	SEED0050
+72	SEED0051	Nhân sự Seed 051	seed.emp051@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	SEED0051
+73	SEED0052	Nhân sự Seed 052	seed.emp052@company.com	ÄANG_LÃ€M_VIá»†C	Kế toán	EMPLOYEE	SEED0052
+74	SEED0053	Nhân sự Seed 053	seed.emp053@company.com	ÄANG_LÃ€M_VIá»†C	Kinh doanh	EMPLOYEE	SEED0053
+75	SEED0054	Nhân sự Seed 054	seed.emp054@company.com	ÄANG_LÃ€M_VIá»†C	Công nghệ thông tin	EMPLOYEE	SEED0054
+76	SEED0055	Nhân sự Seed 055	seed.emp055@company.com	ÄANG_LÃ€M_VIá»†C	Marketing	EMPLOYEE	SEED0055
+77	SEED0056	Nhân sự Seed 056	seed.emp056@company.com	ÄANG_LÃ€M_VIá»†C	Chăm sóc khách hàng	EMPLOYEE	SEED0056
+78	SEED0057	Nhân sự Seed 057	seed.emp057@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý kho	EMPLOYEE	SEED0057
+79	SEED0058	Nhân sự Seed 058	seed.emp058@company.com	ÄANG_LÃ€M_VIá»†C	Sản xuất	EMPLOYEE	SEED0058
+80	SEED0059	Nhân sự Seed 059	seed.emp059@company.com	ÄANG_LÃ€M_VIá»†C	Pháp chế	EMPLOYEE	SEED0059
+81	SEED0060	Nhân sự Seed 060	seed.emp060@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý dự án	EMPLOYEE	SEED0060
+82	SEED0061	Nhân sự Seed 061	seed.emp061@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	SEED0061
+83	SEED0062	Nhân sự Seed 062	seed.emp062@company.com	ÄANG_LÃ€M_VIá»†C	Kế toán	EMPLOYEE	SEED0062
+84	SEED0063	Nhân sự Seed 063	seed.emp063@company.com	ÄANG_LÃ€M_VIá»†C	Kinh doanh	EMPLOYEE	SEED0063
+85	SEED0064	Nhân sự Seed 064	seed.emp064@company.com	ÄANG_LÃ€M_VIá»†C	Công nghệ thông tin	EMPLOYEE	SEED0064
+86	SEED0065	Nhân sự Seed 065	seed.emp065@company.com	ÄANG_LÃ€M_VIá»†C	Marketing	EMPLOYEE	SEED0065
+87	SEED0066	Nhân sự Seed 066	seed.emp066@company.com	ÄANG_LÃ€M_VIá»†C	Chăm sóc khách hàng	EMPLOYEE	SEED0066
+88	SEED0067	Nhân sự Seed 067	seed.emp067@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý kho	EMPLOYEE	SEED0067
+89	SEED0068	Nhân sự Seed 068	seed.emp068@company.com	ÄANG_LÃ€M_VIá»†C	Sản xuất	EMPLOYEE	SEED0068
+90	SEED0069	Nhân sự Seed 069	seed.emp069@company.com	ÄANG_LÃ€M_VIá»†C	Pháp chế	EMPLOYEE	SEED0069
+91	SEED0070	Nhân sự Seed 070	seed.emp070@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý dự án	EMPLOYEE	SEED0070
+92	SEED0071	Nhân sự Seed 071	seed.emp071@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	SEED0071
+93	SEED0072	Nhân sự Seed 072	seed.emp072@company.com	ÄANG_LÃ€M_VIá»†C	Kế toán	EMPLOYEE	SEED0072
+94	SEED0073	Nhân sự Seed 073	seed.emp073@company.com	ÄANG_LÃ€M_VIá»†C	Kinh doanh	EMPLOYEE	SEED0073
+95	SEED0074	Nhân sự Seed 074	seed.emp074@company.com	ÄANG_LÃ€M_VIá»†C	Công nghệ thông tin	EMPLOYEE	SEED0074
+96	SEED0075	Nhân sự Seed 075	seed.emp075@company.com	ÄANG_LÃ€M_VIá»†C	Marketing	EMPLOYEE	SEED0075
+97	SEED0076	Nhân sự Seed 076	seed.emp076@company.com	ÄANG_LÃ€M_VIá»†C	Chăm sóc khách hàng	EMPLOYEE	SEED0076
+98	SEED0077	Nhân sự Seed 077	seed.emp077@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý kho	EMPLOYEE	SEED0077
+99	SEED0078	Nhân sự Seed 078	seed.emp078@company.com	ÄANG_LÃ€M_VIá»†C	Sản xuất	EMPLOYEE	SEED0078
+100	SEED0079	Nhân sự Seed 079	seed.emp079@company.com	ÄANG_LÃ€M_VIá»†C	Pháp chế	EMPLOYEE	SEED0079
+101	SEED0080	Nhân sự Seed 080	seed.emp080@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý dự án	EMPLOYEE	SEED0080
+102	SEED0081	Nhân sự Seed 081	seed.emp081@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	SEED0081
+103	SEED0082	Nhân sự Seed 082	seed.emp082@company.com	ÄANG_LÃ€M_VIá»†C	Kế toán	EMPLOYEE	SEED0082
+104	SEED0083	Nhân sự Seed 083	seed.emp083@company.com	ÄANG_LÃ€M_VIá»†C	Kinh doanh	EMPLOYEE	SEED0083
+105	SEED0084	Nhân sự Seed 084	seed.emp084@company.com	ÄANG_LÃ€M_VIá»†C	Công nghệ thông tin	EMPLOYEE	SEED0084
+106	SEED0085	Nhân sự Seed 085	seed.emp085@company.com	ÄANG_LÃ€M_VIá»†C	Marketing	EMPLOYEE	SEED0085
+107	SEED0086	Nhân sự Seed 086	seed.emp086@company.com	ÄANG_LÃ€M_VIá»†C	Chăm sóc khách hàng	EMPLOYEE	SEED0086
+108	SEED0087	Nhân sự Seed 087	seed.emp087@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý kho	EMPLOYEE	SEED0087
+109	SEED0088	Nhân sự Seed 088	seed.emp088@company.com	ÄANG_LÃ€M_VIá»†C	Sản xuất	EMPLOYEE	SEED0088
+110	SEED0089	Nhân sự Seed 089	seed.emp089@company.com	ÄANG_LÃ€M_VIá»†C	Pháp chế	EMPLOYEE	SEED0089
+111	SEED0090	Nhân sự Seed 090	seed.emp090@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý dự án	EMPLOYEE	SEED0090
+112	SEED0091	Nhân sự Seed 091	seed.emp091@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	SEED0091
+113	SEED0092	Nhân sự Seed 092	seed.emp092@company.com	ÄANG_LÃ€M_VIá»†C	Kế toán	EMPLOYEE	SEED0092
+114	SEED0093	Nhân sự Seed 093	seed.emp093@company.com	ÄANG_LÃ€M_VIá»†C	Kinh doanh	EMPLOYEE	SEED0093
+115	SEED0094	Nhân sự Seed 094	seed.emp094@company.com	ÄANG_LÃ€M_VIá»†C	Công nghệ thông tin	EMPLOYEE	SEED0094
+116	SEED0095	Nhân sự Seed 095	seed.emp095@company.com	ÄANG_LÃ€M_VIá»†C	Marketing	EMPLOYEE	SEED0095
+117	SEED0096	Nhân sự Seed 096	seed.emp096@company.com	ÄANG_LÃ€M_VIá»†C	Chăm sóc khách hàng	EMPLOYEE	SEED0096
+118	SEED0097	Nhân sự Seed 097	seed.emp097@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý kho	EMPLOYEE	SEED0097
+119	SEED0098	Nhân sự Seed 098	seed.emp098@company.com	ÄANG_LÃ€M_VIá»†C	Sản xuất	EMPLOYEE	SEED0098
+120	SEED0099	Nhân sự Seed 099	seed.emp099@company.com	ÄANG_LÃ€M_VIá»†C	Pháp chế	EMPLOYEE	SEED0099
+121	SEED0100	Nhân sự Seed 100	seed.emp100@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý dự án	EMPLOYEE	SEED0100
+122	SEED0101	Nhân sự Seed 101	seed.emp101@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	SEED0101
+123	SEED0102	Nhân sự Seed 102	seed.emp102@company.com	ÄANG_LÃ€M_VIá»†C	Kế toán	EMPLOYEE	SEED0102
+124	SEED0103	Nhân sự Seed 103	seed.emp103@company.com	ÄANG_LÃ€M_VIá»†C	Kinh doanh	EMPLOYEE	SEED0103
+125	SEED0104	Nhân sự Seed 104	seed.emp104@company.com	ÄANG_LÃ€M_VIá»†C	Công nghệ thông tin	EMPLOYEE	SEED0104
+126	SEED0105	Nhân sự Seed 105	seed.emp105@company.com	ÄANG_LÃ€M_VIá»†C	Marketing	EMPLOYEE	SEED0105
+127	SEED0106	Nhân sự Seed 106	seed.emp106@company.com	ÄANG_LÃ€M_VIá»†C	Chăm sóc khách hàng	EMPLOYEE	SEED0106
+128	SEED0107	Nhân sự Seed 107	seed.emp107@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý kho	EMPLOYEE	SEED0107
+129	SEED0108	Nhân sự Seed 108	seed.emp108@company.com	ÄANG_LÃ€M_VIá»†C	Sản xuất	EMPLOYEE	SEED0108
+130	SEED0109	Nhân sự Seed 109	seed.emp109@company.com	ÄANG_LÃ€M_VIá»†C	Pháp chế	EMPLOYEE	SEED0109
+131	SEED0110	Nhân sự Seed 110	seed.emp110@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý dự án	EMPLOYEE	SEED0110
+132	SEED0111	Nhân sự Seed 111	seed.emp111@company.com	ÄANG_LÃ€M_VIá»†C	Hành chính Nhân sự	EMPLOYEE	SEED0111
+133	SEED0112	Nhân sự Seed 112	seed.emp112@company.com	ÄANG_LÃ€M_VIá»†C	Kế toán	EMPLOYEE	SEED0112
+134	SEED0113	Nhân sự Seed 113	seed.emp113@company.com	ÄANG_LÃ€M_VIá»†C	Kinh doanh	EMPLOYEE	SEED0113
+135	SEED0114	Nhân sự Seed 114	seed.emp114@company.com	ÄANG_LÃ€M_VIá»†C	Công nghệ thông tin	EMPLOYEE	SEED0114
+136	SEED0115	Nhân sự Seed 115	seed.emp115@company.com	ÄANG_LÃ€M_VIá»†C	Marketing	EMPLOYEE	SEED0115
+137	SEED0116	Nhân sự Seed 116	seed.emp116@company.com	ÄANG_LÃ€M_VIá»†C	Chăm sóc khách hàng	EMPLOYEE	SEED0116
+138	SEED0117	Nhân sự Seed 117	seed.emp117@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý kho	EMPLOYEE	SEED0117
+139	SEED0118	Nhân sự Seed 118	seed.emp118@company.com	ÄANG_LÃ€M_VIá»†C	Sản xuất	EMPLOYEE	SEED0118
+140	SEED0119	Nhân sự Seed 119	seed.emp119@company.com	ÄANG_LÃ€M_VIá»†C	Pháp chế	EMPLOYEE	SEED0119
+141	SEED0120	Nhân sự Seed 120	seed.emp120@company.com	ÄANG_LÃ€M_VIá»†C	Quản lý dự án	EMPLOYEE	SEED0120

@@ -234,38 +234,95 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue';
 import GD_DateFilter from '@/components/GD_DateFilter.vue';
-import { mockEmployees, mockDepartments, mockPositions } from '@/mock-data/index.js';
+import { apiRequest } from '@/services/beApi.js';
 
 const selectedDateRange = ref('30_days');
 const isChartLoaded = ref(false);
 const Math = window.Math;
+const employees = ref([]);
+const departments = ref([]);
+const positions = ref([]);
+const salaryDetails = ref([]);
+
+const normalizeStatus = (value) => {
+  const raw = String(value || '').trim().toUpperCase();
+  if (raw.includes('ĐANG') || raw.includes('ACTIVE')) return 'ĐANG_LÀM_VIỆC';
+  if (raw.includes('NGHỈ') || raw.includes('INACTIVE') || raw.includes('TERMIN')) return 'ĐÃ_NGHỈ_VIỆC';
+  return 'ĐANG_LÀM_VIỆC';
+};
+
+const loadData = async () => {
+  try {
+    const [empRes, deptRes, posRes, salRes] = await Promise.all([
+      apiRequest('/employees', { query: { page: 1, per_page: 5000 }, noGetCache: true }),
+      apiRequest('/departments', { query: { page: 1, per_page: 1000 }, noGetCache: true }),
+      apiRequest('/positions', { query: { page: 1, per_page: 1000 }, noGetCache: true }),
+      apiRequest('/salary-details', { query: { page: 1, per_page: 5000 }, noGetCache: true }).catch(() => ({ data: [] })),
+    ]);
+
+    employees.value = (empRes?.data || []).map((e) => ({
+      employeeId: e.employee_id ?? e.employeeId,
+      fullName: e.full_name ?? e.fullName ?? '',
+      employeeCode: e.employee_code ?? e.employeeCode ?? '',
+      companyEmail: e.company_email ?? e.companyEmail ?? '',
+      departmentId: e.department_id ?? e.departmentId,
+      positionId: e.position_id ?? e.positionId,
+      status: normalizeStatus(e.status),
+      avatarUrl: e.avatar_url ?? e.avatarUrl ?? '',
+      hireDate: e.hire_date ?? e.hireDate ?? null,
+    }));
+    departments.value = (deptRes?.data || []).map((d) => ({
+      departmentId: d.department_id ?? d.departmentId,
+      departmentName: d.department_name ?? d.departmentName ?? '',
+    }));
+    positions.value = (posRes?.data || []).map((p) => ({
+      positionId: p.position_id ?? p.positionId,
+      positionName: p.position_name ?? p.positionName ?? '',
+    }));
+    salaryDetails.value = salRes?.data || [];
+  } catch (error) {
+    console.error('Không tải được dữ liệu nhân sự giám đốc:', error);
+    employees.value = [];
+    departments.value = [];
+    positions.value = [];
+    salaryDetails.value = [];
+  }
+};
 
 onMounted(() => {
+  loadData();
   setTimeout(() => isChartLoaded.value = true, 300);
 });
 
 const nhanSuKpiCards = computed(() => {
-  const emps = mockEmployees;
+  const emps = employees.value;
   const total = emps.filter(e => e.status === 'ĐANG_LÀM_VIỆC').length;
   const thoiViec = emps.filter(e => e.status === 'ĐÃ_NGHỈ_VIỆC').length;
   const tyLeNghi = emps.length > 0 ? ((thoiViec / emps.length) * 100).toFixed(1) : 0;
+  const avgPayroll = salaryDetails.value.length
+    ? Math.round(
+        salaryDetails.value.reduce((sum, row) => sum + Number(row.net_salary ?? row.total_salary ?? row.basic_salary ?? 0), 0) /
+          salaryDetails.value.length
+      )
+    : 0;
   return [
     { id: 1, label: 'Tổng nhân sự', value: total.toString(), icon: 'groups', iconBg: 'bg-blue-100', iconColor: 'text-blue-600', badgeClass: 'bg-blue-50 text-blue-600', badge: '+12%', note: 'So với tháng trước' },
     { id: 2, label: 'Tỉ lệ nghỉ việc', value: tyLeNghi + '%', icon: 'person_remove', iconBg: 'bg-red-100', iconColor: 'text-red-600', badgeClass: 'bg-red-50 text-red-600', badge: '+0.5%', note: 'So với tháng trước' },
-    { id: 3, label: 'Hiệu suất TB', value: '92%', icon: 'trending_up', iconBg: 'bg-green-100', iconColor: 'text-green-600', badgeClass: 'bg-green-50 text-green-600', badge: '+2%', note: 'Vượt mục tiêu' },
-    { id: 4, label: 'Chi phí nhân sự', value: '4.2T', icon: 'payments', iconBg: 'bg-orange-100', iconColor: 'text-orange-600', badgeClass: 'bg-orange-50 text-orange-600', badge: '-1.2%', note: 'Kiểm soát tốt' }
+    { id: 3, label: 'Hiệu suất TB', value: `${Math.max(80, 100 - Number(tyLeNghi || 0)).toFixed(0)}%`, icon: 'trending_up', iconBg: 'bg-green-100', iconColor: 'text-green-600', badgeClass: 'bg-green-50 text-green-600', badge: '+2%', note: 'Vượt mục tiêu' },
+    { id: 4, label: 'Chi phí nhân sự', value: avgPayroll > 0 ? `${(avgPayroll / 1000000).toFixed(0)}Tr` : '0', icon: 'payments', iconBg: 'bg-orange-100', iconColor: 'text-orange-600', badgeClass: 'bg-orange-50 text-orange-600', badge: '-1.2%', note: 'Bình quân theo bảng lương' }
   ];
 });
 
 const topPerformers = computed(() => {
-  const emps = mockEmployees.filter(e => e.status === 'ĐANG_LÀM_VIỆC');
+  const emps = employees.value.filter(e => e.status === 'ĐANG_LÀM_VIỆC');
   return emps.slice(0, 3).map((e, index) => {
+    const pos = positions.value.find((p) => String(p.positionId) === String(e.positionId));
     return {
       id: e.employeeId,
       name: e.fullName,
-      email: e.employeeCode + '@hrm.com',
+      email: e.companyEmail || `${e.employeeCode || 'nv'}@hrm.com`,
       avatar: e.avatarUrl || `https://i.pravatar.cc/150?u=${index}`,
-      chucVu: mockPositions.getById(e.positionId)?.positionName || 'Nhân viên',
+      chucVu: pos?.positionName || 'Nhân viên',
       hieuSuat: 100 - (index * 5),
       trangThai: index === 0 ? 'Xuất sắc' : 'Tốt',
       trangThaiClass: index === 0 ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
@@ -274,7 +331,7 @@ const topPerformers = computed(() => {
 });
 
 const deptRankings = computed(() => {
-  const depts = mockDepartments;
+  const depts = departments.value;
   return depts.slice(0, 3).map((d, index) => {
     return {
       name: d.departmentName,
@@ -286,7 +343,7 @@ const deptRankings = computed(() => {
 });
 
 const nhanSuCapBac = computed(() => {
-  const emps = mockEmployees.filter(e => e.status === 'ĐANG_LÀM_VIỆC');
+  const emps = employees.value.filter(e => e.status === 'ĐANG_LÀM_VIỆC');
   const levelColors = [
     { color: 'from-blue-600 to-blue-400', shadow: 'shadow-blue-500/30' },
     { color: 'from-indigo-500 to-indigo-400', shadow: 'shadow-indigo-500/30' },
@@ -294,8 +351,7 @@ const nhanSuCapBac = computed(() => {
     { color: 'from-cyan-500 to-cyan-400', shadow: 'shadow-cyan-500/30' },
     { color: 'from-slate-400 to-slate-300', shadow: 'shadow-slate-400/30' }
   ];
-  const positions = mockPositions;
-  return positions.map((p, index) => {
+  return positions.value.map((p, index) => {
     const count = emps.filter(e => e.positionId === p.positionId).length;
     return {
       level: p.positionName,
@@ -305,29 +361,38 @@ const nhanSuCapBac = computed(() => {
   }).filter(p => p.count > 0);
 });
 
-const maxNhanSu = Math.max(500, mockEmployees.length);
+const maxNhanSu = computed(() => Math.max(500, employees.value.length || 0));
 const totalNhanSu = computed(() => nhanSuCapBac.value.reduce((acc, curr) => acc + curr.count, 0) || 1);
 
 const nhanSuCapBacChart = computed(() => {
   return nhanSuCapBac.value.map(item => ({
     ...item,
-    heightPct: Math.min((item.count / maxNhanSu) * 100, 115),
+    heightPct: Math.min((item.count / maxNhanSu.value) * 100, 115),
     totalPct: ((item.count / totalNhanSu.value) * 100).toFixed(0)
   }));
 });
 
-const bienDongNhanLucData = ref([
-  { month: 'Th.1', tuyenVao: 25, nghiViec: 10 },
-  { month: 'Th.2', tuyenVao: 55, nghiViec: 25 },
-  { month: 'Th.3', tuyenVao: 150, nghiViec: 45 },
-  { month: 'Th.4', tuyenVao: 110, nghiViec: 65 },
-  { month: 'Th.5', tuyenVao: 95, nghiViec: 70 },
-  { month: 'Th.6', tuyenVao: 115, nghiViec: 55 }
-]);
+const bienDongNhanLucData = computed(() => {
+  const months = Array.from({ length: 6 }).map((_, idx) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - (5 - idx));
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return { key, month: `Th.${d.getMonth() + 1}`, tuyenVao: 0, nghiViec: 0 };
+  });
+
+  const monthMap = new Map(months.map((m) => [m.key, m]));
+  employees.value.forEach((e) => {
+    const hd = String(e.hireDate || '').slice(0, 7);
+    if (monthMap.has(hd)) monthMap.get(hd).tuyenVao += 1;
+    if (e.status === 'ĐÃ_NGHỈ_VIỆC' && monthMap.has(hd)) monthMap.get(hd).nghiViec += 1;
+  });
+
+  return months;
+});
 
 const maxBienDongInfo = computed(() => {
   let max = 0;
-  bienDongNhanLucData.value.forEach(item => {
+  bienDongNhanLucData.value.forEach((item) => {
     if (item.tuyenVao > max) max = item.tuyenVao;
     if (item.nghiViec > max) max = item.nghiViec;
   });

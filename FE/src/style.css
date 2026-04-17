@@ -61,7 +61,7 @@ body {
   background-color: var(--sys-bg-page);
   color: var(--sys-text-primary);
   min-height: 100vh;
-  font-family: 'Inter', sans-serif !important;
+  font-family: 'Inter', 'Noto Sans', Arial, Helvetica, sans-serif !important;
   font-size: 14px;
 }
 

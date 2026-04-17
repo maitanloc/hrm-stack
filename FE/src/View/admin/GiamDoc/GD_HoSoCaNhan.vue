@@ -350,22 +350,45 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import CalendarCustom from '@/components/CalendarCustom.vue';
-import { mockEmployees, mockPositions } from '@/mock-data/index.js';
+import { apiRequest } from '@/services/beApi.js';
+
+const employees = ref([]);
+const positions = ref([]);
 
 const ceoData = computed(() => {
-  const emps = mockEmployees;
-  const ceo = emps.find(e => e.positionId === 1) || emps[0];
-  if(ceo) {
-    const posName = mockPositions.getById(ceo.positionId)?.positionName || 'Giám đốc';
-    return {
-      ...ceo,
-      positionName: posName
-    };
-  }
-  return null;
+  const emps = employees.value;
+  if (!emps.length) return null;
+  const ceo = emps.find((e) => /GIÁM|GIA?M|DIRECTOR|CEO/i.test(String(e.position_name || '')))
+    || emps.find((e) => String(e.role || '').toLowerCase() === 'admin')
+    || emps[0];
+  const posId = ceo?.position_id ?? ceo?.positionId;
+  const posName = ceo?.position_name
+    || positions.value.find((p) => String(p.position_id ?? p.positionId) === String(posId))?.position_name
+    || 'Giám đốc';
+  return {
+    employeeCode: ceo.employee_code ?? ceo.employeeCode ?? 'CEO-001',
+    fullName: ceo.full_name ?? ceo.fullName ?? 'Nguyễn Minh Triết',
+    avatarUrl: ceo.avatar_url ?? ceo.avatarUrl ?? '',
+    positionName: posName,
+  };
 });
+
+const loadData = async () => {
+  try {
+    const [empRes, posRes] = await Promise.all([
+      apiRequest('/employees', { query: { page: 1, per_page: 5000 }, noGetCache: true }),
+      apiRequest('/positions', { query: { page: 1, per_page: 1000 }, noGetCache: true }),
+    ]);
+    employees.value = empRes?.data || [];
+    positions.value = posRes?.data || [];
+  } catch (error) {
+    console.error('Không tải được hồ sơ giám đốc:', error);
+    employees.value = [];
+    positions.value = [];
+  }
+};
 
 const isChangePasswordModalOpen = ref(false);
 const isChangeProfileModalOpen = ref(false);
@@ -387,6 +410,10 @@ const onFileChange = (event) => {
     avatarUrl.value = URL.createObjectURL(file);
   }
 };
+
+onMounted(() => {
+  loadData();
+});
 </script>
 
 <style scoped>

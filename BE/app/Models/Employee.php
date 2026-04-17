@@ -17,6 +17,8 @@ class Employee extends Model
         'gender',
         'phone_number',
         'personal_email',
+        'permanent_address',
+        'current_address',
         'company_email',
         'password_hash',
         'nationality_id',

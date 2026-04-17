@@ -61,7 +61,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { mockContracts, mockEmployees, mockPositions } from '@/mock-data/index.js'
+import { apiRequest } from '@/services/beApi.js'
 
 const contracts = ref([])
 
@@ -73,51 +73,55 @@ const CONTRACT_TYPE_LABELS = {
   'THỰC_TẬP': 'HĐ Thực tập',
 }
 
-const loadData = () => {
+const loadData = async () => {
   const userDeptId = Number(localStorage.getItem('userDeptId')) || 2;
-  const allContracts = mockContracts
-  const allEmps = mockEmployees.filter(e => {
-    const dId = e.department?.departmentId || e.departmentId || e.deptId;
-    return Number(dId) === Number(userDeptId);
-  })
-  const allPositions = mockPositions
-  const empIds = allEmps.map(e => e.employeeId)
+  const [employeesRes, contractsRes] = await Promise.all([
+    apiRequest('/employees', { query: { page: 1, per_page: 2000 } }),
+    apiRequest('/contracts', { query: { page: 1, per_page: 2000 } }),
+  ]);
 
-  let filteredContracts = allContracts.filter(c => empIds.includes(c.employeeId) && c.status !== 'ĐÃ_CHẤM_DỨT');
-  if (filteredContracts.length === 0 && allEmps.length > 0) {
-    filteredContracts = allEmps.map(emp => ({
-      contractId: 2000 + emp.employeeId,
-      contractCode: `HDLD-MOCK-${emp.employeeId}`,
-      employeeId: emp.employeeId,
-      contractType: "CHÍNH_THỨC_3_NĂM",
-      startDate: "2024-01-01",
-      endDate: "2027-01-01",
-      status: "HIỆU_LỰC"
-    }));
-  }
+  const allEmps = (employeesRes?.data || []).filter((e) => {
+    const dId = e.department_id || e.departmentId || e.department?.department_id || e.department?.departmentId;
+    return Number(dId) === Number(userDeptId);
+  });
+  const allContracts = contractsRes?.data || [];
+  const empIds = new Set(allEmps.map((e) => Number(e.employee_id || e.employeeId || e.id)));
+
+  const filteredContracts = allContracts.filter((c) => {
+    const employeeId = Number(c.employee_id || c.employeeId);
+    const statusRaw = String(c.status || '').toUpperCase();
+    return empIds.has(employeeId) && !['ĐÃ_CHẤM_DỨT', 'TERMINATED', 'EXPIRED'].includes(statusRaw);
+  });
 
   contracts.value = filteredContracts
     .slice(0, 10)
     .map(c => {
-      const emp = allEmps.find(e => e.employeeId === c.employeeId)
-      const pos = allPositions.find(p => p.positionId === emp?.positionId)
-      const startDate = c.startDate ? new Date(c.startDate).toLocaleDateString('vi-VN') : 'N/A'
-      const endDate = c.endDate ? new Date(c.endDate).toLocaleDateString('vi-VN') : null
+      const employeeId = Number(c.employee_id || c.employeeId);
+      const emp = allEmps.find(e => Number(e.employee_id || e.employeeId || e.id) === employeeId)
+      const startDateRaw = c.effective_date || c.startDate || c.start_date;
+      const endDateRaw = c.expiry_date || c.endDate || c.end_date;
+      const startDate = startDateRaw ? new Date(startDateRaw).toLocaleDateString('vi-VN') : 'N/A'
+      const endDate = endDateRaw ? new Date(endDateRaw).toLocaleDateString('vi-VN') : null
       const range = endDate ? `${startDate} - ${endDate}` : `Từ ${startDate}`
+      const position = c.position_name || emp?.position_name || emp?.position?.position_name || 'Chuyên viên';
+      const contractType = c.contract_type_code || c.contractType || c.contract_type || '';
+      const statusRaw = String(c.status || '').toUpperCase();
 
       return {
-        id: c.contractId,
-        code: c.contractCode,
-        name: emp?.fullName || 'N/A',
-        position: pos?.positionName || emp?.position?.positionName || 'Chuyên viên',
-        type: CONTRACT_TYPE_LABELS[c.contractType] || c.contractType,
+        id: c.contract_id || c.contractId,
+        code: c.contract_code || c.contractCode || c.contract_number || `HD-${c.contract_id || employeeId}`,
+        name: emp?.full_name || emp?.fullName || c.employee_name || 'N/A',
+        position,
+        type: CONTRACT_TYPE_LABELS[contractType] || contractType || 'HĐ lao động',
         range,
-        status: c.status === 'HIỆU_LỰC' ? 'Đang hiệu lực' : 'Sắp hết hạn'
+        status: ['CÓ_HIỆU_LỰC', 'DANG_HIEU_LUC', 'ACTIVE', 'HIỆU_LỰC'].includes(statusRaw) ? 'Đang hiệu lực' : 'Sắp hết hạn'
       }
     })
 }
 
-onMounted(loadData)
+onMounted(() => {
+  void loadData();
+})
 </script>
 
 <style scoped>

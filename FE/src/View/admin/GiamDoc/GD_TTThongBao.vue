@@ -346,12 +346,10 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-// Import Functional MockDB
-import { mockLeaveRequests, mockEmployees, mockDepartments, mockRequestTypes } from '@/mock-data/index.js';
+import { apiRequest } from '@/services/beApi.js';
 import { getInitials, getAvatarColors, getRequestTypeUI } from '@/utils/uiMapper.js';
-import { importantNotifications as staticNotifications } from '@/mock-data/sampleData_GiamDoc.js';
 
 const router = useRouter();
 
@@ -364,29 +362,43 @@ const selectedItem = ref(null);
 const rejectReason = ref('');
 const toast = ref({ show: false, type: '', msg: '' });
 const rawRequests = ref([]);
+const employees = ref([]);
+const departments = ref([]);
+const requestTypes = ref([]);
+const notifications = ref([]);
+
+const employeeById = (id) =>
+  employees.value.find((e) => String(e.employee_id ?? e.employeeId) === String(id));
+const departmentById = (id) =>
+  departments.value.find((d) => String(d.department_id ?? d.departmentId) === String(id));
+const requestTypeById = (id) =>
+  requestTypes.value.find((r) => String(r.request_type_id ?? r.requestTypeId) === String(id));
 
 const fetchData = async () => {
   try {
-    const [resReqs, resEmp] = await Promise.all([
-      fetch('http://localhost:3000/leaveRequests').then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch('http://localhost:3000/employees').then(r => r.ok ? r.json() : null).catch(() => null)
+    const [resReqs, resEmp, resDept, resTypes, resNoti] = await Promise.all([
+      apiRequest('/leave-requests', { query: { page: 1, per_page: 2000 }, noGetCache: true }).catch(() => ({ data: [] })),
+      apiRequest('/employees', { query: { page: 1, per_page: 5000 }, noGetCache: true }).catch(() => ({ data: [] })),
+      apiRequest('/departments', { query: { page: 1, per_page: 1000 }, noGetCache: true }).catch(() => ({ data: [] })),
+      apiRequest('/request-types', { query: { page: 1, per_page: 1000 }, noGetCache: true }).catch(() => ({ data: [] })),
+      apiRequest('/notifications', { query: { page: 1, per_page: 100 }, noGetCache: true }).catch(() => ({ data: [] })),
     ]);
 
-    if (resReqs) rawRequests.value = resReqs;
-    // Employees are handled by mockEmployees helpers for now, but we use the API data if available
-    if (resEmp) {
-       // Update global mock for components relying on it
-       resEmp.forEach(e => mockEmployees.update(e.employeeId || e.id, e));
-    }
+    rawRequests.value = resReqs?.data || [];
+    employees.value = resEmp?.data || [];
+    departments.value = resDept?.data || [];
+    requestTypes.value = resTypes?.data || [];
+    notifications.value = resNoti?.data || [];
   } catch (error) {
     console.error('Lỗi khi tải dữ liệu Trung tâm phê duyệt:', error);
   }
 };
-
-import { onMounted, onUnmounted } from 'vue';
 onMounted(() => {
   fetchData();
-  const interval = setInterval(fetchData, 10000); // Đồng bộ 10s
+  const interval = setInterval(() => {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    fetchData();
+  }, 45000);
   onUnmounted(() => clearInterval(interval));
 });
 
@@ -408,9 +420,7 @@ const openReject = (item) => openMainModal(item, 'reject');
 const closeApprove = closeMainModal;
 const closeReject = closeMainModal;
 
-// ── Mock Notifications ──────────────────────────────────
 const importantNotifications = computed(() => {
-  // Kết hợp thông báo tĩnh và thông báo từ yêu cầu khẩn cấp
   const dynamicNotifs = pendingList.value.filter(r => r.urgent).slice(0, 2).map(r => ({
     id: `urgent-${r.id}`,
     level: 'canh_bao',
@@ -427,7 +437,23 @@ const importantNotifications = computed(() => {
     time: 'Vừa xong'
   }));
 
-  return [...dynamicNotifs, ...staticNotifications.slice(0, 2)];
+  const latestSystem = notifications.value.slice(0, 2).map((n, idx) => ({
+    id: `sys-${n.notification_id ?? idx}`,
+    level: 'he_thong',
+    levelLabel: 'HỆ THỐNG',
+    levelColor: 'text-blue-700',
+    levelBg: 'bg-blue-50',
+    dotColor: 'bg-blue-500',
+    icon: 'notifications',
+    iconColor: 'text-blue-500',
+    title: n.title || 'Thông báo hệ thống',
+    desc: n.content || n.message || '',
+    action: 'Xem chi tiết',
+    actionRoute: null,
+    time: n.created_at ? String(n.created_at).slice(0, 10) : 'Vừa xong',
+  }));
+
+  return [...dynamicNotifs, ...latestSystem];
 });
 
 const approvalStats = computed(() => {
@@ -452,9 +478,10 @@ const mappedRequests = computed(() => {
   });
 
   return allRequests.map(req => {
-    const emp = mockEmployees.getById(req.requesterId) || {};
-    const dept = mockDepartments.getById(emp.departmentId) || {};
-    const reqTypeObj = mockRequestTypes.getById(req.requestTypeId) || {};
+    const requesterId = req.requester_id ?? req.requesterId ?? req.employee_id ?? req.employeeId;
+    const emp = employeeById(requesterId) || {};
+    const dept = departmentById(emp.department_id ?? emp.departmentId) || {};
+    const reqTypeObj = requestTypeById(req.request_type_id ?? req.requestTypeId) || {};
     // Dùng category string để lấy cấu hình UI, fallback 'KHÁC' tránh crash
     const ui = getRequestTypeUI(reqTypeObj.category || 'KHÁC') || {
       icon: 'help', color: 'text-gray-600', bg: 'bg-gray-50', catKey: 'khac'
@@ -468,28 +495,28 @@ const mappedRequests = computed(() => {
     const isPendingForDirector = req.status === 'CHỜ_GIÁM_ĐỐC_DUYỆT';
 
     return {
-      id: req.requestId,
-      name: emp.fullName || 'Khuyết danh',
-      dept: dept.departmentName ? `Phòng ${dept.departmentName}` : '',
+      id: req.request_id ?? req.requestId ?? req.id,
+      name: emp.full_name || emp.fullName || req.requester_name || 'Khuyết danh',
+      dept: (dept.department_name || dept.departmentName) ? `Phòng ${dept.department_name || dept.departmentName}` : '',
       initials: getInitials(emp.fullName || '?'),
       avatarBg: avatarUI.bg,
       avatarColor: avatarUI.text,
-      type: reqTypeObj.requestTypeName || 'Khác',
+      type: reqTypeObj.request_type_name || reqTypeObj.requestTypeName || 'Khác',
       typeIcon: ui.icon,
       typeColor: ui.color,
       typeBg: ui.bg,
-      title: req.title || 'Không có nội dung',
-      time: req.requestDate || new Date().toISOString(),
-      urgent: !!req.is_urgent || req.days >= 3,
+      title: req.title || req.reason || 'Không có nội dung',
+      time: req.request_date || req.requestDate || new Date().toISOString(),
+      urgent: Boolean(req.is_urgent) || Number(req.days || 0) >= 3,
       category: ui.catKey,
       reasonText: req.reason || req.notes || req.title,
       
       // Detailed info
-      requestCode: req.requestCode || `REQ-${req.requestId}`,
-      startDate: req.startDate,
-      endDate: req.endDate,
-      totalDays: req.days || 0,
-      requestDate: req.requestDate,
+      requestCode: req.request_code || req.requestCode || `REQ-${req.request_id ?? req.id}`,
+      startDate: req.start_date || req.startDate,
+      endDate: req.end_date || req.endDate,
+      totalDays: req.total_days ?? req.days ?? 0,
+      requestDate: req.request_date || req.requestDate,
 
       status: isPendingForDirector ? 'pending' : (req.status === 'ĐÃ_DUYỆT' ? 'approved' : 'rejected')
     };
@@ -525,18 +552,14 @@ const confirmApprove = async () => {
     const newStatus = isLeaveRequest ? 'CHỜ_XÁC_NHẬN_HR' : 'ĐÃ_DUYỆT';
     const newStatusText = isLeaveRequest ? 'Chờ HR xác nhận' : 'Đã duyệt';
 
-    await fetch(`http://localhost:3000/leaveRequests/${requestId}`, {
+    await apiRequest(`/leave-requests/${requestId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: {
         status: newStatus,
         statusText: newStatusText,
         approver_director: 'Ban Giám Đốc'
-      })
+      },
     });
-    
-    // Sync mock for internal helpers
-    mockLeaveRequests.approve(requestId);
     showToast('approve', `Đã phê duyệt yêu cầu của ${selectedItem.value.name}`);
     await fetchData(); // Refresh data immediately
   } catch (error) {
@@ -555,18 +578,15 @@ const confirmReject = async () => {
   
   const requestId = selectedItem.value.id;
   try {
-    await fetch(`http://localhost:3000/leaveRequests/${requestId}`, {
+    await apiRequest(`/leave-requests/${requestId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: {
         status: 'TỪ_CHỐI',
         statusText: 'Đã từ chối',
         notes: rejectReason.value,
         rejectionReason: rejectReason.value
-      })
+      },
     });
-    
-    mockLeaveRequests.reject(requestId, rejectReason.value);
     showToast('reject', `Đã từ chối yêu cầu của ${selectedItem.value.name}`);
     await fetchData();
   } catch (error) {

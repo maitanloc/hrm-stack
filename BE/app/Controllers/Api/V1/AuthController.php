@@ -71,4 +71,56 @@ class AuthController extends Controller
             'employees' => $items,
         ], 'Hierarchy scope');
     }
+
+    public function forgotPassword(Request $request): array
+    {
+        $payload = Validator::validate($request->all(), [
+            'company_email' => ['required', 'email'],
+        ]);
+
+        $email = strtolower(trim((string) $payload['company_email']));
+        $stmt = Database::connection()->prepare(
+            "SELECT employee_id
+             FROM employees
+             WHERE LOWER(company_email) = :email
+             LIMIT 1"
+        );
+        $stmt->execute(['email' => $email]);
+
+        // Demo-safe behavior: always return success message to avoid email enumeration.
+        return $this->ok([
+            'sent' => true,
+        ], 'Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được gửi.');
+    }
+
+    public function resetPassword(Request $request): array
+    {
+        $payload = Validator::validate($request->all(), [
+            'company_email' => ['required', 'email'],
+            'new_password' => ['required', 'string', 'min:6'],
+        ]);
+
+        $email = strtolower(trim((string) $payload['company_email']));
+        $newPassword = (string) $payload['new_password'];
+
+        $stmt = Database::connection()->prepare(
+            "UPDATE employees
+             SET password_hash = :password_hash
+             WHERE LOWER(company_email) = :email"
+        );
+        $stmt->execute([
+            'password_hash' => password_hash($newPassword, PASSWORD_BCRYPT),
+            'email' => $email,
+        ]);
+
+        if ($stmt->rowCount() <= 0) {
+            return $this->ok([
+                'updated' => false,
+            ], 'Nếu email tồn tại trong hệ thống, mật khẩu đã được cập nhật.');
+        }
+
+        return $this->ok([
+            'updated' => true,
+        ], 'Mật khẩu đã được cập nhật thành công.');
+    }
 }

@@ -1,62 +1,70 @@
-/**
- * giamDocApi.js
- * ─────────────────────────────────────────────────────────
- * Centralized API service cho toàn bộ khu vực Giám đốc.
- * Tất cả dữ liệu đi qua legacy bridge tại http://localhost:3000
- * và được map sang BE API thực.
- * ─────────────────────────────────────────────────────────
- */
+import { apiRequest } from '@/services/beApi.js';
 
-const BASE = 'http://localhost:3000';
+const listData = (payload) => (Array.isArray(payload?.data) ? payload.data : []);
 
-// ── Helpers ────────────────────────────────────────────────────
-const get = (path) => fetch(`${BASE}${path}`).then(r => {
-  if (!r.ok) throw new Error(`API Error: ${r.status} ${path}`);
-  return r.json();
-});
+const patch = (path, body) =>
+  apiRequest(path, {
+    method: 'PATCH',
+    body,
+  });
 
-const patch = (path, body) => fetch(`${BASE}${path}`, {
-  method: 'PATCH',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(body)
-}).then(r => r.json());
+export const fetchEmployees = () => apiRequest('/employees');
+export const fetchDepartments = () => apiRequest('/departments');
+export const fetchPositions = () => apiRequest('/positions');
+export const fetchLeaveRequests = () => apiRequest('/leave-requests');
+export const fetchSalaryDetails = () => apiRequest('/salary-details');
+export const fetchAttendances = () => apiRequest('/attendances');
+export const fetchNotifications = () => apiRequest('/notifications');
+export const fetchRequestTypes = () => apiRequest('/request-types');
 
-// ── Fetch All Resources ────────────────────────────────────────
 export const fetchAll = async () => {
-  const [employees, departments, positions, leaveRequests,
-         salaryDetails, attendances, notifications, requestTypes] = await Promise.all([
-    get('/employees'),
-    get('/departments'),
-    get('/positions'),
-    get('/leaveRequests'),
-    get('/salaryDetails'),
-    get('/attendances'),
-    get('/notifications'),
-    get('/requestTypes'),
+  const [
+    employeesRes,
+    departmentsRes,
+    positionsRes,
+    leaveRequestsRes,
+    salaryDetailsRes,
+    attendancesRes,
+    notificationsRes,
+    requestTypesRes,
+  ] = await Promise.all([
+    fetchEmployees(),
+    fetchDepartments(),
+    fetchPositions(),
+    fetchLeaveRequests(),
+    fetchSalaryDetails(),
+    fetchAttendances(),
+    fetchNotifications(),
+    fetchRequestTypes(),
   ]);
-  return { employees, departments, positions, leaveRequests, salaryDetails, attendances, notifications, requestTypes };
+
+  return {
+    employees: listData(employeesRes),
+    departments: listData(departmentsRes),
+    positions: listData(positionsRes),
+    leaveRequests: listData(leaveRequestsRes),
+    salaryDetails: listData(salaryDetailsRes),
+    attendances: listData(attendancesRes),
+    notifications: listData(notificationsRes),
+    requestTypes: listData(requestTypesRes),
+  };
 };
 
-// ── Individual Fetchers ────────────────────────────────────────
-export const fetchEmployees    = () => get('/employees');
-export const fetchDepartments  = () => get('/departments');
-export const fetchPositions    = () => get('/positions');
-export const fetchLeaveRequests = () => get('/leaveRequests');
-export const fetchSalaryDetails = () => get('/salaryDetails');
-export const fetchAttendances  = () => get('/attendances');
-export const fetchNotifications = () => get('/notifications');
-export const fetchRequestTypes = () => get('/requestTypes');
-
-// ── Leave Request Actions ──────────────────────────────────────
 export const approveLeaveRequest = (id) =>
-  patch(`/leaveRequests/${id}`, { status: 'ĐÃ_DUYỆT', approvedAt: new Date().toISOString() });
+  patch(`/leave-requests/${id}`, {
+    status: 'ĐÃ_DUYỆT',
+    approved_at: new Date().toISOString(),
+  });
 
 export const rejectLeaveRequest = (id, reason) =>
-  patch(`/leaveRequests/${id}`, {
+  patch(`/leave-requests/${id}`, {
     status: 'TỪ_CHỐI',
-    rejectionReason: reason,
-    rejectedAt: new Date().toISOString()
+    rejection_reason: reason,
+    rejected_at: new Date().toISOString(),
   });
 
 export const directorApproveLeaveRequest = (id) =>
-  patch(`/leaveRequests/${id}`, { status: 'ĐÃ_DUYỆT', approvedAt: new Date().toISOString() });
+  patch(`/leave-requests/${id}`, {
+    status: 'ĐÃ_DUYỆT',
+    approved_at: new Date().toISOString(),
+  });

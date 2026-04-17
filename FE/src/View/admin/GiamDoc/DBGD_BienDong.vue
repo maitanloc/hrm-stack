@@ -225,118 +225,158 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue';
 import GD_DateFilter from '@/components/GD_DateFilter.vue';
-import { mockEmployees, mockDepartments, mockPositions } from '@/mock-data/index.js';
+import { apiRequest } from '@/services/beApi.js';
 
 const selectedDateRange = ref('30_days');
 const isChartLoaded = ref(false);
 const Math = window.Math;
+const employees = ref([]);
+const departments = ref([]);
+const positions = ref([]);
+
+const normalizeStatus = (value) => {
+  const raw = String(value || '').trim().toUpperCase();
+  if (raw.includes('ĐANG') || raw.includes('ACTIVE')) return 'ĐANG_LÀM_VIỆC';
+  if (raw.includes('NGHỈ') || raw.includes('INACTIVE') || raw.includes('TERMIN')) return 'ĐÃ_NGHỈ_VIỆC';
+  return 'ĐANG_LÀM_VIỆC';
+};
+
+const loadData = async () => {
+  try {
+    const [empRes, deptRes, posRes] = await Promise.all([
+      apiRequest('/employees', { query: { page: 1, per_page: 5000 }, noGetCache: true }),
+      apiRequest('/departments', { query: { page: 1, per_page: 1000 }, noGetCache: true }),
+      apiRequest('/positions', { query: { page: 1, per_page: 1000 }, noGetCache: true }),
+    ]);
+    employees.value = (empRes?.data || []).map((e) => ({
+      employeeId: e.employee_id ?? e.employeeId,
+      fullName: e.full_name ?? '',
+      departmentId: e.department_id ?? e.departmentId,
+      positionId: e.position_id ?? e.positionId,
+      employeeCode: e.employee_code ?? '',
+      status: normalizeStatus(e.status),
+      hireDate: e.hire_date ?? null,
+    }));
+    departments.value = (deptRes?.data || []).map((d) => ({
+      departmentId: d.department_id ?? d.departmentId,
+      departmentName: d.department_name ?? '',
+    }));
+    positions.value = (posRes?.data || []).map((p) => ({
+      positionId: p.position_id ?? p.positionId,
+      positionName: p.position_name ?? '',
+    }));
+  } catch (error) {
+    console.error('Không tải được dữ liệu biến động:', error);
+  }
+};
 
 onMounted(() => {
-  setTimeout(() => isChartLoaded.value = true, 200);
+  loadData();
+  setTimeout(() => (isChartLoaded.value = true), 200);
 });
 
 const bienDongKpiCards = computed(() => {
-  const emps = mockEmployees;
-  const thoiViec = emps.filter(e => e.status === 'ĐÃ_NGHỈ_VIỆC').length;
+  const emps = employees.value;
+  const thoiViec = emps.filter((e) => e.status === 'ĐÃ_NGHỈ_VIỆC').length;
   const tyLeNghi = emps.length > 0 ? ((thoiViec / emps.length) * 100).toFixed(1) : 0;
   return [
-    {
-      id: 1, label: 'Tổng nghỉ việc', value: thoiViec.toString(), suffix: 'nhân sự', suffixCls: 'text-lg text-slate-500 font-bold',
-      icon: 'group_remove', iconBg: 'bg-red-50', iconColor: 'text-red-500',
-      badge: { icon: 'trending_up', text: '+5%', cls: 'bg-red-50 text-red-600 border-red-100' },
-      note: 'So với cùng kỳ năm trước'
-    },
-    {
-      id: 2, label: 'Tỷ lệ biến động', value: tyLeNghi.toString(), suffix: '%', suffixCls: 'text-lg text-slate-500 font-bold',
-      icon: 'show_chart', iconBg: 'bg-orange-50', iconColor: 'text-orange-500',
-      badge: { icon: 'warning', text: 'Cao', cls: 'bg-orange-50 text-orange-600 border-orange-100' },
-      note: 'Vượt mục tiêu 0.6%'
-    },
-    {
-      id: 3, label: 'Chi phí thay thế', value: '1.2', suffix: 'Tỷ', suffixCls: 'text-lg text-slate-500 font-bold',
-      icon: 'currency_exchange', iconBg: 'bg-blue-50', iconColor: 'text-blue-500',
-      badge: null,
-      note: 'Ước tính phí tuyển dụng & đào tạo'
-    },
-    {
-      id: 4, label: 'Tỷ lệ giữ chân', value: (100 - tyLeNghi).toFixed(1), suffix: '%', suffixCls: 'text-lg text-slate-500 font-bold',
-      icon: 'loyalty', iconBg: 'bg-green-50', iconColor: 'text-green-500',
-      badge: { icon: 'task_alt', text: 'Tốt', cls: 'bg-green-50 text-green-600 border-green-100' },
-      note: 'Nhân sự thâm niên > 1 năm'
-    }
+    { id: 1, label: 'Tổng nghỉ việc', value: String(thoiViec), suffix: 'nhân sự', suffixCls: 'text-lg text-slate-500 font-bold', icon: 'group_remove', iconBg: 'bg-red-50', iconColor: 'text-red-500', badge: { icon: 'trending_up', text: '+5%', cls: 'bg-red-50 text-red-600 border-red-100' }, note: 'So với cùng kỳ năm trước' },
+    { id: 2, label: 'Tỷ lệ biến động', value: String(tyLeNghi), suffix: '%', suffixCls: 'text-lg text-slate-500 font-bold', icon: 'show_chart', iconBg: 'bg-orange-50', iconColor: 'text-orange-500', badge: { icon: 'warning', text: 'Cao', cls: 'bg-orange-50 text-orange-600 border-orange-100' }, note: 'Vượt mục tiêu 0.6%' },
+    { id: 3, label: 'Chi phí thay thế', value: (thoiViec * 0.08).toFixed(1), suffix: 'Tỷ', suffixCls: 'text-lg text-slate-500 font-bold', icon: 'currency_exchange', iconBg: 'bg-blue-50', iconColor: 'text-blue-500', badge: null, note: 'Ước tính phí tuyển dụng & đào tạo' },
+    { id: 4, label: 'Tỷ lệ giữ chân', value: (100 - Number(tyLeNghi)).toFixed(1), suffix: '%', suffixCls: 'text-lg text-slate-500 font-bold', icon: 'loyalty', iconBg: 'bg-green-50', iconColor: 'text-green-500', badge: { icon: 'task_alt', text: 'Tốt', cls: 'bg-green-50 text-green-600 border-green-100' }, note: 'Nhân sự thâm niên > 1 năm' },
   ];
 });
 
 const nghiViecBoPhan = computed(() => {
-  const depts = mockDepartments;
-  const emps = mockEmployees;
-  return depts.map(d => {
-    const deptEmps = emps.filter(e => e.departmentId === d.departmentId);
-    const deptThoiViec = deptEmps.filter(e => e.status === 'ĐÃ_NGHỈ_VIỆC').length;
-    const tyLe = deptEmps.length > 0 ? ((deptThoiViec / deptEmps.length) * 100).toFixed(1) : 0;
-    return {
-      tenPhong: d.departmentName,
-      soNhanSu: deptEmps.length,
-      soNghiViec: deptThoiViec,
-      tyLe: tyLe,
-      alert: tyLe > 5
-    };
-  }).filter(d => d.soNhanSu > 0).sort((a,b) => b.soNghiViec - a.soNghiViec);
+  const emps = employees.value;
+  return departments.value
+    .map((d) => {
+      const deptEmps = emps.filter((e) => String(e.departmentId) === String(d.departmentId));
+      const deptThoiViec = deptEmps.filter((e) => e.status === 'ĐÃ_NGHỈ_VIỆC').length;
+      const tyLe = deptEmps.length > 0 ? ((deptThoiViec / deptEmps.length) * 100).toFixed(1) : 0;
+      return { tenPhong: d.departmentName, soNhanSu: deptEmps.length, soNghiViec: deptThoiViec, tyLe, alert: Number(tyLe) > 5 };
+    })
+    .filter((d) => d.soNhanSu > 0)
+    .sort((a, b) => b.soNghiViec - a.soNghiViec);
 });
 
-const danhSachNghiViec = computed(() => {
-  const emps = mockEmployees.filter(e => e.status === 'ĐÃ_NGHỈ_VIỆC');
-  return emps.slice(0, 5).map(e => {
-    const deptName = mockDepartments.getById(e.departmentId)?.departmentName || 'Không rõ';
-    const posName = mockPositions.getById(e.positionId)?.positionName || 'Nhân viên';
-    return {
-      id: e.employeeId,
-      initials: e.fullName ? e.fullName.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase() : 'NV',
-      name: e.fullName,
-      chucVu: posName,
-      phongBan: deptName,
-      ngayNghi: new Date().toLocaleDateString('vi-VN'),
-      lyDo: 'Lý do cá nhân',
-      hinhThucCls: 'bg-orange-50 text-orange-600 border-orange-100',
-      hinhThuc: 'Tự nguyện'
-    };
+const danhSachNghiViec = computed(() =>
+  employees.value
+    .filter((e) => e.status === 'ĐÃ_NGHỈ_VIỆC')
+    .slice(0, 5)
+    .map((e) => {
+      const deptName = departments.value.find((d) => String(d.departmentId) === String(e.departmentId))?.departmentName || 'Không rõ';
+      const posName = positions.value.find((p) => String(p.positionId) === String(e.positionId))?.positionName || 'Nhân viên';
+      return {
+        id: e.employeeId,
+        initials: e.fullName ? e.fullName.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase() : 'NV',
+        name: e.fullName,
+        chucVu: posName,
+        phongBan: deptName,
+        ngayNghi: new Date().toLocaleDateString('vi-VN'),
+        lyDo: 'Lý do cá nhân',
+        hinhThucCls: 'bg-orange-50 text-orange-600 border-orange-100',
+        hinhThuc: 'Tự nguyện',
+      };
+    })
+);
+
+const bienDongLineChart = computed(() => {
+  const months = Array.from({ length: 6 }).map((_, idx) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - (5 - idx));
+    return { key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, month: `Tháng ${d.getMonth() + 1}`, total: 0, resigned: 0 };
   });
+  const map = new Map(months.map((m) => [m.key, m]));
+  employees.value.forEach((e) => {
+    const key = String(e.hireDate || '').slice(0, 7);
+    const item = map.get(key);
+    if (!item) return;
+    item.total += 1;
+    if (e.status === 'ĐÃ_NGHỈ_VIỆC') item.resigned += 1;
+  });
+  return months.map((m) => ({ month: m.month, val: m.total > 0 ? Number(((m.resigned / m.total) * 100).toFixed(1)) : 0 }));
 });
 
-const bienDongLineChart = ref([
-  { month: 'Tháng 1', val: 2.5 },
-  { month: 'Tháng 2', val: 3.0 },
-  { month: 'Tháng 3', val: 2.8 },
-  { month: 'Tháng 4', val: 3.5 },
-  { month: 'Tháng 5', val: 4.0 },
-  { month: 'Tháng 6', val: 3.6 }
-]);
-const bienDongLineChartMax = 5.0;
+const bienDongLineChartMax = computed(() => Math.max(5, ...bienDongLineChart.value.map((i) => i.val), 0));
 
-const bienDongDonut = ref([
-  { label: 'Dưới 1 năm', pct: 45, color: '#FB7185' },
-  { label: '1 - 3 năm', pct: 35, color: '#FCD34D' },
-  { label: 'Trên 3 năm', pct: 20, color: '#34D399' }
-]);
+const bienDongDonut = computed(() => {
+  const active = employees.value.filter((e) => e.status === 'ĐANG_LÀM_VIỆC');
+  const now = new Date();
+  let under1 = 0; let oneTo3 = 0; let over3 = 0;
+  active.forEach((e) => {
+    const hd = new Date(e.hireDate || '');
+    if (Number.isNaN(hd.getTime())) return;
+    const years = (now - hd) / (365 * 24 * 3600 * 1000);
+    if (years < 1) under1 += 1;
+    else if (years <= 3) oneTo3 += 1;
+    else over3 += 1;
+  });
+  const total = Math.max(active.length, 1);
+  return [
+    { label: 'Dưới 1 năm', pct: Math.round((under1 / total) * 100), color: '#FB7185' },
+    { label: '1 - 3 năm', pct: Math.round((oneTo3 / total) * 100), color: '#FCD34D' },
+    { label: 'Trên 3 năm', pct: Math.round((over3 / total) * 100), color: '#34D399' },
+  ];
+});
 
-// --- BIỂU ĐỒ ĐƯỜNG ĐỘNG (Line Chart) ---
 const bienDongLinePoints = computed(() => {
-  const max = bienDongLineChartMax;
-  const numPoints = bienDongLineChart.value.length;
-  return bienDongLineChart.value.map((item, idx) => ({ 
+  const max = bienDongLineChartMax.value || 1;
+  const numPoints = bienDongLineChart.value.length || 1;
+  return bienDongLineChart.value.map((item, idx) => ({
     month: item.month,
     val: item.val,
-    x: (idx / (numPoints - 1)) * 100, 
+    x: (idx / Math.max(numPoints - 1, 1)) * 100,
     y: 100 - (item.val / max) * 100,
-    yPct: Math.min((item.val / max) * 100, 115)
+    yPct: Math.min((item.val / max) * 100, 115),
   }));
 });
 
 const bienDongLinePath = computed(() => {
   if (!bienDongLinePoints.value.length) return '';
   let d = `M ${bienDongLinePoints.value[0].x} ${bienDongLinePoints.value[0].y}`;
-  for(let i=1; i<bienDongLinePoints.value.length; i++){
-    const prev = bienDongLinePoints.value[i-1];
+  for (let i = 1; i < bienDongLinePoints.value.length; i += 1) {
+    const prev = bienDongLinePoints.value[i - 1];
     const curr = bienDongLinePoints.value[i];
     const cpX = (prev.x + curr.x) / 2;
     d += ` C ${cpX} ${prev.y} ${cpX} ${curr.y} ${curr.x} ${curr.y}`;
@@ -344,29 +384,19 @@ const bienDongLinePath = computed(() => {
   return d;
 });
 
-const bienDongAreaPath = computed(() => {
-  if(!bienDongLinePath.value) return '';
-  return `${bienDongLinePath.value} L 100 100 L 0 100 Z`;
-});
+const bienDongAreaPath = computed(() => (bienDongLinePath.value ? `${bienDongLinePath.value} L 100 100 L 0 100 Z` : ''));
 
-// --- BIỂU ĐỒ TRÒN ĐỘNG (Donut Chart) ---
 const bienDongDonutSegments = computed(() => {
-  let segments = [];
+  const segments = [];
   let currentAngle = 0;
   const circumference = 219.9;
-  
   bienDongDonut.value.forEach((item) => {
     const dashoffset = circumference - (item.pct / 100) * circumference;
-    segments.push({
-      ...item,
-      dashoffset,
-      transform: currentAngle > 0 ? `rotate(${currentAngle} 50 50)` : ''
-    });
+    segments.push({ ...item, dashoffset, transform: currentAngle > 0 ? `rotate(${currentAngle} 50 50)` : '' });
     currentAngle += (item.pct / 100) * 360;
   });
   return segments;
 });
-
 </script>
 
 <style scoped>

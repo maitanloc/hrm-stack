@@ -249,34 +249,25 @@ import { ref, computed, onMounted } from 'vue';
 import Dropdown from '@/components/Dropdown.vue';
 import CalendarCustom from '@/components/CalendarCustom.vue';
 import { useConfirm } from '@/composables/useConfirm';
+import { apiRequest } from '@/services/beApi.js';
 
 const { showAlert, showConfirm } = useConfirm();
-const LEGACY_BASE = 'http://localhost:3000';
 const employeesList = ref([]);
 const departmentsList = ref([]);
 const positionsList = ref([]);
 const isLoading = ref(false);
 
-const fetchJson = async (url, options = {}) => {
-  const response = await fetch(url, options);
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(payload?.message || `HTTP ${response.status}`);
-  }
-  return payload;
-};
-
 const loadData = async () => {
   isLoading.value = true;
   try {
     const [employees, departments, positions] = await Promise.all([
-      fetchJson(`${LEGACY_BASE}/employees?_limit=2000`),
-      fetchJson(`${LEGACY_BASE}/departments?_limit=500`),
-      fetchJson(`${LEGACY_BASE}/positions?_limit=500`),
+      apiRequest('/employees', { query: { page: 1, per_page: 2000 } }),
+      apiRequest('/departments', { query: { page: 1, per_page: 500 } }),
+      apiRequest('/positions', { query: { page: 1, per_page: 500 } }),
     ]);
-    employeesList.value = Array.isArray(employees) ? employees : [];
-    departmentsList.value = Array.isArray(departments) ? departments : [];
-    positionsList.value = Array.isArray(positions) ? positions : [];
+    employeesList.value = Array.isArray(employees?.data) ? employees.data : [];
+    departmentsList.value = Array.isArray(departments?.data) ? departments.data : [];
+    positionsList.value = Array.isArray(positions?.data) ? positions.data : [];
   } catch (error) {
     await showAlert('Không tải được dữ liệu', error?.message || 'Không thể tải danh sách nhân sự.');
   } finally {
@@ -438,38 +429,36 @@ const saveEmployee = async () => {
 
   try {
     if (editMode.value) {
-      await fetchJson(`${LEGACY_BASE}/employees/${form.value.id}`, {
+      await apiRequest(`/employees/${form.value.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: form.value.fullName,
-          companyEmail: form.value.companyEmail,
-          hireDate: form.value.hireDate,
-          dateOfBirth: form.value.dateOfBirth || undefined,
+        body: {
+          full_name: form.value.fullName,
+          company_email: form.value.companyEmail,
+          hire_date: form.value.hireDate,
+          date_of_birth: form.value.dateOfBirth || undefined,
           gender: form.value.gender,
-          phoneNumber: form.value.phoneNumber || undefined,
+          phone_number: form.value.phoneNumber || undefined,
           status: form.value.status,
-          departmentId: Number(form.value.department),
-          positionId: Number(form.value.position),
-        }),
+          department_id: Number(form.value.department),
+          position_id: Number(form.value.position),
+        },
       });
     } else {
-      await fetchJson(`${LEGACY_BASE}/employees`, {
+      await apiRequest('/employees', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          employeeCode: form.value.employeeCode,
-          fullName: form.value.fullName,
-          companyEmail: form.value.companyEmail,
-          hireDate: form.value.hireDate,
-          dateOfBirth: form.value.dateOfBirth || undefined,
+        body: {
+          employee_code: form.value.employeeCode,
+          full_name: form.value.fullName,
+          company_email: form.value.companyEmail,
+          hire_date: form.value.hireDate,
+          date_of_birth: form.value.dateOfBirth || undefined,
           gender: form.value.gender,
-          phoneNumber: form.value.phoneNumber || undefined,
+          phone_number: form.value.phoneNumber || undefined,
           status: form.value.status,
-          departmentId: Number(form.value.department),
-          positionId: Number(form.value.position),
+          department_id: Number(form.value.department),
+          position_id: Number(form.value.position),
           password: form.value.employeeCode,
-        }),
+        },
       });
     }
     await loadData();
@@ -483,10 +472,9 @@ const confirmResign = async (emp) => {
   const ok = await showConfirm('Chấm dứt hồ sơ', `Xác nhận thực hiện quy trình thôi việc cho nhân sự ${emp.fullName}?`);
   if (ok) {
     try {
-      await fetchJson(`${LEGACY_BASE}/employees/${emp.id}`, {
+      await apiRequest(`/employees/${emp.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'ĐÃ_NGHỈ_VIỆC' }),
+        body: { status: 'ĐÃ_NGHỈ_VIỆC' },
       });
       await loadData();
     } catch (error) {

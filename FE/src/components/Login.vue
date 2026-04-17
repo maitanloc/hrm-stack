@@ -162,6 +162,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { BE_API_BASE } from '@/services/runtimeConfig.js';
 import { clearAuthSession, persistAuthSession } from '@/services/session.js';
+import { deepFixMojibake } from '@/utils/textEncodingFixed.js';
 
 const router = useRouter();
 
@@ -176,6 +177,7 @@ const forgotEmail = ref('');
 const forgotError = ref('');
 const forgotSuccess = ref('');
 const isSendingForgot = ref(false);
+const ATTENDANCE_DEVICE_STORAGE_KEY = 'attendance_mobile_device_id';
 
 // Force Light Mode on Login Page
 onMounted(() => {
@@ -231,9 +233,70 @@ const buildCandidateApiBases = () => {
 const parseJsonSafe = async (response) => {
   const text = await response.text();
   try {
-    return text ? JSON.parse(text) : {};
+    return text ? deepFixMojibake(JSON.parse(text)) : {};
   } catch {
-    return { message: text || '' };
+    return { message: deepFixMojibake(text || '') };
+  }
+};
+
+const ensureAttendanceDeviceId = () => {
+  const fromStorage = localStorage.getItem(ATTENDANCE_DEVICE_STORAGE_KEY);
+  if (fromStorage) return fromStorage;
+  const generated = `web-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+  localStorage.setItem(ATTENDANCE_DEVICE_STORAGE_KEY, generated);
+  return generated;
+};
+
+const detectPlatformCode = () => {
+  const ua = String(navigator.userAgent || '').toLowerCase();
+  if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ios')) return 'IOS';
+  return 'ANDROID';
+};
+
+const readGeoPosition = async () => {
+  if (!navigator.geolocation) return null;
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve({
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+        accuracy_m: position.coords.accuracy || 999,
+      }),
+      () => resolve(null),
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  });
+};
+
+const bootstrapAttendanceDevice = async (accessToken, user) => {
+  const employeeId = Number(user?.employee_id || 0);
+  if (!employeeId || !accessToken) return;
+
+  try {
+    const location = await readGeoPosition();
+    if (!location) return;
+
+    await fetch(`${BE_API_BASE}/attendance/bootstrap`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        employee_id: employeeId,
+        device_id: ensureAttendanceDeviceId(),
+        platform: detectPlatformCode(),
+        lat: location.lat,
+        lng: location.lng,
+        accuracy_m: location.accuracy_m,
+      }),
+    });
+  } catch (error) {
+    console.warn('Attendance bootstrap warning:', error);
   }
 };
 
@@ -302,6 +365,7 @@ const handleLogin = async () => {
         user,
         token: backendData.access_token,
       });
+      await bootstrapAttendanceDevice(backendData.access_token, user);
       router.push(targetRoute);
       return;
     }

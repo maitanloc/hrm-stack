@@ -10,6 +10,7 @@ class RecruitmentCandidate extends Model
 {
     protected string $table = 'recruitment_candidates';
     protected string $primaryKey = 'candidate_id';
+    private ?array $featureSupport = null;
     protected array $fillable = [
         'candidate_code',
         'full_name',
@@ -62,11 +63,9 @@ class RecruitmentCandidate extends Model
 
         $whereSql = $where === [] ? '' : 'WHERE ' . implode(' AND ', $where);
 
-        $sql = "SELECT c.*,
-                       rp.position_name,
-                       rp.department_id,
-                       d.manager_id AS department_manager_id,
-                       rm.review_id,
+        $support = $this->featureSupport();
+        $selectReview = $support['manager_reviews_table']
+            ? "rm.review_id,
                        rm.manager_id,
                        rm.workflow_status,
                        rm.manager_decision_proposal,
@@ -74,29 +73,65 @@ class RecruitmentCandidate extends Model
                        rm.manager_review_notes,
                        rm.suggested_interview_date,
                        rm.suggested_interview_time,
-                       rm.reviewed_at,
-                       cv.cv_id,
+                       rm.reviewed_at,"
+            : "NULL AS review_id,
+                       NULL AS manager_id,
+                       'PENDING' AS workflow_status,
+                       'PENDING' AS manager_decision_proposal,
+                       NULL AS manager_score,
+                       NULL AS manager_review_notes,
+                       NULL AS suggested_interview_date,
+                       NULL AS suggested_interview_time,
+                       NULL AS reviewed_at,";
+        $joinReview = $support['manager_reviews_table']
+            ? 'LEFT JOIN recruitment_candidate_manager_reviews rm ON rm.candidate_id = c.candidate_id'
+            : '';
+
+        $selectCv = $support['candidate_cvs_table']
+            ? "cv.cv_id,
                        cv.original_filename AS cv_original_filename,
                        cv.mime_type AS cv_mime_type,
                        cv.file_size AS cv_file_size,
-                       CASE WHEN cv.cv_id IS NULL THEN 0 ELSE 1 END AS has_cv,
+                       CASE WHEN cv.cv_id IS NULL THEN 0 ELSE 1 END AS has_cv,"
+            : "NULL AS cv_id,
+                       NULL AS cv_original_filename,
+                       NULL AS cv_mime_type,
+                       NULL AS cv_file_size,
+                       CASE WHEN c.cv_url IS NULL OR c.cv_url = '' THEN 0 ELSE 1 END AS has_cv,";
+        $joinCv = $support['candidate_cvs_table']
+            ? 'LEFT JOIN recruitment_candidate_cvs cv ON cv.candidate_id = c.candidate_id'
+            : '';
+
+        $latestInterviewManagerSelect = $support['interview_department_manager_id_column']
+            ? 'li.department_manager_id AS latest_interview_manager_id'
+            : 'NULL AS latest_interview_manager_id';
+        $latestInterviewManagerColumn = $support['interview_department_manager_id_column']
+            ? 'i1.department_manager_id'
+            : 'NULL AS department_manager_id';
+
+        $sql = "SELECT c.*,
+                       rp.position_name,
+                       rp.department_id,
+                       d.manager_id AS department_manager_id,
+                       {$selectReview}
+                       {$selectCv}
                        li.interview_id AS latest_interview_id,
                        li.interview_date AS latest_interview_date,
                        li.interview_time AS latest_interview_time,
                        li.status AS latest_interview_status,
-                       li.department_manager_id AS latest_interview_manager_id
+                       {$latestInterviewManagerSelect}
                 FROM recruitment_candidates c
                 LEFT JOIN recruitment_positions rp ON rp.recruitment_position_id = c.recruitment_position_id
                 LEFT JOIN departments d ON d.department_id = rp.department_id
-                LEFT JOIN recruitment_candidate_manager_reviews rm ON rm.candidate_id = c.candidate_id
-                LEFT JOIN recruitment_candidate_cvs cv ON cv.candidate_id = c.candidate_id
+                {$joinReview}
+                {$joinCv}
                 LEFT JOIN (
                     SELECT i1.candidate_id,
                            i1.interview_id,
                            i1.interview_date,
                            i1.interview_time,
                            i1.status,
-                           i1.department_manager_id
+                           {$latestInterviewManagerColumn}
                     FROM interview_schedules i1
                     JOIN (
                         SELECT candidate_id, MAX(interview_id) AS latest_id
@@ -132,12 +167,9 @@ class RecruitmentCandidate extends Model
 
     public function findDetail(int $id): ?array
     {
-        $sql = "SELECT c.*,
-                       rp.position_name,
-                       rp.department_id,
-                       d.department_name,
-                       d.manager_id AS department_manager_id,
-                       rm.review_id,
+        $support = $this->featureSupport();
+        $selectReview = $support['manager_reviews_table']
+            ? "rm.review_id,
                        rm.manager_id,
                        rm.workflow_status,
                        rm.manager_decision_proposal,
@@ -145,29 +177,66 @@ class RecruitmentCandidate extends Model
                        rm.manager_review_notes,
                        rm.suggested_interview_date,
                        rm.suggested_interview_time,
-                       rm.reviewed_at,
-                       cv.cv_id,
+                       rm.reviewed_at,"
+            : "NULL AS review_id,
+                       NULL AS manager_id,
+                       'PENDING' AS workflow_status,
+                       'PENDING' AS manager_decision_proposal,
+                       NULL AS manager_score,
+                       NULL AS manager_review_notes,
+                       NULL AS suggested_interview_date,
+                       NULL AS suggested_interview_time,
+                       NULL AS reviewed_at,";
+        $joinReview = $support['manager_reviews_table']
+            ? 'LEFT JOIN recruitment_candidate_manager_reviews rm ON rm.candidate_id = c.candidate_id'
+            : '';
+
+        $selectCv = $support['candidate_cvs_table']
+            ? "cv.cv_id,
                        cv.original_filename AS cv_original_filename,
                        cv.mime_type AS cv_mime_type,
                        cv.file_size AS cv_file_size,
-                       CASE WHEN cv.cv_id IS NULL THEN 0 ELSE 1 END AS has_cv,
+                       CASE WHEN cv.cv_id IS NULL THEN 0 ELSE 1 END AS has_cv,"
+            : "NULL AS cv_id,
+                       NULL AS cv_original_filename,
+                       NULL AS cv_mime_type,
+                       NULL AS cv_file_size,
+                       CASE WHEN c.cv_url IS NULL OR c.cv_url = '' THEN 0 ELSE 1 END AS has_cv,";
+        $joinCv = $support['candidate_cvs_table']
+            ? 'LEFT JOIN recruitment_candidate_cvs cv ON cv.candidate_id = c.candidate_id'
+            : '';
+
+        $latestInterviewManagerSelect = $support['interview_department_manager_id_column']
+            ? 'li.department_manager_id AS latest_interview_manager_id'
+            : 'NULL AS latest_interview_manager_id';
+        $latestInterviewManagerColumn = $support['interview_department_manager_id_column']
+            ? 'i1.department_manager_id'
+            : 'NULL AS department_manager_id';
+
+        $sql = "SELECT c.*,
+                       rp.position_name,
+                       rp.department_id,
+                       d.department_name,
+                       d.manager_id AS department_manager_id,
+                       {$selectReview}
+                       {$selectCv}
                        li.interview_id AS latest_interview_id,
                        li.interview_date AS latest_interview_date,
                        li.interview_time AS latest_interview_time,
                        li.status AS latest_interview_status,
-                       li.department_manager_id AS latest_interview_manager_id
+                       {$latestInterviewManagerSelect}
                 FROM recruitment_candidates c
                 LEFT JOIN recruitment_positions rp ON rp.recruitment_position_id = c.recruitment_position_id
                 LEFT JOIN departments d ON d.department_id = rp.department_id
-                LEFT JOIN recruitment_candidate_manager_reviews rm ON rm.candidate_id = c.candidate_id
-                LEFT JOIN recruitment_candidate_cvs cv ON cv.candidate_id = c.candidate_id
+                {$joinReview}
+                {$joinCv}
                 LEFT JOIN (
                     SELECT i1.candidate_id,
                            i1.interview_id,
                            i1.interview_date,
                            i1.interview_time,
                            i1.status,
-                           i1.department_manager_id
+                           {$latestInterviewManagerColumn}
                     FROM interview_schedules i1
                     JOIN (
                         SELECT candidate_id, MAX(interview_id) AS latest_id
@@ -206,5 +275,40 @@ class RecruitmentCandidate extends Model
         $stmt->execute(['candidate_id' => $candidateId]);
         $row = $stmt->fetch();
         return $row === false ? null : $row;
+    }
+
+    private function featureSupport(): array
+    {
+        if (is_array($this->featureSupport)) {
+            return $this->featureSupport;
+        }
+
+        $tables = [];
+        $tableStmt = $this->db->query("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()");
+        foreach (($tableStmt?->fetchAll(PDO::FETCH_COLUMN) ?: []) as $tableName) {
+            $tables[(string) $tableName] = true;
+        }
+
+        $interviewColumns = [];
+        if (isset($tables['interview_schedules'])) {
+            $columnStmt = $this->db->prepare("
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'interview_schedules'
+            ");
+            $columnStmt->execute();
+            foreach (($columnStmt->fetchAll(PDO::FETCH_COLUMN) ?: []) as $columnName) {
+                $interviewColumns[(string) $columnName] = true;
+            }
+        }
+
+        $this->featureSupport = [
+            'manager_reviews_table' => isset($tables['recruitment_candidate_manager_reviews']),
+            'candidate_cvs_table' => isset($tables['recruitment_candidate_cvs']),
+            'interview_department_manager_id_column' => isset($interviewColumns['department_manager_id']),
+        ];
+
+        return $this->featureSupport;
     }
 }

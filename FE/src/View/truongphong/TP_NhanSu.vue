@@ -134,19 +134,19 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                   <div class="flex flex-col border border-[var(--sys-border-subtle)] p-3 rounded-md bg-[var(--sys-bg-page)]/50 shadow-sm border-l-2 border-l-[var(--sys-brand-solid)]">
                     <span class="text-[10px] font-bold text-[var(--sys-text-secondary)] uppercase tracking-widest opacity-70 mb-1">Cơ cấu tổ chức</span>
-                    <span class="text-[13px] font-bold text-[var(--sys-text-primary)]">{{ deptName }}</span>
+                    <span class="text-[13px] font-bold text-[var(--sys-text-primary)]">{{ selectedStaff.department || deptName }}</span>
                   </div>
                   <div class="flex flex-col border border-[var(--sys-border-subtle)] p-3 rounded-md bg-[var(--sys-bg-page)]/50 shadow-sm border-l-2 border-l-[var(--sys-brand-solid)]">
-                    <span class="text-[10px] font-bold text-[var(--sys-text-secondary)] uppercase tracking-widest opacity-70 mb-1">Loại hợp đồng</span>
-                    <span class="text-[13px] font-bold text-[var(--sys-text-primary)]">Lao động vô thời hạn (Chính thức)</span>
+                    <span class="text-[10px] font-bold text-[var(--sys-text-secondary)] uppercase tracking-widest opacity-70 mb-1">Email công ty</span>
+                    <span class="text-[13px] font-bold text-[var(--sys-text-primary)]">{{ selectedStaff.email || 'Chưa cập nhật' }}</span>
                   </div>
                   <div class="flex flex-col border border-[var(--sys-border-subtle)] p-3 rounded-md bg-[var(--sys-bg-page)]/50 shadow-sm border-l-2 border-l-[var(--sys-brand-solid)]">
-                    <span class="text-[10px] font-bold text-[var(--sys-text-secondary)] uppercase tracking-widest opacity-70 mb-1">Cấp bậc (Band/Level)</span>
-                    <span class="text-[13px] font-bold text-[var(--sys-text-primary)]">Level 4</span>
+                    <span class="text-[10px] font-bold text-[var(--sys-text-secondary)] uppercase tracking-widest opacity-70 mb-1">Số điện thoại</span>
+                    <span class="text-[13px] font-bold text-[var(--sys-text-primary)]">{{ selectedStaff.phone || 'Chưa cập nhật' }}</span>
                   </div>
                   <div class="flex flex-col border border-[var(--sys-border-subtle)] p-3 rounded-md bg-[var(--sys-bg-page)]/50 shadow-sm border-l-2 border-l-[var(--sys-brand-solid)]">
                     <span class="text-[10px] font-bold text-[var(--sys-text-secondary)] uppercase tracking-widest opacity-70 mb-1">Báo cáo cho (Line Manager)</span>
-                    <span class="text-[13px] font-bold text-[var(--sys-text-primary)]">{{ selectedStaff.department || 'Trưởng phòng' }}</span>
+                    <span class="text-[13px] font-bold text-[var(--sys-text-primary)]">{{ selectedStaff.managerName || 'Chưa cập nhật' }}</span>
                   </div>
                 </div>
               </div>
@@ -167,12 +167,13 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import Dropdown from '@/components/Dropdown.vue'
-import { mockEmployees, mockDepartments, mockPositions } from '@/mock-data/index.js'
+import { apiRequest } from '@/services/beApi.js'
 
 const searchQuery = ref('')
 const filterStatus = ref('')
 const showModal = ref(false)
 const selectedStaff = ref(null)
+const detailCache = ref(new Map())
 
 const staffList = ref([])
 const deptName = ref('Đang tải...')
@@ -180,38 +181,80 @@ const userDeptId = localStorage.getItem('userDeptId') || '1';
 
 const statusOptions = [
   { label: 'Tất cả trạng thái', value: '' },
-  { label: 'Đang làm việc', value: 'active' },
-  { label: 'Đã nghỉ việc', value: 'inactive' },
+  { label: 'Đang làm việc', value: 'ĐANG_LÀM_VIỆC' },
+  { label: 'Đã nghỉ việc', value: 'ĐÃ_NGHỈ_VIỆC' },
 ]
+
+const toDisplayDate = (value) => {
+  const date = new Date(String(value || ''))
+  if (Number.isNaN(date.getTime())) return value || 'Chưa cập nhật'
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`
+}
+
+const normalizeStatus = (value) => {
+  const raw = String(value || '').trim().toUpperCase()
+  if (['ACTIVE', 'ĐANG_LÀM_VIỆC', 'DANG_LAM_VIEC'].includes(raw)) return 'ĐANG_LÀM_VIỆC'
+  if (['INACTIVE', 'ĐÃ_NGHỈ_VIỆC', 'DA_NGHI_VIEC'].includes(raw)) return 'ĐÃ_NGHỈ_VIỆC'
+  return raw || 'ĐANG_LÀM_VIỆC'
+}
+
+const buildStaffSummary = (employee, detail = null) => {
+  const merged = { ...(employee || {}), ...(detail || {}) }
+  return {
+    id: merged.employee_id || merged.employeeId,
+    name: merged.full_name || merged.fullName || 'Nhân viên',
+    position: String(merged.position_name || merged.position?.positionName || 'Nhân viên').toUpperCase(),
+    status: normalizeStatus(merged.status),
+    joinDate: toDisplayDate(merged.hire_date || merged.hireDate),
+    department: merged.department_name || merged.department?.departmentName || deptName.value,
+    email: merged.company_email || '',
+    phone: merged.phone_number || '',
+    managerName: merged.manager_name || 'Trưởng phòng',
+    avatarUrl: merged.avatarUrl || merged.avatar || null,
+  }
+}
+
+const fetchEmployeeDetail = async (employeeId) => {
+  if (!employeeId) return null
+  const cache = detailCache.value.get(employeeId)
+  if (cache) return cache
+  try {
+    const detailPayload = await apiRequest(`/employees/${employeeId}`)
+    const detail = detailPayload?.data ?? null
+    if (detail) detailCache.value.set(employeeId, detail)
+    return detail
+  } catch (error) {
+    console.warn(`Không tải được chi tiết nhân viên #${employeeId}:`, error)
+    return null
+  }
+}
 
 const loadData = async () => {
   try {
-    const departmentResult = mockDepartments.find(d => Number(d.departmentId) === Number(userDeptId) || d.id === userDeptId);
-    if (departmentResult) {
-      deptName.value = departmentResult.departmentName || departmentResult.name || 'Phòng ban';
-    }
+    const [departmentPayload, employeePayload] = await Promise.all([
+      apiRequest(`/departments/${userDeptId}`),
+      apiRequest('/employees', {
+        query: {
+          department_id: userDeptId,
+          per_page: 200,
+        },
+      }),
+    ])
 
-    const employeesResult = mockEmployees.filter(e => {
-      const dId = e.department?.departmentId || e.departmentId || e.deptId;
-      return Number(dId) === Number(userDeptId);
-    });
-    
-    staffList.value = employeesResult.map(e => ({
-        id: e.employeeId || e.id,
-        name: e.fullName || e.name,
-        position: (e.position?.positionName || e.position || (e.role === 'manager' ? 'Trưởng phòng' : 'Chuyên viên')).toString().toUpperCase(),
-        status: e.status || 'active',
-        joinDate: e.hired_date || e.joinDate || '2024-01-01',
-        department: deptName.value,
-        avatarUrl: e.avatarUrl || e.avatar || null
-    }));
+    deptName.value = departmentPayload?.data?.department_name || 'Phòng ban'
+    const employeeItems = Array.isArray(employeePayload?.data) ? employeePayload.data : []
+    const detailedEmployees = await Promise.all(
+      employeeItems.map(async (employee) => buildStaffSummary(employee, await fetchEmployeeDetail(employee.employee_id || employee.employeeId)))
+    )
+    staffList.value = detailedEmployees
   } catch (error) {
     console.error('Lỗi khi tải dữ liệu nhân sự:', error);
   }
 }
 
-const viewDetails = (staff) => {
-  selectedStaff.value = staff
+const viewDetails = async (staff) => {
+  const detail = await fetchEmployeeDetail(staff.id)
+  selectedStaff.value = buildStaffSummary(staff, detail)
   showModal.value = true
 }
 
@@ -232,7 +275,7 @@ const filteredStaff = computed(() => {
 const getStatusLabel = (status) => {
   if (status === 'ĐANG_LÀM_VIỆC') return 'Active'
   if (status === 'ĐÃ_NGHỈ_VIỆC') return 'Nghỉ việc'
-  return status
+  return status || 'Active'
 }
 
 onMounted(loadData)

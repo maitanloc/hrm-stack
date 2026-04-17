@@ -15,6 +15,8 @@ use App\Models\LeaveBalance;
 use App\Models\LeaveRequest;
 use App\Models\Notification;
 use App\Models\RequestModel;
+use App\Services\WorkflowAuditService;
+use App\Services\WorkflowTransitionGuardService;
 
 class LeaveController extends Controller
 {
@@ -22,6 +24,8 @@ class LeaveController extends Controller
     private LeaveBalance $leaveBalances;
     private RequestModel $requests;
     private Notification $notifications;
+    private WorkflowTransitionGuardService $workflowTransitionGuard;
+    private WorkflowAuditService $workflowAuditService;
 
     public function __construct()
     {
@@ -29,6 +33,8 @@ class LeaveController extends Controller
         $this->leaveBalances = new LeaveBalance();
         $this->requests = new RequestModel();
         $this->notifications = new Notification();
+        $this->workflowTransitionGuard = new WorkflowTransitionGuardService();
+        $this->workflowAuditService = new WorkflowAuditService();
     }
 
     public function leaveRequestIndex(Request $request): array
@@ -122,6 +128,7 @@ class LeaveController extends Controller
                 'created_by' => $creatorId,
                 'updated_by' => $creatorId,
             ];
+            $this->workflowTransitionGuard->assertTransitionAllowed('request', 'NHÁP', (string) $requestData['status']);
 
             $requestId = $this->requests->create($requestData);
 
@@ -153,6 +160,18 @@ class LeaveController extends Controller
                 $requestId,
                 (float) $payload['number_of_days'],
                 $creatorId
+            );
+            $this->workflowAuditService->recordTransition(
+                'LEAVE_REQUEST',
+                (string) $requestId,
+                'NHÁP',
+                (string) $requestData['status'],
+                $creatorId,
+                [
+                    'leave_request_id' => $leaveRequestId,
+                    'employee_id' => (int) $payload['employee_id'],
+                    'number_of_days' => (float) $payload['number_of_days'],
+                ]
             );
 
             $db->commit();
@@ -268,6 +287,11 @@ class LeaveController extends Controller
         $actorId = (int) ($authUser['employee_id'] ?? 1);
         $requestPayload['updated_by'] = $actorId;
 
+        $newStatus = (string) ($requestPayload['status'] ?? $previousStatus);
+        if ($newStatus !== $previousStatus) {
+            $this->workflowTransitionGuard->assertTransitionAllowed('request', $previousStatus, $newStatus);
+        }
+
         $db = Database::connection();
         $db->beginTransaction();
         try {
@@ -279,7 +303,6 @@ class LeaveController extends Controller
             }
 
             $db->commit();
-            $newStatus = (string) ($requestPayload['status'] ?? $previousStatus);
             if ($newStatus !== $previousStatus) {
                 $this->notifyOnLeaveWorkflowTransition(
                     (int) $existingLeave['employee_id'],
@@ -288,6 +311,18 @@ class LeaveController extends Controller
                     $newStatus,
                     $leaveDays,
                     $actorId
+                );
+                $this->workflowAuditService->recordTransition(
+                    'LEAVE_REQUEST',
+                    (string) ((int) $existingLeave['request_id']),
+                    $previousStatus,
+                    $newStatus,
+                    $actorId,
+                    [
+                        'leave_request_id' => $id,
+                        'employee_id' => (int) $existingLeave['employee_id'],
+                        'leave_days' => $leaveDays,
+                    ]
                 );
             }
             $updated = $this->leaveRequests->find($id);

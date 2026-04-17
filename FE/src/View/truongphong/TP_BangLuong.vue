@@ -42,7 +42,7 @@
           <div class="w-8 h-8 rounded-md bg-[var(--sys-brand-soft)] text-[var(--sys-brand-solid)] border border-[var(--sys-brand-border)] flex items-center justify-center shrink-0">
             <span class="material-symbols-rounded text-[20px] font-bold">assignment_turned_in</span>
           </div>
-          BẢNG KÊ CHI TIẾT THU NHẬP — KỲ {{ selectedPeriod }}
+          BẢNG KÊ CHI TIẾT THU NHẬP — KỲ {{ selectedPeriodLabel }}
         </h3>
         <span class="text-[11px] font-bold text-[var(--sys-text-secondary)] opacity-60">{{ payrollList.length }} nhân sự</span>
       </div>
@@ -96,20 +96,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import Dropdown from '@/components/Dropdown.vue'
-import { mockSalaryDetails, mockEmployees, mockPositions, mockDepartments } from '@/mock-data/index.js'
 import { exportManagerPayrollPDF } from '@/utils/pdfExport.js'
+import { apiRequest } from '@/services/beApi.js'
+import { getSessionItem } from '@/services/session.js'
 
-const selectedPeriod = ref('03/2026')
-const userDeptId = localStorage.getItem('userDeptId') || '1';
+const selectedPeriod = ref(null)
+const userDeptId = Number(getSessionItem('userDeptId')) || 0
 const deptName = ref('Phòng ban')
 
-const periodOptions = [
-  { label: 'Tháng 03/2026', value: '03/2026' },
-  { label: 'Tháng 02/2026', value: '02/2026' },
-  { label: 'Tháng 01/2026', value: '01/2026' },
-]
+const periodOptions = ref([])
 
 const payrollList = ref([])
 const quickStats = ref([])
@@ -117,61 +114,135 @@ const totalBase = ref('0')
 const totalBonus = ref('0')
 const totalDeduct = ref('0')
 const totalNet = ref('0')
+const employeeDetailCache = new Map()
 
 const fmt = (num) => new Intl.NumberFormat('vi-VN').format(Math.round(num))
+const selectedPeriodLabel = computed(
+  () => periodOptions.value.find((item) => item.value === selectedPeriod.value)?.label || '--'
+)
+
+const buildPeriodLabel = (period) => {
+  const month = Number(period.month || 0)
+  const year = Number(period.year || 0)
+  if (month >= 1 && month <= 12 && year > 0) {
+    return `Tháng ${String(month).padStart(2, '0')}/${year}`
+  }
+  return period.period_name || period.period_code || `Kỳ ${period.period_id}`
+}
+
+const getEmployeePosition = async (employeeId) => {
+  if (!employeeId) return 'Nhân viên'
+  if (employeeDetailCache.has(employeeId)) return employeeDetailCache.get(employeeId)
+  try {
+    const res = await apiRequest(`/employees/${employeeId}`)
+    const detail = res?.data || {}
+    const positionName = String(detail.position_name || detail.positionName || 'Nhân viên')
+    employeeDetailCache.set(employeeId, positionName)
+    return positionName
+  } catch {
+    employeeDetailCache.set(employeeId, 'Nhân viên')
+    return 'Nhân viên'
+  }
+}
+
+const bootstrapPeriodOptions = async () => {
+  const periodRes = await apiRequest('/salary-periods', { query: { page: 1, per_page: 24 } })
+  const periods = Array.isArray(periodRes?.data) ? periodRes.data : []
+  const sorted = [...periods].sort((a, b) => Number(b.period_id || 0) - Number(a.period_id || 0))
+  periodOptions.value = sorted.map((period) => ({
+    label: buildPeriodLabel(period),
+    value: Number(period.period_id),
+    monthKey:
+      (Number(period.year || 0) > 0 && Number(period.month || 0) > 0)
+        ? `${period.year}-${String(period.month).padStart(2, '0')}`
+        : String(period.start_date || '').slice(0, 7),
+  }))
+  if (!selectedPeriod.value && periodOptions.value.length > 0) {
+    selectedPeriod.value = periodOptions.value[0].value
+  }
+}
 
 const loadData = async () => {
   try {
-    const departmentResult = mockDepartments.find(d => Number(d.departmentId) === Number(userDeptId) || d.id === userDeptId);
-    if (departmentResult) {
-      deptName.value = departmentResult.departmentName || departmentResult.name || 'Phòng ban';
+    if (!selectedPeriod.value) {
+      payrollList.value = []
+      quickStats.value = []
+      totalBase.value = '0'
+      totalBonus.value = '0'
+      totalDeduct.value = '0'
+      totalNet.value = '0'
+      return
     }
 
-    const employeesResult = mockEmployees.filter(e => {
-      const dId = e.department?.departmentId || e.departmentId || e.deptId;
-      return Number(dId) === Number(userDeptId);
-    });
-    const allPayroll = mockSalaryDetails;
+    const [employeeRes, detailRes] = await Promise.all([
+      apiRequest('/employees', { query: { page: 1, per_page: 1000, department_id: userDeptId || undefined } }),
+      apiRequest('/salary-details', { query: { page: 1, per_page: 1000, period_id: selectedPeriod.value } }),
+    ])
 
-    const [month, year] = selectedPeriod.value.split('/');
-    
-    let sumBase = 0, sumBonus = 0, sumDeduct = 0, sumNet = 0;
+    const scopedEmployees = Array.isArray(employeeRes?.data) ? employeeRes.data : []
+    const details = Array.isArray(detailRes?.data) ? detailRes.data : []
+    const scopeEmployeeIds = new Set(scopedEmployees.map((emp) => Number(emp.employee_id || 0)))
+    const scopedDetails = details.filter((detail) => scopeEmployeeIds.has(Number(detail.employee_id || 0)))
 
-    payrollList.value = employeesResult.map(emp => {
-      const empId = emp.employeeId || emp.id;
-      // Trích xuất dữ liệu, tìm theo mã nhân viên.
-      // Dữ liệu mock phần lớn là tháng 10/2023, do đó để demo có số liệu ta ưu tiên record đầu tiên nếu không khớp chính xác tháng.
-      let payroll = allPayroll.find(p => (p.employeeId || p.employeeId) === empId && String(p.month).padStart(2, '0') === month && String(p.year) === year);
-      
-      if (!payroll) {
-         // Fallback cho demo nếu dữ liệu trong tháng đó trống
-         payroll = allPayroll.find(p => (p.employeeId || p.employeeId) === empId);
-      }
-      
-      // Fallback generator thông minh nếu nhân sự chưa có dữ liệu mock lương nào cả
-      const generatedBase = ((parseInt(String(empId).replace(/\D/g, '')) % 15) + 10) * 1000000;
-      
-      const base = payroll?.basicSalary || payroll?.basicSalary || generatedBase;
-      const bonus = payroll?.allowance || payroll?.bonus || (base * 0.1);
-      const deduct = payroll?.tax || payroll?.deductions || 0;
-      const net = payroll?.netSalary || payroll?.total || (base + bonus - deduct);
+    if (scopedEmployees.length > 0) {
+      deptName.value = scopedEmployees[0]?.department_name || getSessionItem('userDeptName') || 'Phòng ban'
+    } else {
+      deptName.value = getSessionItem('userDeptName') || 'Phòng ban'
+    }
 
-      sumBase += base;
-      sumBonus += bonus;
-      sumDeduct += deduct;
-      sumNet += net;
+    const monthKey = periodOptions.value.find((item) => item.value === selectedPeriod.value)?.monthKey || ''
+    const adjustmentRes = monthKey
+      ? await apiRequest('/payroll-adjustments', { query: { page: 1, per_page: 1000, apply_month: monthKey } })
+      : { data: [] }
+    const adjustments = Array.isArray(adjustmentRes?.data) ? adjustmentRes.data : []
+    const scopeAdjustments = adjustments.filter((adj) => scopeEmployeeIds.has(Number(adj.employee_id || 0)))
+    const adjustmentMap = new Map()
+    scopeAdjustments.forEach((adj) => {
+      const empId = Number(adj.employee_id || 0)
+      adjustmentMap.set(empId, (adjustmentMap.get(empId) || 0) + Number(adj.amount || 0))
+    })
 
-      return {
-        id: empId,
-        name: emp.fullName || emp.name,
-        position: (emp.position?.positionName || emp.position || (emp.role === 'manager' ? 'Trưởng phòng' : 'Chuyên viên')).toString().toUpperCase(),
-        base: fmt(base),
-        bonus: fmt(bonus),
-        deduct: fmt(deduct),
-        total: fmt(net),
-      }
-    });
+    let sumBase = 0
+    let sumBonus = 0
+    let sumDeduct = 0
+    let sumNet = 0
 
+    const rows = []
+    for (const detail of scopedDetails) {
+      const empId = Number(detail.employee_id || 0)
+      const pendingAdjustment = Number(adjustmentMap.get(empId) || 0)
+      const baseSalary = Number(detail.basic_salary || 0)
+      const bonusPart =
+        Number(detail.total_allowances || 0) +
+        Number(detail.overtime_pay || 0) +
+        Number(detail.bonus || 0) +
+        Math.max(0, pendingAdjustment)
+      const deductPart =
+        Number(detail.total_deductions || 0) +
+        Number(detail.penalty || 0) +
+        Number(detail.personal_income_tax || 0) +
+        Number(detail.advance_payment || 0) +
+        Math.abs(Math.min(0, pendingAdjustment))
+      const netSalary = Number(detail.net_salary || 0) + pendingAdjustment
+
+      sumBase += baseSalary
+      sumBonus += bonusPart
+      sumDeduct += deductPart
+      sumNet += netSalary
+
+      const positionName = await getEmployeePosition(empId)
+      rows.push({
+        id: Number(detail.salary_detail_id || 0),
+        name: detail.full_name || `Nhân sự #${empId}`,
+        position: String(positionName).toUpperCase(),
+        base: fmt(baseSalary),
+        bonus: fmt(bonusPart),
+        deduct: fmt(deductPart),
+        total: fmt(netSalary),
+      })
+    }
+
+    payrollList.value = rows
     totalBase.value = fmt(sumBase);
     totalBonus.value = fmt(sumBonus);
     totalDeduct.value = fmt(sumDeduct);
@@ -184,15 +255,19 @@ const loadData = async () => {
     ];
   } catch (error) {
     console.error('Lỗi khi tải dữ liệu lương:', error);
+    payrollList.value = []
   }
 }
 
-onMounted(loadData)
+onMounted(async () => {
+  await bootstrapPeriodOptions()
+  await loadData()
+})
 watch(selectedPeriod, loadData)
 
 // ─── PDF Export ──────────────────────────────────────────────────────────────
 const exportPDF = async () => {
-  const periodLabel = periodOptions.find(p => p.value === selectedPeriod.value)?.label || selectedPeriod.value
+  const periodLabel = periodOptions.value.find(p => p.value === selectedPeriod.value)?.label || selectedPeriod.value
 
   exportManagerPayrollPDF({
     periodLabel,

@@ -14,24 +14,49 @@ use App\Models\Attendance;
 use App\Models\AttendanceExceptionRequest;
 use App\Models\AttendancePrecheck;
 use App\Models\RiskAlert;
+use App\Models\SystemConfig;
 use App\Models\TrustedDevice;
 
 class AttendanceRiskController extends Controller
 {
-    private const OFFICE_LAT = 10.776889;
-    private const OFFICE_LNG = 106.700806;
+    private const DEFAULT_OFFICE_LAT = 10.776889;
+    private const DEFAULT_OFFICE_LNG = 106.700806;
     private const GREEN_RADIUS_M = 120.0;
     private const YELLOW_RADIUS_M = 250.0;
     private const PRECHECK_TTL_SECONDS = 180;
     private const IMPOSSIBLE_TRAVEL_M = 20000.0;
     private const SUSPICIOUS_WINDOW_SECONDS = 1800;
     private const PRECHECK_CLOCK_SKEW_SECONDS = 300;
+    private const CONFIG_GEO_LOCK_ENABLED_KEY = 'attendance_company_geo_lock_enabled';
+    private const CONFIG_ANCHORS_JSON_KEY = 'attendance_company_anchor_points_json';
+    private const CONFIG_GREEN_RADIUS_KEY = 'attendance_green_radius_m';
+    private const CONFIG_YELLOW_RADIUS_KEY = 'attendance_yellow_radius_m';
+    private const DEFAULT_COMPANY_ANCHORS = [
+        [
+            'label' => 'Mốc công ty chuẩn 1',
+            'address' => '10°56\'38.7"N 106°52\'54.0"E',
+            'lat' => 10.9440833,
+            'lng' => 106.8816667,
+        ],
+        [
+            'label' => 'Mốc công ty chuẩn 2',
+            'address' => '193 Đỗ Văn Thi, Phường Trấn Biên, Đồng Nai 700000, Việt Nam',
+            'lat' => 10.9350102,
+            'lng' => 106.8293991,
+        ],
+    ];
 
     private Attendance $attendances;
     private AttendancePrecheck $prechecks;
     private TrustedDevice $trustedDevices;
     private RiskAlert $riskAlerts;
     private AttendanceExceptionRequest $exceptionRequests;
+    private SystemConfig $systemConfigs;
+    /** @var array<string, mixed>|null */
+    private ?array $geoPolicyCache = null;
+    private ?bool $attendanceSecondSlotsSupported = null;
+    /** @var array<string, string> */
+    private array $attendanceMethodCache = [];
 
     public function __construct()
     {
@@ -40,6 +65,7 @@ class AttendanceRiskController extends Controller
         $this->trustedDevices = new TrustedDevice();
         $this->riskAlerts = new RiskAlert();
         $this->exceptionRequests = new AttendanceExceptionRequest();
+        $this->systemConfigs = new SystemConfig();
     }
 
     public function precheck(Request $request): array
@@ -69,8 +95,28 @@ class AttendanceRiskController extends Controller
 
         $this->assertEmployeeScope($request, $employeeId);
 
-        $trusted = $this->trustedDevices->findActiveByEmployeeAndDevice($employeeId, $deviceId) !== null;
-        $risk = $this->evaluateRisk($employeeId, $deviceId, $trusted, $lat, $lng, $accuracyM, $clientTs);
+        $trustedDevice = $this->trustedDevices->findActiveByEmployeeAndDevice($employeeId, $deviceId);
+        $risk = null;
+        if ($trustedDevice === null) {
+            $latestActiveDevice = $this->trustedDevices->findLatestActiveByEmployee($employeeId);
+            if ($latestActiveDevice === null) {
+                $trustedDevice = $this->autoRegisterDevice(
+                    $employeeId,
+                    $deviceId,
+                    $platform,
+                    $lat,
+                    $lng,
+                    $accuracyM
+                );
+            } else {
+                $trustedDevice = $latestActiveDevice;
+                $risk = $this->buildUnregisteredDeviceRisk($lat, $lng, $trustedDevice);
+            }
+        }
+
+        if ($risk === null) {
+            $risk = $this->evaluateRisk($employeeId, $deviceId, $lat, $lng, $accuracyM, $clientTs, $trustedDevice);
+        }
 
         $issuedAt = time();
         $precheckToken = $this->buildPrecheckToken(
@@ -116,6 +162,9 @@ class AttendanceRiskController extends Controller
                     'device_id' => $deviceId,
                     'platform' => $platform,
                     'accuracy_m' => $accuracyM,
+                    'working_area' => $trustedDevice['working_area_label'] ?? null,
+                    'company_anchor_label' => $risk['company_anchor_label'] ?? null,
+                    'company_anchor_distance_m' => $risk['company_anchor_distance_m'] ?? null,
                     'app_version' => $payload['app_version'] ?? null,
                     'wifi_ssid' => $payload['wifi_ssid'] ?? null,
                     'qr_area_code' => $payload['qr_area_code'] ?? null,
@@ -123,15 +172,33 @@ class AttendanceRiskController extends Controller
             ]);
         }
 
+        $geoPolicy = $this->loadGeoPolicy();
+        $allowClockIn = $risk['action'] !== 'BLOCK';
+
         return $this->ok([
+            'status' => $this->mapPrecheckStatus($risk),
+            'allow_clock_in' => $allowClockIn,
             'risk_level' => $risk['risk_level'],
             'action' => $risk['action'],
             'reason_code' => $risk['reason_code'],
             'next_action' => $risk['next_action'],
             'user_message' => $risk['user_message'],
-            'precheck_token' => $risk['action'] === 'BLOCK' ? null : $precheckToken,
+            'precheck_token' => $allowClockIn ? $precheckToken : null,
             'expires_at' => $expiresAt !== null ? date(DATE_ATOM, strtotime($expiresAt)) : null,
             'distance_m' => $risk['distance_m'],
+            'current_location' => [
+                'lat' => $lat,
+                'lng' => $lng,
+                'accuracy_m' => $accuracyM,
+            ],
+            'zone' => [
+                'green_radius_m' => (float) ($geoPolicy['green_radius_m'] ?? self::GREEN_RADIUS_M),
+                'yellow_radius_m' => (float) ($geoPolicy['yellow_radius_m'] ?? self::YELLOW_RADIUS_M),
+            ],
+            'company_anchor_label' => $risk['company_anchor_label'] ?? null,
+            'company_anchor_distance_m' => $risk['company_anchor_distance_m'] ?? null,
+            'company_anchor_count' => $risk['company_anchor_count'] ?? 0,
+            'company_geo_lock_enabled' => $risk['company_geo_lock_enabled'] ?? false,
             'requires_manager_review' => $risk['requires_manager_review'],
         ], $risk['action'] === 'BLOCK' ? 'Precheck blocked' : 'Precheck success', []);
     }
@@ -144,6 +211,84 @@ class AttendanceRiskController extends Controller
     public function checkout(Request $request): array
     {
         return $this->commitAttendance($request, 'CHECKOUT');
+    }
+
+    public function bootstrapDevice(Request $request): array
+    {
+        $payload = Validator::validate($request->all(), [
+            'employee_id' => ['required', 'integer'],
+            'device_id' => ['required', 'string'],
+            'platform' => ['required', 'string', 'in:ANDROID,IOS'],
+            'lat' => ['required', 'numeric'],
+            'lng' => ['required', 'numeric'],
+            'accuracy_m' => ['numeric', 'min:0'],
+            'working_area' => ['string'],
+        ]);
+
+        $employeeId = (int) $payload['employee_id'];
+        $deviceId = (string) $payload['device_id'];
+        $platform = (string) $payload['platform'];
+        $lat = (float) $payload['lat'];
+        $lng = (float) $payload['lng'];
+        $accuracyM = isset($payload['accuracy_m']) ? (float) $payload['accuracy_m'] : null;
+        $workingArea = isset($payload['working_area']) ? trim((string) $payload['working_area']) : null;
+        if ($workingArea === '') {
+            $workingArea = null;
+        }
+
+        $this->assertEmployeeScope($request, $employeeId);
+
+        $originLat = $lat;
+        $originLng = $lng;
+        $resolvedWorkingArea = $workingArea;
+        $baselineDevice = $this->trustedDevices->findLatestActiveByEmployee($employeeId);
+        $geoPolicy = $this->loadGeoPolicy();
+
+        $nearestAnchor = null;
+        if ((bool) ($geoPolicy['geo_lock_enabled'] ?? true)) {
+            $nearestAnchor = $this->resolveNearestCompanyAnchor($lat, $lng, $geoPolicy['anchors'] ?? []);
+        }
+
+        if ($nearestAnchor !== null) {
+            $originLat = (float) $nearestAnchor['lat'];
+            $originLng = (float) $nearestAnchor['lng'];
+            if ($resolvedWorkingArea === null && isset($nearestAnchor['label'])) {
+                $resolvedWorkingArea = (string) $nearestAnchor['label'];
+            }
+        } elseif ($baselineDevice !== null) {
+            $baselineLatRaw = $baselineDevice['origin_lat'] ?? null;
+            $baselineLngRaw = $baselineDevice['origin_lng'] ?? null;
+            if ($baselineLatRaw !== null && $baselineLngRaw !== null) {
+                $originLat = (float) $baselineLatRaw;
+                $originLng = (float) $baselineLngRaw;
+            }
+            if ($resolvedWorkingArea === null && isset($baselineDevice['working_area_label'])) {
+                $resolvedWorkingArea = (string) $baselineDevice['working_area_label'];
+            }
+        }
+
+        $this->trustedDevices->activateForEmployee(
+            $employeeId,
+            $deviceId,
+            $platform,
+            $originLat,
+            $originLng,
+            $accuracyM,
+            $resolvedWorkingArea
+        );
+
+        return $this->ok([
+            'employee_id' => $employeeId,
+            'device_bound' => true,
+            'trusted_device_id' => $deviceId,
+            'working_area' => $resolvedWorkingArea,
+            'origin_location' => [
+                'lat' => $originLat,
+                'lng' => $originLng,
+                'accuracy_m' => $accuracyM,
+            ],
+            'user_message' => 'Đã ghi nhận vị trí làm việc ban đầu cho thiết bị này.',
+        ], 'Device bootstrap completed', []);
     }
 
     public function reverifyDevice(Request $request): array
@@ -382,6 +527,7 @@ class AttendanceRiskController extends Controller
         $precheckToken = (string) $payload['precheck_token'];
         $precheckTokenHash = hash('sha256', $precheckToken);
         $eventTs = strtotime((string) $payload['client_time']) ?: time();
+        $serverNowTs = time();
         $this->assertEmployeeScope($request, $employeeId);
 
         $precheck = $this->prechecks->findByTokenHash($precheckTokenHash);
@@ -409,11 +555,14 @@ class AttendanceRiskController extends Controller
         if (is_string($expiresAt) && $expiresAt !== '' && strtotime($expiresAt) < time()) {
             throw new HttpException('Precheck token expired', 409, 'conflict');
         }
-        if (
-            $eventTs < ($issuedAt - self::PRECHECK_CLOCK_SKEW_SECONDS)
-            || $eventTs > ($issuedAt + self::PRECHECK_TTL_SECONDS + self::PRECHECK_CLOCK_SKEW_SECONDS)
-        ) {
-            throw new HttpException('Attendance timestamp is outside precheck window', 409, 'conflict');
+        $windowStart = $issuedAt - self::PRECHECK_CLOCK_SKEW_SECONDS;
+        $windowEnd = $issuedAt + self::PRECHECK_TTL_SECONDS + self::PRECHECK_CLOCK_SKEW_SECONDS;
+        if ($eventTs < $windowStart || $eventTs > $windowEnd) {
+            if ($serverNowTs >= $windowStart && $serverNowTs <= $windowEnd) {
+                $eventTs = $serverNowTs;
+            } else {
+                throw new HttpException('Attendance timestamp is outside precheck window', 409, 'conflict');
+            }
         }
 
         $riskLevel = (string) ($precheck['risk_level'] ?? 'RED');
@@ -483,6 +632,8 @@ class AttendanceRiskController extends Controller
         $eventDateTime = date('Y-m-d H:i:s', $eventTs);
         $lat = isset($precheck['lat']) ? (float) $precheck['lat'] : null;
         $lng = isset($precheck['lng']) ? (float) $precheck['lng'] : null;
+        $checkInMethod = $this->resolveSupportedAttendanceMethod('check_in_method');
+        $checkOutMethod = $this->resolveSupportedAttendanceMethod('check_out_method');
 
         $existing = $this->attendances->findByEmployeeDate($employeeId, $attendanceDate);
         if ($existing === null) {
@@ -493,12 +644,12 @@ class AttendanceRiskController extends Controller
 
             if ($attendanceType === 'CHECKIN') {
                 $payload['check_in_time'] = $eventDateTime;
-                $payload['check_in_method'] = 'MOBILE';
+                $payload['check_in_method'] = $checkInMethod;
                 $payload['check_in_latitude'] = $lat;
                 $payload['check_in_longitude'] = $lng;
             } else {
                 $payload['check_out_time'] = $eventDateTime;
-                $payload['check_out_method'] = 'MOBILE';
+                $payload['check_out_method'] = $checkOutMethod;
                 $payload['check_out_latitude'] = $lat;
                 $payload['check_out_longitude'] = $lng;
             }
@@ -508,14 +659,15 @@ class AttendanceRiskController extends Controller
 
         $attendanceId = (int) $existing['attendance_id'];
         $updatePayload = [];
+        $supportsSecondSlots = $this->supportsAttendanceSecondSlots();
 
         if ($attendanceType === 'CHECKIN') {
             if ($this->isEmptyValue($existing['check_in_time'] ?? null)) {
                 $updatePayload['check_in_time'] = $eventDateTime;
-                $updatePayload['check_in_method'] = 'MOBILE';
+                $updatePayload['check_in_method'] = $checkInMethod;
                 $updatePayload['check_in_latitude'] = $lat;
                 $updatePayload['check_in_longitude'] = $lng;
-            } elseif ($this->isEmptyValue($existing['check_in_time_2'] ?? null)) {
+            } elseif ($supportsSecondSlots && $this->isEmptyValue($existing['check_in_time_2'] ?? null)) {
                 $updatePayload['check_in_time_2'] = $eventDateTime;
             } else {
                 throw new HttpException('All check-in slots already used for today', 409, 'conflict');
@@ -523,10 +675,10 @@ class AttendanceRiskController extends Controller
         } else {
             if ($this->isEmptyValue($existing['check_out_time'] ?? null)) {
                 $updatePayload['check_out_time'] = $eventDateTime;
-                $updatePayload['check_out_method'] = 'MOBILE';
+                $updatePayload['check_out_method'] = $checkOutMethod;
                 $updatePayload['check_out_latitude'] = $lat;
                 $updatePayload['check_out_longitude'] = $lng;
-            } elseif ($this->isEmptyValue($existing['check_out_time_2'] ?? null)) {
+            } elseif ($supportsSecondSlots && $this->isEmptyValue($existing['check_out_time_2'] ?? null)) {
                 $updatePayload['check_out_time_2'] = $eventDateTime;
             } else {
                 throw new HttpException('All check-out slots already used for today', 409, 'conflict');
@@ -543,23 +695,24 @@ class AttendanceRiskController extends Controller
     private function evaluateRisk(
         int $employeeId,
         string $deviceId,
-        bool $trustedDevice,
         float $lat,
         float $lng,
         float $accuracyM,
-        int $clientTs
+        int $clientTs,
+        ?array $trustedDeviceRow = null
     ): array {
-        if (!$trustedDevice) {
-            return [
-                'risk_level' => 'RED',
-                'action' => 'BLOCK',
-                'reason_code' => 'DEVICE_NOT_TRUSTED',
-                'next_action' => 'REVERIFY_DEVICE',
-                'user_message' => 'Đây là điện thoại mới. Vui lòng xác minh để tiếp tục.',
-                'distance_m' => null,
-                'requires_manager_review' => true,
-            ];
-        }
+        $geoPolicy = $this->loadGeoPolicy();
+        $distanceRef = $this->resolveDistanceReference($lat, $lng, $trustedDeviceRow, $geoPolicy);
+        $distanceM = (float) ($distanceRef['distance_m'] ?? 0.0);
+        $greenRadius = (float) ($geoPolicy['green_radius_m'] ?? self::GREEN_RADIUS_M);
+        $yellowRadius = (float) ($geoPolicy['yellow_radius_m'] ?? self::YELLOW_RADIUS_M);
+        $riskMeta = [
+            'company_anchor_label' => $distanceRef['label'] ?? null,
+            'company_anchor_distance_m' => round($distanceM, 1),
+            'company_anchor_count' => (int) ($distanceRef['anchor_count'] ?? 0),
+            'company_geo_lock_enabled' => (bool) ($distanceRef['geo_lock_enabled'] ?? false),
+        ];
+        $recentDeviceSwitch = false;
 
         $latest = $this->prechecks->latestByEmployee($employeeId);
         if ($latest !== null) {
@@ -568,15 +721,7 @@ class AttendanceRiskController extends Controller
                 $elapsed = abs($clientTs - $latestTs);
                 if ($elapsed <= self::SUSPICIOUS_WINDOW_SECONDS) {
                     if ((string) ($latest['device_id'] ?? '') !== $deviceId) {
-                        return [
-                            'risk_level' => 'RED',
-                            'action' => 'BLOCK',
-                            'reason_code' => 'MULTI_DEVICE_SHORT_TIME',
-                            'next_action' => 'REVERIFY_DEVICE',
-                            'user_message' => 'Phát hiện đổi thiết bị trong thời gian ngắn. Vui lòng xác minh lại.',
-                            'distance_m' => null,
-                            'requires_manager_review' => true,
-                        ];
+                        $recentDeviceSwitch = true;
                     }
 
                     $latestLat = isset($latest['lat']) ? (float) $latest['lat'] : null;
@@ -584,7 +729,7 @@ class AttendanceRiskController extends Controller
                     if ($latestLat !== null && $latestLng !== null) {
                         $moveDistance = $this->haversineMeters($lat, $lng, $latestLat, $latestLng);
                         if ($moveDistance >= self::IMPOSSIBLE_TRAVEL_M) {
-                            return [
+                            return array_merge([
                                 'risk_level' => 'RED',
                                 'action' => 'BLOCK',
                                 'reason_code' => 'IMPOSSIBLE_TRAVEL',
@@ -592,40 +737,59 @@ class AttendanceRiskController extends Controller
                                 'user_message' => 'Phát hiện di chuyển bất thường. Vui lòng liên hệ quản lý để xác minh.',
                                 'distance_m' => round($moveDistance, 1),
                                 'requires_manager_review' => true,
-                            ];
+                            ], $riskMeta);
                         }
                     }
                 }
             }
         }
 
-        $distanceM = $this->haversineMeters($lat, $lng, self::OFFICE_LAT, self::OFFICE_LNG);
+        $baselineLabel = isset($distanceRef['label']) ? (string) $distanceRef['label'] : null;
 
-        if ($distanceM <= self::GREEN_RADIUS_M && $accuracyM <= 120) {
-            return [
+        if ($distanceM <= $greenRadius && $accuracyM <= 120) {
+            if ($recentDeviceSwitch) {
+                return array_merge([
+                    'risk_level' => 'YELLOW',
+                    'action' => 'ALLOW_FLAG',
+                    'reason_code' => 'MULTI_DEVICE_SHORT_TIME',
+                    'next_action' => 'NONE',
+                    'user_message' => 'Hệ thống ghi nhận đổi thiết bị trong thời gian ngắn và vẫn cho phép chấm công.',
+                    'distance_m' => round($distanceM, 1),
+                    'requires_manager_review' => true,
+                ], $riskMeta);
+            }
+
+            return array_merge([
                 'risk_level' => 'GREEN',
                 'action' => 'ALLOW',
                 'reason_code' => 'OK_IN_ZONE',
                 'next_action' => 'NONE',
-                'user_message' => 'Bạn đang ở đúng khu vực làm việc. Bấm Đi làm để chấm công.',
+                'user_message' => $baselineLabel !== null
+                    ? sprintf('Bạn đang ở đúng khu vực làm việc %s. Bấm Đi làm để chấm công.', $baselineLabel)
+                    : 'Bạn đang ở đúng khu vực làm việc. Bấm Đi làm để chấm công.',
                 'distance_m' => round($distanceM, 1),
                 'requires_manager_review' => false,
-            ];
+            ], $riskMeta);
         }
 
-        if ($distanceM <= self::YELLOW_RADIUS_M || ($accuracyM > 120 && $distanceM <= 1000.0)) {
-            return [
+        if ($distanceM <= $yellowRadius || ($accuracyM > 120 && $distanceM <= 1000.0)) {
+            $reasonCode = $accuracyM > 120 ? 'SIGNAL_WEAK' : 'GPS_DRIFT_MINOR';
+            if ($recentDeviceSwitch) {
+                $reasonCode = 'MULTI_DEVICE_SHORT_TIME';
+            }
+
+            return array_merge([
                 'risk_level' => 'YELLOW',
                 'action' => 'ALLOW_FLAG',
-                'reason_code' => $accuracyM > 120 ? 'SIGNAL_WEAK' : 'GPS_DRIFT_MINOR',
+                'reason_code' => $reasonCode,
                 'next_action' => 'NONE',
                 'user_message' => 'Vị trí đang lệch nhẹ, hệ thống vẫn ghi nhận chấm công.',
                 'distance_m' => round($distanceM, 1),
                 'requires_manager_review' => true,
-            ];
+            ], $riskMeta);
         }
 
-        return [
+        return array_merge([
             'risk_level' => 'RED',
             'action' => 'BLOCK',
             'reason_code' => 'OUT_OF_GEOFENCE',
@@ -633,7 +797,303 @@ class AttendanceRiskController extends Controller
             'user_message' => 'Bạn đang ngoài khu vực làm việc. Vui lòng đến đúng vị trí rồi bấm Thử lại.',
             'distance_m' => round($distanceM, 1),
             'requires_manager_review' => true,
+        ], $riskMeta);
+    }
+
+    /**
+     * @param array<string, mixed>|null $trustedDeviceRow
+     * @return array<string, mixed>
+     */
+    private function buildUnregisteredDeviceRisk(float $lat, float $lng, ?array $trustedDeviceRow = null): array
+    {
+        $geoPolicy = $this->loadGeoPolicy();
+        $distanceRef = $this->resolveDistanceReference($lat, $lng, $trustedDeviceRow, $geoPolicy);
+        $distanceM = (float) ($distanceRef['distance_m'] ?? 0.0);
+
+        return [
+            'risk_level' => 'RED',
+            'action' => 'BLOCK',
+            'reason_code' => 'DEVICE_NOT_TRUSTED',
+            'next_action' => 'REVERIFY_DEVICE',
+            'user_message' => 'Đây là điện thoại mới. Vui lòng xác minh để tiếp tục.',
+            'distance_m' => round($distanceM, 1),
+            'requires_manager_review' => true,
+            'company_anchor_label' => $distanceRef['label'] ?? null,
+            'company_anchor_distance_m' => round($distanceM, 1),
+            'company_anchor_count' => (int) ($distanceRef['anchor_count'] ?? 0),
+            'company_geo_lock_enabled' => (bool) ($distanceRef['geo_lock_enabled'] ?? false),
         ];
+    }
+
+    private function autoRegisterDevice(
+        int $employeeId,
+        string $deviceId,
+        string $platform,
+        float $lat,
+        float $lng,
+        float $accuracyM
+    ): ?array {
+        $baselineDevice = $this->trustedDevices->findLatestActiveByEmployee($employeeId);
+        $geoPolicy = $this->loadGeoPolicy();
+
+        $originLat = $lat;
+        $originLng = $lng;
+        $workingArea = null;
+
+        $nearestAnchor = null;
+        if ((bool) ($geoPolicy['geo_lock_enabled'] ?? true)) {
+            $nearestAnchor = $this->resolveNearestCompanyAnchor($lat, $lng, $geoPolicy['anchors'] ?? []);
+        }
+
+        if ($nearestAnchor !== null) {
+            $originLat = (float) $nearestAnchor['lat'];
+            $originLng = (float) $nearestAnchor['lng'];
+            $workingArea = isset($nearestAnchor['label']) ? (string) $nearestAnchor['label'] : null;
+        } elseif ($baselineDevice !== null) {
+            $baselineLatRaw = $baselineDevice['origin_lat'] ?? null;
+            $baselineLngRaw = $baselineDevice['origin_lng'] ?? null;
+            if ($baselineLatRaw !== null && $baselineLngRaw !== null) {
+                $originLat = (float) $baselineLatRaw;
+                $originLng = (float) $baselineLngRaw;
+            }
+            if (isset($baselineDevice['working_area_label'])) {
+                $workingArea = (string) $baselineDevice['working_area_label'];
+            }
+        }
+
+        $this->trustedDevices->activateForEmployee(
+            $employeeId,
+            $deviceId,
+            $platform,
+            $originLat,
+            $originLng,
+            $accuracyM,
+            $workingArea,
+            false
+        );
+
+        return $this->trustedDevices->findActiveByEmployeeAndDevice($employeeId, $deviceId);
+    }
+
+    /**
+     * @param array<string, mixed>|null $trustedDeviceRow
+     * @return array{0:float,1:float,2:?string}
+     */
+    private function resolveBaseline(?array $trustedDeviceRow): array
+    {
+        if ($trustedDeviceRow !== null) {
+            $originLatRaw = $trustedDeviceRow['origin_lat'] ?? null;
+            $originLngRaw = $trustedDeviceRow['origin_lng'] ?? null;
+            if ($originLatRaw !== null && $originLngRaw !== null) {
+                return [
+                    (float) $originLatRaw,
+                    (float) $originLngRaw,
+                    isset($trustedDeviceRow['working_area_label'])
+                        ? (string) $trustedDeviceRow['working_area_label']
+                        : null,
+                ];
+            }
+        }
+
+        $geoPolicy = $this->loadGeoPolicy();
+        $anchors = $geoPolicy['anchors'] ?? [];
+        if (is_array($anchors) && $anchors !== []) {
+            $first = $anchors[0];
+            return [
+                (float) $first['lat'],
+                (float) $first['lng'],
+                isset($first['label']) ? (string) $first['label'] : null,
+            ];
+        }
+
+        return [self::DEFAULT_OFFICE_LAT, self::DEFAULT_OFFICE_LNG, null];
+    }
+
+    /**
+     * @param array<string, mixed> $geoPolicy
+     * @param array<string, mixed>|null $trustedDeviceRow
+     * @return array{distance_m:float,label:?string,anchor_count:int,geo_lock_enabled:bool}
+     */
+    private function resolveDistanceReference(float $lat, float $lng, ?array $trustedDeviceRow, array $geoPolicy): array
+    {
+        $anchors = is_array($geoPolicy['anchors'] ?? null) ? $geoPolicy['anchors'] : [];
+        $geoLockEnabled = (bool) ($geoPolicy['geo_lock_enabled'] ?? true);
+        if ($geoLockEnabled && $anchors !== []) {
+            $nearestAnchor = $this->resolveNearestCompanyAnchor($lat, $lng, $anchors);
+            if ($nearestAnchor !== null) {
+                return [
+                    'distance_m' => (float) $nearestAnchor['distance_m'],
+                    'label' => isset($nearestAnchor['label']) ? (string) $nearestAnchor['label'] : null,
+                    'anchor_count' => count($anchors),
+                    'geo_lock_enabled' => true,
+                ];
+            }
+        }
+
+        [$baselineLat, $baselineLng, $baselineLabel] = $this->resolveBaseline($trustedDeviceRow);
+        $distanceM = $this->haversineMeters($lat, $lng, $baselineLat, $baselineLng);
+
+        return [
+            'distance_m' => $distanceM,
+            'label' => $baselineLabel,
+            'anchor_count' => count($anchors),
+            'geo_lock_enabled' => $geoLockEnabled,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function loadGeoPolicy(): array
+    {
+        if ($this->geoPolicyCache !== null) {
+            return $this->geoPolicyCache;
+        }
+
+        $rows = $this->systemConfigs->findByKeys([
+            self::CONFIG_GEO_LOCK_ENABLED_KEY,
+            self::CONFIG_ANCHORS_JSON_KEY,
+            self::CONFIG_GREEN_RADIUS_KEY,
+            self::CONFIG_YELLOW_RADIUS_KEY,
+        ]);
+
+        $geoLockRaw = (string) ($rows[self::CONFIG_GEO_LOCK_ENABLED_KEY]['config_value']
+            ?? env('ATTENDANCE_COMPANY_GEO_LOCK_ENABLED', '1'));
+        $anchorsRaw = (string) ($rows[self::CONFIG_ANCHORS_JSON_KEY]['config_value']
+            ?? env('ATTENDANCE_COMPANY_ANCHORS_JSON', ''));
+        $greenRaw = $rows[self::CONFIG_GREEN_RADIUS_KEY]['config_value']
+            ?? env('ATTENDANCE_GREEN_RADIUS_M', (string) self::GREEN_RADIUS_M);
+        $yellowRaw = $rows[self::CONFIG_YELLOW_RADIUS_KEY]['config_value']
+            ?? env('ATTENDANCE_YELLOW_RADIUS_M', (string) self::YELLOW_RADIUS_M);
+
+        $anchors = $this->parseCompanyAnchors($anchorsRaw);
+        if ($anchors === []) {
+            $anchors = $this->parseCompanyAnchors(json_encode(self::DEFAULT_COMPANY_ANCHORS, JSON_UNESCAPED_UNICODE) ?: '');
+        }
+
+        $greenRadius = max(10.0, (float) $greenRaw);
+        $yellowRadius = max($greenRadius, (float) $yellowRaw);
+
+        $this->geoPolicyCache = [
+            'geo_lock_enabled' => $this->toBoolFlag($geoLockRaw, true),
+            'anchors' => $anchors,
+            'green_radius_m' => $greenRadius,
+            'yellow_radius_m' => $yellowRadius,
+        ];
+
+        return $this->geoPolicyCache;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $anchors
+     * @return array<string, mixed>|null
+     */
+    private function resolveNearestCompanyAnchor(float $lat, float $lng, array $anchors): ?array
+    {
+        if ($anchors === []) {
+            return null;
+        }
+
+        $nearest = null;
+        foreach ($anchors as $anchor) {
+            $anchorLat = isset($anchor['lat']) ? (float) $anchor['lat'] : null;
+            $anchorLng = isset($anchor['lng']) ? (float) $anchor['lng'] : null;
+            if ($anchorLat === null || $anchorLng === null) {
+                continue;
+            }
+
+            $distanceM = $this->haversineMeters($lat, $lng, $anchorLat, $anchorLng);
+            if ($nearest === null || $distanceM < (float) $nearest['distance_m']) {
+                $nearest = [
+                    'lat' => $anchorLat,
+                    'lng' => $anchorLng,
+                    'label' => isset($anchor['label']) ? (string) $anchor['label'] : null,
+                    'distance_m' => $distanceM,
+                ];
+            }
+        }
+
+        return $nearest;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function parseCompanyAnchors(string $rawJson): array
+    {
+        $json = trim($rawJson);
+        if ($json === '') {
+            return [];
+        }
+
+        $decoded = json_decode($json, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $anchors = [];
+        foreach ($decoded as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            if (!isset($item['lat'], $item['lng']) || !is_numeric($item['lat']) || !is_numeric($item['lng'])) {
+                continue;
+            }
+
+            $label = isset($item['label']) ? trim((string) $item['label']) : '';
+            if ($label === '') {
+                $label = isset($item['address']) ? trim((string) $item['address']) : '';
+            }
+            if ($label === '') {
+                $label = 'Mốc công ty';
+            }
+
+            $anchors[] = [
+                'label' => $label,
+                'address' => isset($item['address']) ? trim((string) $item['address']) : null,
+                'lat' => (float) $item['lat'],
+                'lng' => (float) $item['lng'],
+            ];
+        }
+
+        return $anchors;
+    }
+
+    private function toBoolFlag(string $value, bool $default = false): bool
+    {
+        $normalized = strtoupper(trim($value));
+        if ($normalized === '') {
+            return $default;
+        }
+
+        return in_array($normalized, ['1', 'TRUE', 'YES', 'ON'], true);
+    }
+
+    /**
+     * @param array<string, mixed> $risk
+     */
+    private function mapPrecheckStatus(array $risk): string
+    {
+        $reason = strtoupper((string) ($risk['reason_code'] ?? ''));
+        $riskLevel = strtoupper((string) ($risk['risk_level'] ?? ''));
+        $action = strtoupper((string) ($risk['action'] ?? 'BLOCK'));
+
+        if ($reason === 'DEVICE_NOT_TRUSTED') {
+            return 'unregistered_device';
+        }
+
+        if ($action === 'BLOCK') {
+            return 'blocked_outside_zone';
+        }
+
+        if ($riskLevel === 'GREEN') {
+            return 'green';
+        }
+        if ($riskLevel === 'YELLOW') {
+            return 'yellow';
+        }
+        return 'red';
     }
 
     private function buildPrecheckToken(int $employeeId, string $attendanceType, string $riskLevel, int $issuedAt): string
@@ -760,6 +1220,90 @@ class AttendanceRiskController extends Controller
         $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
 
         return $earthRadius * $c;
+    }
+
+    private function supportsAttendanceSecondSlots(): bool
+    {
+        if ($this->attendanceSecondSlotsSupported !== null) {
+            return $this->attendanceSecondSlotsSupported;
+        }
+
+        $sql = "SELECT COUNT(*) AS total
+                FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'attendances'
+                  AND column_name IN ('check_in_time_2', 'check_out_time_2')";
+        $stmt = Database::connection()->prepare($sql);
+        $stmt->execute();
+        $total = (int) (($stmt->fetch()['total'] ?? 0));
+
+        $this->attendanceSecondSlotsSupported = $total >= 2;
+        return $this->attendanceSecondSlotsSupported;
+    }
+
+    private function resolveSupportedAttendanceMethod(string $column): string
+    {
+        if (isset($this->attendanceMethodCache[$column])) {
+            return $this->attendanceMethodCache[$column];
+        }
+
+        $fallback = 'MOBILE';
+        if (!in_array($column, ['check_in_method', 'check_out_method'], true)) {
+            $this->attendanceMethodCache[$column] = $fallback;
+            return $fallback;
+        }
+
+        $sql = "SELECT data_type, column_type
+                FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'attendances'
+                  AND column_name = :column_name
+                LIMIT 1";
+        $stmt = Database::connection()->prepare($sql);
+        $stmt->execute(['column_name' => $column]);
+        $meta = $stmt->fetch();
+        if ($meta === false) {
+            $this->attendanceMethodCache[$column] = $fallback;
+            return $fallback;
+        }
+
+        $dataType = strtolower((string) ($meta['data_type'] ?? ''));
+        if ($dataType !== 'enum') {
+            $this->attendanceMethodCache[$column] = $fallback;
+            return $fallback;
+        }
+
+        $columnType = (string) ($meta['column_type'] ?? '');
+        $enumValues = $this->parseEnumValuesFromColumnType($columnType);
+        if ($enumValues === []) {
+            $this->attendanceMethodCache[$column] = $fallback;
+            return $fallback;
+        }
+
+        foreach (['MOBILE', 'APP', 'GPS', 'MANUAL', 'MÁY_QUÉT', 'MAY_QUET'] as $candidate) {
+            if (in_array($candidate, $enumValues, true)) {
+                $this->attendanceMethodCache[$column] = $candidate;
+                return $candidate;
+            }
+        }
+
+        $this->attendanceMethodCache[$column] = (string) $enumValues[0];
+        return $this->attendanceMethodCache[$column];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function parseEnumValuesFromColumnType(string $columnType): array
+    {
+        if (!preg_match_all("/'((?:[^'\\\\]|\\\\.)*)'/u", $columnType, $matches)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(
+            static fn(string $value): string => stripcslashes($value),
+            $matches[1] ?? []
+        ), static fn(string $value): bool => $value !== ''));
     }
 
     private function isEmptyValue(mixed $value): bool

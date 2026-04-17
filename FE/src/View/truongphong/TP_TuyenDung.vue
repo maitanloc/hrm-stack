@@ -279,7 +279,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRecruitmentStore, submitManagerEvaluation, refreshRecruitmentCandidates } from '@/composables/useRecruitmentStore';
 import { useConfirm } from '@/composables/useConfirm';
-import { mockJobPostings } from '@/mock-data/index.js';
 import { AUTH_USER_KEY } from '@/services/runtimeConfig.js';
 import { getSessionItem } from '@/services/session.js';
 
@@ -332,19 +331,32 @@ let refreshTimer = null;
 
 // Dynamic Jobs loading
 const jobs = computed(() => {
-  const allowedDeptIds = managedDeptIds.length ? managedDeptIds : [];
+  const candidates = store.candidates.value || [];
+  const grouped = new Map();
 
-  return mockJobPostings
-    .filter(j => !allowedDeptIds.length || allowedDeptIds.includes(Number(j.departmentId)))
-    .map(job => {
-      // Find matching candidates from the store
-      const jobCands = store.candidates.value.filter(c => c.jobId === job.jobId);
-      const applied = jobCands.length;
-      const screening = jobCands.filter(c => ['pending_hr', 'pending_mgr'].includes(c.status)).length;
-      const interviewing = jobCands.filter(c => c.status === 'interviewing').length;
-      const hired = jobCands.filter(c => c.status === 'pass').length;
-      return { ...job, applied, screening, interviewing, hired };
-    });
+  candidates.forEach((candidate) => {
+    const key = String(candidate.jobId || candidate.positionName || candidate.position || candidate.id);
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        jobId: candidate.jobId || key,
+        title: candidate.positionName || candidate.position || 'Vị trí tuyển dụng',
+        salaryMin: 0,
+        salaryMax: 0,
+        status: 'ĐANG_MỞ',
+        applied: 0,
+        screening: 0,
+        interviewing: 0,
+        hired: 0,
+      });
+    }
+    const job = grouped.get(key);
+    job.applied += 1;
+    if (['pending_hr', 'pending_mgr', 'mgr_approved'].includes(candidate.status)) job.screening += 1;
+    if (candidate.status === 'interviewing') job.interviewing += 1;
+    if (candidate.status === 'pass') job.hired += 1;
+  });
+
+  return Array.from(grouped.values()).sort((a, b) => b.applied - a.applied);
 });
 
 const baseFilteredCandidates = computed(() => {
@@ -438,12 +450,13 @@ onMounted(async () => {
     console.warn('[tp-tuyendung] refresh failed:', error?.message || error);
   }
   refreshTimer = setInterval(async () => {
+    if (typeof document !== 'undefined' && document.hidden) return;
     try {
       await refreshRecruitmentCandidates();
     } catch {
       // best effort background refresh
     }
-  }, 10000);
+  }, 45000);
 });
 
 onUnmounted(() => {

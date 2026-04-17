@@ -195,6 +195,257 @@ class EmployeeController extends Controller
         return $this->ok(null, 'Employee deleted');
     }
 
+    public function profileShow(Request $request, array $params): array
+    {
+        $id = (int) ($params['id'] ?? 0);
+        $employee = $this->employees->findWithDepartment($id);
+        if ($employee === null) {
+            throw new HttpException('Employee not found', 404, 'not_found');
+        }
+
+        $db = Database::connection();
+
+        $historyStmt = $db->prepare(
+            "SELECT eh.history_id,
+                    eh.employee_id,
+                    eh.department_id,
+                    d.department_name,
+                    eh.position_id,
+                    p.position_name,
+                    eh.start_date,
+                    eh.end_date,
+                    eh.is_current,
+                    eh.notes
+             FROM employment_histories eh
+             LEFT JOIN departments d ON d.department_id = eh.department_id
+             LEFT JOIN positions p ON p.position_id = eh.position_id
+             WHERE eh.employee_id = :employee_id
+             ORDER BY eh.start_date DESC, eh.history_id DESC"
+        );
+        $historyStmt->execute(['employee_id' => $id]);
+        $histories = $historyStmt->fetchAll() ?: [];
+
+        $certificateStmt = $db->prepare(
+            "SELECT c.certificate_id,
+                    c.employee_id,
+                    c.certificate_type_id,
+                    ct.certificate_type_name,
+                    c.certificate_name,
+                    c.issued_by,
+                    c.issued_date,
+                    c.expiry_date,
+                    c.certificate_number,
+                    c.score,
+                    c.file_url
+             FROM certificates c
+             LEFT JOIN certificate_types ct ON ct.certificate_type_id = c.certificate_type_id
+             WHERE c.employee_id = :employee_id
+             ORDER BY c.issued_date DESC, c.certificate_id DESC"
+        );
+        $certificateStmt->execute(['employee_id' => $id]);
+        $certificates = $certificateStmt->fetchAll() ?: [];
+
+        $typesStmt = $db->query(
+            "SELECT certificate_type_id, certificate_type_code, certificate_type_name, description
+             FROM certificate_types
+             ORDER BY certificate_type_name ASC"
+        );
+        $certificateTypes = $typesStmt->fetchAll() ?: [];
+
+        return $this->ok([
+            'employee' => $employee,
+            'employment_histories' => $histories,
+            'certificates' => $certificates,
+            'certificate_types' => $certificateTypes,
+        ], 'Employee profile');
+    }
+
+    public function profileUpdate(Request $request, array $params): array
+    {
+        $id = (int) ($params['id'] ?? 0);
+        $existing = $this->employees->find($id);
+        if ($existing === null) {
+            throw new HttpException('Employee not found', 404, 'not_found');
+        }
+
+        $payload = Validator::validate($request->all(), [
+            'full_name' => ['string'],
+            'date_of_birth' => ['date'],
+            'gender' => ['string'],
+            'phone_number' => ['string'],
+            'personal_email' => ['email'],
+            'current_address' => ['string'],
+            'permanent_address' => ['string'],
+        ]);
+
+        $authUser = $request->attribute('auth_user');
+        $payload['updated_by'] = (int) ($authUser['employee_id'] ?? 1);
+        $this->employees->updateById($id, $payload);
+
+        return $this->ok($this->employees->findWithDepartment($id), 'Employee profile updated');
+    }
+
+    public function employmentHistory(Request $request, array $params): array
+    {
+        $id = (int) ($params['id'] ?? 0);
+        $existing = $this->employees->find($id);
+        if ($existing === null) {
+            throw new HttpException('Employee not found', 404, 'not_found');
+        }
+
+        $stmt = Database::connection()->prepare(
+            "SELECT eh.history_id,
+                    eh.employee_id,
+                    eh.department_id,
+                    d.department_name,
+                    eh.position_id,
+                    p.position_name,
+                    eh.start_date,
+                    eh.end_date,
+                    eh.is_current,
+                    eh.notes
+             FROM employment_histories eh
+             LEFT JOIN departments d ON d.department_id = eh.department_id
+             LEFT JOIN positions p ON p.position_id = eh.position_id
+             WHERE eh.employee_id = :employee_id
+             ORDER BY eh.start_date DESC, eh.history_id DESC"
+        );
+        $stmt->execute(['employee_id' => $id]);
+
+        return $this->ok($stmt->fetchAll() ?: [], 'Employment histories');
+    }
+
+    public function certificateIndex(Request $request, array $params): array
+    {
+        $id = (int) ($params['id'] ?? 0);
+        $existing = $this->employees->find($id);
+        if ($existing === null) {
+            throw new HttpException('Employee not found', 404, 'not_found');
+        }
+
+        $stmt = Database::connection()->prepare(
+            "SELECT c.certificate_id,
+                    c.employee_id,
+                    c.certificate_type_id,
+                    ct.certificate_type_name,
+                    c.certificate_name,
+                    c.issued_by,
+                    c.issued_date,
+                    c.expiry_date,
+                    c.certificate_number,
+                    c.score,
+                    c.file_url
+             FROM certificates c
+             LEFT JOIN certificate_types ct ON ct.certificate_type_id = c.certificate_type_id
+             WHERE c.employee_id = :employee_id
+             ORDER BY c.issued_date DESC, c.certificate_id DESC"
+        );
+        $stmt->execute(['employee_id' => $id]);
+
+        return $this->ok($stmt->fetchAll() ?: [], 'Certificates');
+    }
+
+    public function certificateStore(Request $request, array $params): array
+    {
+        $id = (int) ($params['id'] ?? 0);
+        $existing = $this->employees->find($id);
+        if ($existing === null) {
+            throw new HttpException('Employee not found', 404, 'not_found');
+        }
+
+        $payload = Validator::validate($request->all(), [
+            'certificate_type_id' => ['integer'],
+            'certificate_name' => ['required', 'string'],
+            'issued_by' => ['string'],
+            'issued_date' => ['date'],
+            'expiry_date' => ['date'],
+            'certificate_number' => ['string'],
+            'score' => ['numeric'],
+            'file_url' => ['string'],
+        ]);
+
+        $db = Database::connection();
+        $stmt = $db->prepare(
+            "INSERT INTO certificates (
+                employee_id,
+                certificate_type_id,
+                certificate_name,
+                issued_by,
+                issued_date,
+                expiry_date,
+                certificate_number,
+                score,
+                file_url
+            ) VALUES (
+                :employee_id,
+                :certificate_type_id,
+                :certificate_name,
+                :issued_by,
+                :issued_date,
+                :expiry_date,
+                :certificate_number,
+                :score,
+                :file_url
+            )"
+        );
+        $stmt->execute([
+            'employee_id' => $id,
+            'certificate_type_id' => $payload['certificate_type_id'] ?? null,
+            'certificate_name' => (string) $payload['certificate_name'],
+            'issued_by' => $payload['issued_by'] ?? null,
+            'issued_date' => $payload['issued_date'] ?? null,
+            'expiry_date' => $payload['expiry_date'] ?? null,
+            'certificate_number' => $payload['certificate_number'] ?? null,
+            'score' => $payload['score'] ?? null,
+            'file_url' => $payload['file_url'] ?? null,
+        ]);
+        $createdId = (int) $db->lastInsertId();
+
+        $fetchStmt = $db->prepare(
+            "SELECT c.certificate_id,
+                    c.employee_id,
+                    c.certificate_type_id,
+                    ct.certificate_type_name,
+                    c.certificate_name,
+                    c.issued_by,
+                    c.issued_date,
+                    c.expiry_date,
+                    c.certificate_number,
+                    c.score,
+                    c.file_url
+             FROM certificates c
+             LEFT JOIN certificate_types ct ON ct.certificate_type_id = c.certificate_type_id
+             WHERE c.certificate_id = :certificate_id
+             LIMIT 1"
+        );
+        $fetchStmt->execute(['certificate_id' => $createdId]);
+        $created = $fetchStmt->fetch();
+
+        return $this->created($created === false ? null : $created, 'Certificate created');
+    }
+
+    public function certificateDelete(Request $request, array $params): array
+    {
+        $employeeId = (int) ($params['id'] ?? 0);
+        $certificateId = (int) ($params['certificateId'] ?? 0);
+
+        $stmt = Database::connection()->prepare(
+            "DELETE FROM certificates
+             WHERE certificate_id = :certificate_id
+               AND employee_id = :employee_id"
+        );
+        $stmt->execute([
+            'certificate_id' => $certificateId,
+            'employee_id' => $employeeId,
+        ]);
+
+        if ($stmt->rowCount() <= 0) {
+            throw new HttpException('Certificate not found', 404, 'not_found');
+        }
+
+        return $this->ok(null, 'Certificate deleted');
+    }
+
     public function importProbation(Request $request): array
     {
         if (!isset($_FILES['file']) || !is_array($_FILES['file'])) {

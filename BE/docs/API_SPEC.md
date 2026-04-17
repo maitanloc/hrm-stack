@@ -318,3 +318,43 @@ Business handling:
 - `GREEN`: chấm công bình thường.
 - `YELLOW`: vẫn chấm công, gắn cờ kiểm tra quản lý.
 - `RED`: chặn chấm công, yêu cầu xác minh lại hoặc duyệt ngoại lệ 1 lần.
+
+## 18) Workflow Governance (BE-first control plane)
+
+New endpoints:
+1. `GET /api/v1/workflow-governance/overview`
+2. `GET /api/v1/workflow-governance/catalog`
+   - optional query: `section=states|rules|roles|domain|permission|mapping|lock_policy|phases|checklist|workflow_chain`
+3. `GET /api/v1/workflow-governance/transitions?entity=schedule`
+4. `POST /api/v1/workflow-governance/validate-transition`
+5. `POST /api/v1/workflow-governance/validate-schedule-publish`
+6. `GET /api/v1/workflow-governance/audit-logs`
+   - query: `page`, `per_page`, `entity_type`, `entity_ref`, `actor_id`
+
+`validate-transition` body:
+```json
+{
+  "entity": "schedule",
+  "current_state": "SUBMITTED",
+  "target_state": "REVIEWED",
+  "context": {
+    "locked": false
+  }
+}
+```
+
+`validate-schedule-publish` body:
+```json
+{
+  "scope_type": "DEPARTMENT",
+  "scope_id": 3,
+  "from_date": "2026-04-01",
+  "to_date": "2026-04-30",
+  "strict_mode": false
+}
+```
+
+BE-first lock rules applied in runtime:
+- Schedule mutation APIs (`assign`, `override`, `bulk-assign`, `copy-week`, `publish`) are blocked when date range overlaps payroll status `PAID/CLOSED`.
+- Payroll mutations are blocked when period is terminal (`PAID/CLOSED`).
+- Request/leave/payroll status updates are validated against workflow state machine before write.

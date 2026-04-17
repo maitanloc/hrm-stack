@@ -31,7 +31,7 @@
         </div>
         <div class="bg-transparent flex flex-col overflow-hidden">
           <p class="text-[11px] font-bold text-[var(--sys-text-secondary)] mb-0.5 uppercase tracking-widest opacity-60 truncate">Tổng quỹ phép</p>
-          <p class="text-xl font-bold text-[var(--sys-text-primary)] m-0 leading-tight tracking-tight">14 <small class="text-[10px] opacity-40">ngày</small></p>
+          <p class="text-xl font-bold text-[var(--sys-text-primary)] m-0 leading-tight tracking-tight">{{ leaveStats.total }} <small class="text-[10px] opacity-40">ngày</small></p>
         </div>
       </div>
       
@@ -42,7 +42,7 @@
         </div>
         <div class="bg-transparent flex flex-col overflow-hidden">
           <p class="text-[11px] font-bold text-[var(--sys-text-secondary)] mb-0.5 uppercase tracking-widest opacity-60 truncate">Đã sử dụng</p>
-          <p class="text-xl font-bold text-[var(--sys-warning-text)] m-0 leading-tight tracking-tight">02 <small class="text-[10px] opacity-40 text-[var(--sys-text-disabled)]">ngày</small></p>
+          <p class="text-xl font-bold text-[var(--sys-warning-text)] m-0 leading-tight tracking-tight">{{ leaveStats.used }} <small class="text-[10px] opacity-40 text-[var(--sys-text-disabled)]">ngày</small></p>
         </div>
       </div>
 
@@ -64,7 +64,7 @@
         </div>
         <div class="bg-transparent flex flex-col overflow-hidden">
           <p class="text-[11px] font-bold text-[var(--sys-text-secondary)] mb-0.5 uppercase tracking-widest opacity-60 truncate">Còn lại</p>
-          <p class="text-xl font-bold text-[var(--sys-success-text)] m-0 leading-tight tracking-tight">12 <small class="text-[10px] opacity-40 text-[var(--sys-text-disabled)]">ngày</small></p>
+          <p class="text-xl font-bold text-[var(--sys-success-text)] m-0 leading-tight tracking-tight">{{ leaveStats.remaining }} <small class="text-[10px] opacity-40 text-[var(--sys-text-disabled)]">ngày</small></p>
         </div>
       </div>
     </div>
@@ -244,7 +244,7 @@
                       <span class="text-[11px] font-bold text-[var(--sys-text-secondary)] uppercase tracking-widest">Tổng thời gian:</span>
                       <span class="text-sm font-black text-[var(--sys-brand-solid)]">{{ calculateDays }} NGÀY</span>
                    </div>
-                   <span class="text-[10px] font-bold text-[var(--sys-text-disabled)] uppercase italic" v-if="calculateDays > 0">Khả dụng: 12 ngày</span>
+                   <span class="text-[10px] font-bold text-[var(--sys-text-disabled)] uppercase italic" v-if="calculateDays > 0">Khả dụng: {{ leaveStats.remaining }} ngày</span>
                 </div>
               </div>
 
@@ -272,8 +272,8 @@ import { ref, onMounted, computed, watch } from 'vue';
 import CalendarCustom from '@/components/CalendarCustom.vue';
 import Dropdown from '@/components/Dropdown.vue';
 import { useConfirm } from '@/composables/useConfirm';
-import { mockLeaveRequests, mockRequestTypes, mockEmployees, mockDepartments } from '@/mock-data/index.js';
 import { useCurrentUser } from '@/composables/useCurrentUser.js';
+import { apiRequest, toIsoLocalDate } from '@/services/beApi.js';
 
 const { showAlert, showConfirm } = useConfirm();
 
@@ -289,6 +289,7 @@ const reason = ref('');
 
 const requestTypes = ref([]);
 const leaveHistory = ref([]);
+const leaveBalances = ref([]);
 
 // Ràng buộc: Ngày kết thúc phải sau hoặc bằng ngày bắt đầu
 watch(startDate, (newStart) => {
@@ -327,6 +328,7 @@ const leaveTypeOptions = computed(() => {
 // Current user từ localStorage
 const { employeeId: currentEmpId, deptId: currentDeptId, baseLeaveDays: currentBaseLeaveDays } = useCurrentUser();
 const CURRENT_EMP_ID = computed(() => currentEmpId.value);
+const currentYear = new Date().getFullYear();
 
 const calculateDays = computed(() => {
   if (!startDate.value || !endDate.value) return 0;
@@ -341,41 +343,63 @@ const pendingCount = computed(() => {
   return leaveHistory.value.filter(h => h.statusRaw === 'CHỜ_DUYỆT').length;
 });
 
-const fetchData = async () => {
-  // 1. Khởi tạo danh sách loại hình nghỉ phép
-  const allTypes = mockRequestTypes || [];
-  const leaveCategories = ['NGHỈ_PHÉP', 'NGHỈ PHÉP', 'NGHI_PHEP', 'NGHI PHÉP'];
-  const leaveTypeIds = [1, 6, 7, 8, 9, 10, 99];
-
-  requestTypes.value = allTypes.filter(t => {
-    const typeId = Number(t.requestTypeId);
-    const cat = String(t.category || '').trim().toUpperCase();
-    return leaveTypeIds.includes(typeId) || leaveCategories.includes(cat);
-  });
-
-  if (requestTypes.value.length === 0) {
-    requestTypes.value = allTypes.filter(t => [1, 6, 7, 8, 9, 10, 99].includes(Number(t.requestTypeId)));
+const leaveStats = computed(() => {
+  const rows = leaveBalances.value;
+  if (!rows.length) {
+    return {
+      total: Number(currentBaseLeaveDays.value || 0),
+      used: 0,
+      remaining: Number(currentBaseLeaveDays.value || 0),
+    };
   }
+  const total = rows.reduce((sum, row) => sum + Number(row.total_days || 0), 0);
+  const used = rows.reduce((sum, row) => sum + Number(row.used_days || 0), 0);
+  const remaining = rows.reduce((sum, row) => sum + Number(row.remaining_days || 0), 0);
+  return {
+    total: total.toFixed(1).replace(/\.0$/, ''),
+    used: used.toFixed(1).replace(/\.0$/, ''),
+    remaining: remaining.toFixed(1).replace(/\.0$/, ''),
+  };
+});
 
-  // 2. Tải lịch sử nghỉ phép từ Backend
+const fetchData = async () => {
   try {
-    const res = await fetch(`http://localhost:3000/leaveRequests?requesterId=${CURRENT_EMP_ID.value}`);
-    const data = await res.json();
-    
+    const [balanceRes, leaveRes] = await Promise.all([
+      apiRequest('/leave-balances', { query: { page: 1, per_page: 200, employee_id: CURRENT_EMP_ID.value, year: currentYear } }),
+      apiRequest('/leave-requests', { query: { page: 1, per_page: 200, employee_id: CURRENT_EMP_ID.value } }),
+    ]);
+
+    const balances = Array.isArray(balanceRes?.data) ? balanceRes.data : [];
+    leaveBalances.value = balances;
+
+    requestTypes.value = balances.map((item) => ({
+      requestTypeId: Number(item.leave_type_id),
+      requestTypeName: item.leave_type_name || `Loại phép #${item.leave_type_id}`,
+    }));
+
+    const data = Array.isArray(leaveRes?.data) ? leaveRes.data : [];
     leaveHistory.value = data.map(item => {
-      const typeObj = mockRequestTypes.getById(item.requestTypeId);
-      const typeName = item.requestTypeId === 99 ? item.other_reason_name : (typeObj?.requestTypeName || 'Nghỉ phép');
+      const typeName = item.leave_type_name || 'Nghỉ phép';
+      const statusCode = String(item.request_status || item.status || '').toUpperCase();
       return {
-        id: item.id || item.requestId,
+        id: Number(item.leave_request_id || item.id || 0),
         type: typeName,
-        duration: `${item.startDate || 'N/A'} - ${item.endDate || 'N/A'}`,
-        total: `${item.days || 0} ngày`,
-        statusRaw: item.status,
-        status: item.status === 'CHỜ_DUYỆT' ? 'Chờ duyệt' : (item.status === 'ĐÃ_DUYỆT' ? 'Đã duyệt' : 'Từ chối')
+        duration: `${String(item.from_date || '').slice(0, 10) || 'N/A'} - ${String(item.to_date || '').slice(0, 10) || 'N/A'}`,
+        total: `${item.number_of_days || 0} ngày`,
+        statusRaw: statusCode,
+        status:
+          statusCode === 'CHỜ_DUYỆT' ? 'Chờ duyệt'
+            : statusCode === 'CHỜ_GIÁM_ĐỐC_DUYỆT' ? 'Chờ giám đốc'
+              : statusCode === 'CHỜ_XÁC_NHẬN_HR' ? 'Chờ HR'
+                : statusCode === 'ĐÃ_DUYỆT' ? 'Đã duyệt'
+                  : statusCode === 'TỪ_CHỐI' ? 'Từ chối'
+                    : 'Đang xử lý',
       };
     });
   } catch (error) {
     console.error('Lỗi khi tải dữ liệu nghỉ phép:', error);
+    leaveHistory.value = [];
+    requestTypes.value = [];
   }
 };
 
@@ -399,35 +423,50 @@ const submitRequest = async () => {
     return;
   }
 
-  const employee = mockEmployees.getById(CURRENT_EMP_ID.value);
+  const normalizedLeaveTypeId = Number(leaveType.value || 0);
+  if (!normalizedLeaveTypeId) {
+    validationMessage.value = 'Loại nghỉ phép chưa hợp lệ';
+    isValidationError.value = true;
+    return;
+  }
+
+  const usedType = leaveType.value === 99 ? `Khác: ${otherReason.value}` : null;
 
   const newRequest = {
-    requesterId: CURRENT_EMP_ID.value,
-    requestTypeId: leaveType.value,
-    notes: reason.value,
-    startDate: startDate.value,
-    endDate: endDate.value,
-    days: days,
-    other_reason_name: leaveType.value === 99 ? otherReason.value : null,
-    status: 'CHỜ_DUYỆT',
+    requester_id: CURRENT_EMP_ID.value,
+    request_date: toIsoLocalDate(),
+    request_type_id: 1,
+    leave_type_id: normalizedLeaveTypeId,
+    employee_id: CURRENT_EMP_ID.value,
+    from_date: startDate.value,
+    to_date: endDate.value,
+    number_of_days: days,
+    reason: usedType ? `${usedType}. ${reason.value}` : reason.value,
     is_urgent: days >= 3,
-    request_date: new Date().toISOString().split('T')[0],
-    department_id: currentDeptId.value || employee?.department?.departmentId || 2
+    from_session: 'CẢ_NGÀY',
+    to_session: 'CẢ_NGÀY',
+    leave_used_type: 'BASE',
+    paid_days: days,
+    unpaid_days: 0,
   };
 
   try {
-    await fetch('http://localhost:3000/leaveRequests', {
+    await apiRequest('/leave-requests', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newRequest)
+      body: newRequest,
+      noGetCache: true,
     });
     isSuccess.value = true;
+    leaveType.value = null;
+    otherReason.value = '';
     startDate.value = '';
     endDate.value = '';
     reason.value = '';
-    fetchData();
+    await fetchData();
   } catch (error) {
     console.error('Lỗi khi gửi đơn nghỉ phép:', error);
+    validationMessage.value = error?.message || 'Không thể tạo đơn nghỉ phép';
+    isValidationError.value = true;
   }
 };
 
@@ -440,10 +479,11 @@ const handleDeleteRequest = async (item) => {
   const ok = await showConfirm('Xác nhận xóa', 'Bạn có chắc chắn muốn hủy bỏ và xóa đơn nghỉ phép này không?');
   if (ok) {
     try {
-      await fetch(`http://localhost:3000/leaveRequests/${item.id}`, {
-        method: 'DELETE'
+      await apiRequest(`/leave-requests/${item.id}`, {
+        method: 'DELETE',
+        noGetCache: true,
       });
-      fetchData();
+      await fetchData();
     } catch (err) {
       console.error('Lỗi khi xóa đơn:', err);
     }
@@ -458,6 +498,8 @@ const getStatusBadgeClass = (status) => {
   switch (status) {
     case 'ĐÃ_DUYỆT': return 'bg-[var(--sys-success-soft)] text-[var(--sys-success-text)] border-[var(--sys-success-border)]';
     case 'CHỜ_DUYỆT': return 'bg-[var(--sys-brand-soft)] text-[var(--sys-brand-solid)] border-[var(--sys-brand-border)]';
+    case 'CHỜ_GIÁM_ĐỐC_DUYỆT': return 'bg-[var(--sys-warning-soft)] text-[var(--sys-warning-text)] border-[var(--sys-warning-border)]';
+    case 'CHỜ_XÁC_NHẬN_HR': return 'bg-[var(--sys-warning-soft)] text-[var(--sys-warning-text)] border-[var(--sys-warning-border)]';
     case 'TỪ_CHỐI': return 'bg-[var(--sys-danger-soft)] text-[var(--sys-danger-text)] border-[var(--sys-danger-border)]';
     default: return 'bg-[var(--sys-bg-page)] text-[var(--sys-text-secondary)] border-[var(--sys-border-subtle)]';
   }
@@ -467,6 +509,8 @@ const getStatusDotClass = (status) => {
   switch (status) {
     case 'ĐÃ_DUYỆT': return 'bg-[var(--sys-success-solid)]';
     case 'CHỜ_DUYỆT': return 'bg-[var(--sys-brand-solid)]';
+    case 'CHỜ_GIÁM_ĐỐC_DUYỆT': return 'bg-[var(--sys-warning-text)]';
+    case 'CHỜ_XÁC_NHẬN_HR': return 'bg-[var(--sys-warning-text)]';
     case 'TỪ_CHỐI': return 'bg-[var(--sys-danger-solid)]';
     default: return 'bg-[var(--sys-text-disabled)] opacity-40';
   }

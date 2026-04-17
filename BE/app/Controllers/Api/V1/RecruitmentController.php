@@ -39,6 +39,7 @@ class RecruitmentController extends Controller
     private MailService $mailer;
     /** @var array<int, string> */
     private array $departmentNameCache = [];
+    private ?array $recruitmentFeatureSupport = null;
 
     public function __construct()
     {
@@ -254,12 +255,14 @@ class RecruitmentController extends Controller
 
         $id = $this->candidates->create($payload);
 
-        $this->managerReviews->upsertByCandidateId($id, [
-            'workflow_status' => 'PENDING',
-            'manager_decision_proposal' => 'PENDING',
-            'created_by' => $actorId > 0 ? $actorId : null,
-            'updated_by' => $actorId > 0 ? $actorId : null,
-        ]);
+        if ($this->supportsManagerReviews()) {
+            $this->managerReviews->upsertByCandidateId($id, [
+                'workflow_status' => 'PENDING',
+                'manager_decision_proposal' => 'PENDING',
+                'created_by' => $actorId > 0 ? $actorId : null,
+                'updated_by' => $actorId > 0 ? $actorId : null,
+            ]);
+        }
 
         if (($payload['ai_scoring_status'] ?? 'PENDING') !== 'DONE') {
             $this->enqueueAiScoringForCandidate($id, $actorId > 0 ? $actorId : null);
@@ -324,14 +327,18 @@ class RecruitmentController extends Controller
 
             $candidateId = $this->candidates->create($candidatePayload);
 
-            $this->managerReviews->upsertByCandidateId($candidateId, [
-                'workflow_status' => 'PENDING',
-                'manager_decision_proposal' => 'PENDING',
-                'created_by' => null,
-                'updated_by' => null,
-            ]);
+            if ($this->supportsManagerReviews()) {
+                $this->managerReviews->upsertByCandidateId($candidateId, [
+                    'workflow_status' => 'PENDING',
+                    'manager_decision_proposal' => 'PENDING',
+                    'created_by' => null,
+                    'updated_by' => null,
+                ]);
+            }
 
-            $this->persistCandidateCv($candidateId, $uploadMeta, null);
+            if ($this->supportsCandidateCvStorage()) {
+                $this->persistCandidateCv($candidateId, $uploadMeta, null);
+            }
             $this->enqueueAiScoringForCandidate($candidateId, null);
             $connection->commit();
             $saved = $this->candidates->findDetail($candidateId);
@@ -420,7 +427,9 @@ class RecruitmentController extends Controller
             throw new HttpException('Candidate not found', 404, 'not_found');
         }
 
-        $review = $this->managerReviews->findByCandidateId($candidateId);
+        $review = $this->supportsManagerReviews()
+            ? $this->managerReviews->findByCandidateId($candidateId)
+            : null;
         if ($review === null) {
             $review = [
                 'candidate_id' => $candidateId,
@@ -482,7 +491,9 @@ class RecruitmentController extends Controller
             'updated_by' => $actorId > 0 ? $actorId : null,
         ];
 
-        $this->managerReviews->upsertByCandidateId($candidateId, $reviewPayload);
+        if ($this->supportsManagerReviews()) {
+            $this->managerReviews->upsertByCandidateId($candidateId, $reviewPayload);
+        }
         $this->syncCandidateStatusAfterManagerWorkflow(
             $candidateId,
             (string) ($candidate['application_status'] ?? 'NEW'),
@@ -495,7 +506,9 @@ class RecruitmentController extends Controller
         // Avoid duplicate interview invitation emails:
         // official interview emails are sent from interviewStore/interviewUpdate only.
 
-        $savedReview = $this->managerReviews->findByCandidateId($candidateId);
+        $savedReview = $this->supportsManagerReviews()
+            ? $this->managerReviews->findByCandidateId($candidateId)
+            : array_merge(['candidate_id' => $candidateId], $reviewPayload);
         $updatedCandidate = $this->candidates->findDetail($candidateId);
         if (
             is_array($savedReview)
@@ -518,6 +531,9 @@ class RecruitmentController extends Controller
         if (!isset($_FILES['file']) || !is_array($_FILES['file'])) {
             throw new HttpException('CV file is required (field: file).', 422, 'validation_error');
         }
+        if (!$this->supportsCandidateCvStorage()) {
+            throw new HttpException('CV storage feature is not available in current schema.', 409, 'feature_unavailable');
+        }
 
         $actorId = (int) (($request->attribute('auth_user')['employee_id'] ?? 0));
         $uploadMeta = $this->validateUploadedCv($_FILES['file']);
@@ -527,6 +543,10 @@ class RecruitmentController extends Controller
 
     public function candidateDownloadCv(Request $request, array $params): array
     {
+        if (!$this->supportsCandidateCvStorage()) {
+            throw new HttpException('CV storage feature is not available in current schema.', 404, 'not_found');
+        }
+
         $candidateId = (int) ($params['id'] ?? 0);
         $cv = $this->candidateCvs->findFileByCandidate($candidateId);
         if ($cv === null) {
@@ -622,14 +642,18 @@ class RecruitmentController extends Controller
         $payload['interview_mode'] = $this->normalizeInterviewMode($payload['interview_mode'] ?? null);
         $payload['status'] = $this->normalizeInterviewStatus($payload['status'] ?? null);
         $payload['result'] = $this->normalizeInterviewResult($payload['result'] ?? null);
-        $payload['manager_decision'] = 'PENDING';
+        if ($this->supportsInterviewManagerColumns()) {
+            $payload['manager_decision'] = 'PENDING';
+        }
 
         $candidateRouting = $this->candidates->findInterviewRouting((int) $payload['candidate_id']);
         if ($candidateRouting === null) {
             throw new HttpException('Candidate not found', 404, 'not_found');
         }
-        $managerId = (int) ($candidateRouting['department_manager_id'] ?? 0);
-        $payload['department_manager_id'] = $managerId > 0 ? $managerId : null;
+        if ($this->supportsInterviewManagerColumns()) {
+            $managerId = (int) ($candidateRouting['department_manager_id'] ?? 0);
+            $payload['department_manager_id'] = $managerId > 0 ? $managerId : null;
+        }
 
         $actorId = (int) (($request->attribute('auth_user')['employee_id'] ?? 0));
         $payload['created_by'] = $actorId > 0 ? $actorId : null;
@@ -683,7 +707,9 @@ class RecruitmentController extends Controller
         if (isset($payload['result'])) {
             $payload['result'] = $this->normalizeInterviewResult((string) $payload['result']);
         }
-        if (isset($payload['manager_decision'])) {
+        if (!$this->supportsInterviewManagerColumns()) {
+            unset($payload['department_manager_id'], $payload['manager_review_notes'], $payload['manager_decision'], $payload['reviewed_at']);
+        } elseif (isset($payload['manager_decision'])) {
             $payload['manager_decision'] = $this->normalizeInterviewResult((string) $payload['manager_decision']);
             if (in_array($payload['manager_decision'], ['PASS', 'FAIL'], true) && !isset($payload['reviewed_at'])) {
                 $payload['reviewed_at'] = date('Y-m-d H:i:s');
@@ -714,6 +740,10 @@ class RecruitmentController extends Controller
 
     public function interviewManagerReview(Request $request, array $params): array
     {
+        if (!$this->supportsInterviewManagerColumns()) {
+            throw new HttpException('Interview manager review is not available in current schema.', 409, 'feature_unavailable');
+        }
+
         $id = (int) ($params['id'] ?? 0);
         $context = $this->interviews->findReviewContext($id);
         if ($context === null) {
@@ -770,7 +800,7 @@ class RecruitmentController extends Controller
                 'updated_by' => $actorId,
                 'created_by' => $actorId,
             ];
-            if ($candidateId > 0) {
+            if ($candidateId > 0 && $this->supportsManagerReviews()) {
                 $this->managerReviews->upsertByCandidateId($candidateId, $reviewPayload);
             }
             $this->syncCandidateStatusAfterManagerWorkflow(
@@ -784,6 +814,60 @@ class RecruitmentController extends Controller
         }
 
         return $this->ok($saved, 'Department manager review saved');
+    }
+
+    private function recruitmentFeatureSupport(): array
+    {
+        if (is_array($this->recruitmentFeatureSupport)) {
+            return $this->recruitmentFeatureSupport;
+        }
+
+        $connection = Database::connection();
+        $tables = [];
+        $tableStmt = $connection->query("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()");
+        foreach (($tableStmt?->fetchAll(\PDO::FETCH_COLUMN) ?: []) as $tableName) {
+            $tables[(string) $tableName] = true;
+        }
+
+        $interviewColumns = [];
+        if (isset($tables['interview_schedules'])) {
+            $columnStmt = $connection->prepare("
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'interview_schedules'
+            ");
+            $columnStmt->execute();
+            foreach (($columnStmt->fetchAll(\PDO::FETCH_COLUMN) ?: []) as $columnName) {
+                $interviewColumns[(string) $columnName] = true;
+            }
+        }
+
+        $this->recruitmentFeatureSupport = [
+            'manager_reviews' => isset($tables['recruitment_candidate_manager_reviews']),
+            'candidate_cv_storage' => isset($tables['recruitment_candidate_cvs']),
+            'interview_manager_columns' => isset($interviewColumns['department_manager_id'])
+                && isset($interviewColumns['manager_decision'])
+                && isset($interviewColumns['manager_review_notes'])
+                && isset($interviewColumns['reviewed_at']),
+        ];
+
+        return $this->recruitmentFeatureSupport;
+    }
+
+    private function supportsManagerReviews(): bool
+    {
+        return (bool) ($this->recruitmentFeatureSupport()['manager_reviews'] ?? false);
+    }
+
+    private function supportsCandidateCvStorage(): bool
+    {
+        return (bool) ($this->recruitmentFeatureSupport()['candidate_cv_storage'] ?? false);
+    }
+
+    private function supportsInterviewManagerColumns(): bool
+    {
+        return (bool) ($this->recruitmentFeatureSupport()['interview_manager_columns'] ?? false);
     }
 
     private function normalizeEmploymentType(mixed $value): string

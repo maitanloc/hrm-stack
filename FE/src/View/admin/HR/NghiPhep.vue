@@ -349,8 +349,9 @@
  */
 import { ref, computed, onMounted, watch } from 'vue';
 import Dropdown from '@/components/Dropdown.vue';
-import { mockLeaveRequests, mockEmployees, mockDepartments, mockRequestTypes, mockAttendances } from '@/mock-data/index.js';
+import { apiRequest } from '@/services/beApi.js';
 import { useConfirm } from '@/composables/useConfirm';
+import { fixMojibake } from '@/utils/textEncodingFixed.js';
 
 const { showAlert } = useConfirm();
 
@@ -362,6 +363,67 @@ const currentPage = ref(1);
 const pageSize = 10;
 const showAttendanceModal = ref(false);
 const isProcessingAttendance = ref(false);
+const employees = ref([]);
+const departments = ref([]);
+const requestTypes = ref([]);
+
+const LEAVE_TYPE_LABEL_BY_CODE = {
+  PHEP_NAM: 'Nghỉ phép năm',
+  OM_DAU: 'Nghỉ ốm',
+  KHONG_LUONG: 'Nghỉ không lương',
+  CONG_TAC: 'Công tác',
+  REMOTE: 'Làm việc từ xa',
+};
+
+const normalizeText = (value) => fixMojibake(String(value ?? '')).replace(/\s+/g, ' ').trim();
+
+const normalizeStatusToken = (value) =>
+  normalizeText(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .toUpperCase();
+
+const mapLeaveStatus = (rawStatus) => {
+  const token = normalizeStatusToken(rawStatus);
+  const compact = token.replace(/_/g, '');
+
+  if (token.includes('TU_CHOI') || token.includes('REJECTED') || compact.includes('TUCHOI')) {
+    return { status: 'rejected', text: 'Từ chối' };
+  }
+  if (token.includes('CHO_XAC_NHAN_HR') || compact.includes('CHOXACNHANHR') || (token.includes('HR') && token.includes('CHO'))) {
+    return { status: 'waiting_hr', text: 'Chờ HR xác nhận' };
+  }
+  if (token.includes('CHO_GIAM_DOC_DUYET') || compact.includes('CHOGIAMDOCDUYET') || (token.includes('GIAM_DOC') && token.includes('CHO'))) {
+    return { status: 'waiting_director', text: 'Chờ Giám đốc duyệt' };
+  }
+  if (token.includes('DA_DUYET') || token.includes('APPROVED') || compact.includes('DADUYET')) {
+    return { status: 'approved', text: 'Đã duyệt' };
+  }
+  return { status: 'pending', text: 'Chờ Trưởng phòng duyệt' };
+};
+
+const resolveLeaveTypeLabel = (req, requestTypeMap) => {
+  const leaveCode = normalizeText(req.leave_type_code || req.leaveTypeCode).toUpperCase();
+  if (leaveCode && LEAVE_TYPE_LABEL_BY_CODE[leaveCode]) {
+    return LEAVE_TYPE_LABEL_BY_CODE[leaveCode];
+  }
+
+  const leaveTypeName = normalizeText(req.leave_type_name || req.leaveTypeName);
+  if (leaveTypeName && !/\?/.test(leaveTypeName)) {
+    return leaveTypeName;
+  }
+
+  const requestTypeId = req.request_type_id ?? req.requestTypeId;
+  const requestType = requestTypeMap.get(String(requestTypeId));
+  const requestTypeName = normalizeText(requestType?.request_type_name ?? requestType?.requestTypeName ?? '');
+  if (requestTypeName && !/\?/.test(requestTypeName)) {
+    return requestTypeName;
+  }
+
+  return 'Nghỉ phép';
+};
 
 const leaveStats = ref([
   { label: 'Yêu cầu chờ duyệt', value: '12', unit: 'HỒ SƠ', icon: 'pending_actions', bgClass: 'bg-[var(--sys-warning-soft)] text-[var(--sys-warning-text)]' },
@@ -379,7 +441,9 @@ const tabOptions = [
 ];
 
 const deptOptions = computed(() => {
-  const depts = mockDepartments;
+  const depts = departments.value.map((d) => ({
+    departmentName: d.department_name ?? d.departmentName ?? '',
+  }));
   return [
     { label: 'Phòng ban: Tất cả', value: 'ALL' },
     ...depts.map(d => ({
@@ -398,77 +462,83 @@ const requests = ref([]);
 
 const fetchData = async () => {
   try {
-    const res = await fetch('http://localhost:3000/leaveRequests');
-    const requestsRes = await res.json();
+    const [requestsRes, empRes, deptRes, typeRes] = await Promise.all([
+      apiRequest('/leave-requests', { query: { page: 1, per_page: 5000 }, noGetCache: true }),
+      apiRequest('/employees', { query: { page: 1, per_page: 5000 }, noGetCache: true }),
+      apiRequest('/departments', { query: { page: 1, per_page: 1000 }, noGetCache: true }),
+      apiRequest('/request-types', { query: { page: 1, per_page: 1000 }, noGetCache: true }),
+    ]);
+    employees.value = empRes?.data || [];
+    departments.value = deptRes?.data || [];
+    requestTypes.value = typeRes?.data || [];
 
-    // Map dữ liệu từ server sang cấu trúc giao diện
-    requests.value = requestsRes.map(req => {
-      // 1. Xác định định danh nhân sự đa kênh
-      const empIdForLookup = req.requesterId || req.employeeId || req.userId || req.id;
-      const lookupName = req.name || req.requesterName || req.requester_name;
-      
-      // 2. Tìm kiếm thông tin từ Mock Data (Cực kỳ mạnh mẽ)
-      const emp = mockEmployees.find(e => 
-        (empIdForLookup && (String(e.employeeId) === String(empIdForLookup) || String(e.id) === String(empIdForLookup) || String(e.employeeCode) === String(empIdForLookup))) ||
-        (lookupName && String(e.fullName).toLowerCase() === String(lookupName).toLowerCase())
-      ) || {};
-      
-      // 3. Ưu tiên lấy tên và MSNV thực tế
-      const finalName = emp.fullName || lookupName || 'Nhân viên N/A';
-      const finalMsnv = emp.employeeCode || req.msnv || (typeof empIdForLookup === 'string' && empIdForLookup.includes('NV') ? empIdForLookup : null) || 'NV' + String(empIdForLookup).padStart(5, '0');
-      
-      // 4. Giải quyết Phòng ban chính xác nhất
-      let deptName = 'N/A';
-      const actualEmpDept = emp.department?.departmentName || emp.departmentName || emp.deptName;
-      if (actualEmpDept) {
-        deptName = actualEmpDept;
-      } else {
-        // Dự phòng tìm theo ID phòng ban trong bản ghi
-        const dId = req.department_id || req.departmentId || req.deptId || emp.departmentId;
-        const dept = mockDepartments.find(d => 
-          String(d.departmentId) === String(dId) || 
-          String(d.id) === String(dId) ||
-          String(d.departmentName).toLowerCase() === String(req.department).toLowerCase()
-        );
-        deptName = dept?.departmentName || dept?.name || req.department || req.deptName || 'Ban Giám Đốc';
-      }
+    const employeeById = new Map(
+      employees.value.map((employee) => [String(employee.employee_id ?? employee.employeeId ?? employee.id), employee]),
+    );
+    const deptById = new Map(
+      departments.value.map((department) => [String(department.department_id ?? department.departmentId ?? department.id), department]),
+    );
+    const requestTypeMap = new Map(
+      requestTypes.value.map((type) => [String(type.request_type_id ?? type.requestTypeId), type]),
+    );
 
-      const typeObj = mockRequestTypes.getById(req.requestTypeId);
-      const typeName = req.requestTypeId === 99 ? (req.other_reason_name || 'Khác') : (typeObj?.requestTypeName || req.type || req.request_type || 'Nghỉ phép');
-      
-      const startDate = req.startDate || req.start_date || '';
-      const endDate = req.endDate || req.end_date || startDate;
+    requests.value = (requestsRes?.data || []).map((req) => {
+      const employeeId = req.employee_id ?? req.employeeId ?? req.requester_id ?? req.requesterId ?? req.user_id ?? req.userId ?? null;
+      const employee = employeeId !== null ? employeeById.get(String(employeeId)) : null;
+      const fallbackName = normalizeText(req.employee_name || req.requester_name || req.requesterName || req.full_name || req.name);
+
+      const employeeCode = normalizeText(
+        req.employee_code
+        || req.employeeCode
+        || employee?.employee_code
+        || employee?.employeeCode,
+      ) || (employeeId ? `NV${String(employeeId).padStart(4, '0')}` : 'NV-NA');
+      const name = normalizeText(employee?.full_name ?? employee?.fullName ?? fallbackName) || `Nhân sự ${employeeCode}`;
+
+      const departmentId = req.department_id ?? req.departmentId ?? employee?.department_id ?? employee?.departmentId ?? null;
+      const department = deptById.get(String(departmentId || ''));
+      const departmentName = normalizeText(
+        req.department_name
+        || req.departmentName
+        || department?.department_name
+        || department?.departmentName
+        || employee?.department_name
+        || employee?.departmentName,
+      ) || 'Chưa rõ phòng ban';
+
+      const roleName = normalizeText(
+        req.position_name
+        || req.positionName
+        || employee?.position_name
+        || employee?.positionName
+        || employee?.position?.position_name
+        || employee?.position?.positionName,
+      ) || 'Nhân viên';
+
+      const startDate = String(req.from_date || req.fromDate || req.start_date || req.startDate || '').slice(0, 10);
+      const endDate = String(req.to_date || req.toDate || req.end_date || req.endDate || startDate).slice(0, 10);
+      const leaveTypeName = resolveLeaveTypeLabel(req, requestTypeMap);
+      const mappedStatus = mapLeaveStatus(req.request_status ?? req.status);
 
       return {
-        id: req.id || req.requestId,
-        name: finalName,
-        msnv: finalMsnv,
-        department: deptName,
-        role: emp.position?.positionName || emp.positionName || req.role || 'Nhân viên',
-        type: String(typeName).toUpperCase(),
-        typeDetail: typeName,
+        id: req.leave_request_id || req.leaveRequestId || req.request_id || req.requestId || req.id,
+        employeeId: employeeId ? Number(employeeId) : null,
+        name,
+        msnv: employeeCode,
+        department: departmentName,
+        role: roleName,
+        type: leaveTypeName.toUpperCase(),
+        typeDetail: leaveTypeName,
         dateRange: startDate === endDate ? startDate : `${startDate} - ${endDate}`,
         fullDateRange: startDate === endDate ? startDate : `${startDate} - ${endDate}`,
-        days: Number(req.days) || 1,
-        status: req.status === 'approved' || req.status === 'ĐÃ_DUYỆT'
-          ? 'approved'
-          : (req.status === 'rejected' || req.status === 'TỪ_CHỐI'
-            ? 'rejected'
-            : (req.status === 'CHỜ_XÁC_NHẬN_HR'
-              ? 'waiting_hr'
-              : (req.status === 'CHỜ_GIÁM_ĐỐC_DUYỆT' ? 'waiting_director' : 'pending'))),
-        statusText: req.status === 'approved' || req.status === 'ĐÃ_DUYỆT'
-          ? 'Đã duyệt'
-          : (req.status === 'rejected' || req.status === 'TỪ_CHỐI'
-            ? 'Từ chối'
-            : (req.status === 'CHỜ_XÁC_NHẬN_HR'
-              ? 'Chờ HR xác nhận'
-              : (req.status === 'CHỜ_GIÁM_ĐỐC_DUYỆT' ? 'Chờ Giám đốc duyệt' : 'Chờ Trưởng phòng duyệt'))),
-        reason: req.reason || req.notes || 'Không có lý do',
-        balance: emp.baseLeaveDays || 12,
+        days: Number(req.number_of_days ?? req.days ?? req.duration ?? 1) || 1,
+        status: mappedStatus.status,
+        statusText: mappedStatus.text,
+        reason: normalizeText(req.request_reason || req.reason || req.request_notes || req.notes) || 'Không có lý do',
+        balance: Number(employee?.base_leave_days ?? employee?.baseLeaveDays ?? 12) || 12,
         warnings: req.urgent || req.is_urgent ? ['Yêu cầu khẩn cấp'] : [],
-        approver_manager: req.approver_manager,
-        approver_director: req.approver_director
+        approver_manager: normalizeText(req.approver_manager),
+        approver_director: normalizeText(req.approver_director),
       };
     });
     
@@ -494,7 +564,7 @@ onMounted(() => {
   fetchData();
 });
 
-const activeRequestId = ref(1);
+const activeRequestId = ref(null);
 
 const activeRequest = computed(() => {
   return requests.value.find(r => r.id === activeRequestId.value) || null;
@@ -535,36 +605,32 @@ watch([activeTab, filterDept, searchQuery], () => {
 
 const rejectComment = ref('');
 
-const notifyUserAction = async (empId, status) => {
+const notifyUserAction = async (employeeId, status) => {
+  if (!employeeId) return;
   try {
-    await fetch('http://localhost:3000/notifications', {
+    await apiRequest('/notifications', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: empId,
-        type: status === 'ĐÃ_DUYỆT' ? 'success' : 'danger',
+      body: {
+        receiver_id: Number(employeeId),
         title: 'Thông báo xét duyệt Nghỉ phép',
-        desc: `Ban lãnh đạo đã ${status === 'ĐÃ_DUYỆT' ? 'PHÊ DUYỆT' : 'TỪ CHỐI'} đơn nghỉ phép của bạn.`,
-        time: 'Vừa xong',
-        isRead: false,
-        icon: 'notifications'
-      })
-    });
+        content: `Ban lãnh đạo đã ${status === 'ĐÃ_DUYỆT' ? 'PHÊ DUYỆT' : 'TỪ CHỐI'} đơn nghỉ phép của bạn.`,
+        notification_type: 'SYSTEM',
+      },
+    }).catch(() => null);
   } catch (e) { console.error('Notify Error:', e); }
 };
 
 const handleApprove = async (req) => {
   try {
-    await fetch(`http://localhost:3000/leaveRequests/${req.id}`, {
+    await apiRequest(`/leave-requests/${req.id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
+      body: { 
         status: 'approved', // Using 'approved' consistently with mappings
         statusText: 'Đã duyệt',
         approver_director: 'Ban Giám Đốc'
-      })
+      }
     });
-    await notifyUserAction(req.msnv, 'ĐÃ_DUYỆT');
+    await notifyUserAction(req.employeeId, 'ĐÃ_DUYỆT');
     rejectComment.value = '';
     await fetchData();
     activeRequestId.value = null;
@@ -575,16 +641,15 @@ const handleApprove = async (req) => {
 
 const handleConfirmHR = async (req) => {
   try {
-    await fetch(`http://localhost:3000/leaveRequests/${req.id}`, {
+    await apiRequest(`/leave-requests/${req.id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
+      body: { 
         status: 'approved',
         statusText: 'Đã duyệt',
         approver_hr: 'Phòng Nhân Sự'
-      })
+      }
     });
-    await notifyUserAction(req.msnv, 'ĐÃ_DUYỆT');
+    await notifyUserAction(req.employeeId, 'ĐÃ_DUYỆT');
     await fetchData();
     showAttendanceModal.value = true;
   } catch (err) {
@@ -606,23 +671,26 @@ const markAttendance = async () => {
       current.setDate(current.getDate() + 1);
     }
 
+    const employeeId = Number(
+      activeRequest.value.employeeId
+      ?? employees.value.find((employee) => String(employee.employee_code ?? employee.employeeCode) === String(activeRequest.value.msnv))?.employee_id
+      ?? 0,
+    );
+    if (!employeeId) {
+      await showAlert('THIẾU DỮ LIỆU', 'Không xác định được nhân sự để chấm công tự động.');
+      return;
+    }
+
     for (const date of dates) {
-      // Find the actual employee record to get the correct numeric employeeId
-      const emp = mockEmployees.find(e => e.employeeCode === activeRequest.value.msnv);
-      await fetch('http://localhost:3000/attendances', {
+      await apiRequest('/attendances', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          employeeId: emp?.employeeId || activeRequest.value.msnv,
-          attendanceDate: date,
-          checkIn1: "08:00:00",
-          checkOut1: "12:00:00",
-          checkIn2: "13:30:00",
-          checkOut2: "17:30:00",
-          status: "ontime",
-          notes: `Chấm công tự động từ đơn nghỉ phép #${activeRequest.value.id}`
-        })
-      });
+        body: {
+          employee_id: employeeId,
+          attendance_date: date,
+          status: 'ĐÃ_DUYỆT',
+          notes: `Chấm công tự động từ đơn nghỉ phép #${activeRequest.value.id}`,
+        }
+      }).catch(() => null);
     }
     
     await showAlert('THÀNH CÔNG', `Đã chấm công tự động cho ${activeRequest.value.name} từ ${dates[0]} đến ${dates[dates.length-1]}`);
@@ -642,15 +710,14 @@ const confirmRejectAction = async (req) => {
     return;
   }
   try {
-    await fetch(`http://localhost:3000/leaveRequests/${req.id}`, {
+    await apiRequest(`/leave-requests/${req.id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
+      body: { 
         status: 'TỪ_CHỐI',
         rejectionReason: rejectComment.value 
-      })
+      }
     });
-    await notifyUserAction(req.msnv, 'TỪ_CHỐI');
+    await notifyUserAction(req.employeeId, 'TỪ_CHỐI');
     rejectComment.value = '';
     await fetchData();
     activeRequestId.value = null;

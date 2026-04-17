@@ -70,6 +70,8 @@ class SalaryDetail extends Model
         $sql = "SELECT sd.*,
                        e.employee_code,
                        e.full_name,
+                       d.department_name,
+                       p.position_name,
                        sp.period_code,
                        sp.period_name,
                        sp.status AS period_status,
@@ -89,6 +91,18 @@ class SalaryDetail extends Model
                        ) AS applied_adjustment_total
                 FROM salary_details sd
                 JOIN employees e ON e.employee_id = sd.employee_id
+                LEFT JOIN (
+                    SELECT eh1.employee_id, eh1.department_id, eh1.position_id
+                    FROM employment_histories eh1
+                    JOIN (
+                        SELECT employee_id, MAX(history_id) AS max_history_id
+                        FROM employment_histories
+                        WHERE is_current = 1
+                        GROUP BY employee_id
+                    ) current_eh ON current_eh.max_history_id = eh1.history_id
+                ) eh ON eh.employee_id = e.employee_id
+                LEFT JOIN departments d ON d.department_id = eh.department_id
+                LEFT JOIN positions p ON p.position_id = eh.position_id
                 JOIN salary_periods sp ON sp.period_id = sd.period_id
                 $whereSql
                 ORDER BY sd.salary_detail_id DESC
@@ -122,6 +136,8 @@ class SalaryDetail extends Model
         $sql = "SELECT sd.*,
                        e.employee_code,
                        e.full_name,
+                       d.department_name,
+                       p.position_name,
                        sp.period_code,
                        sp.period_name,
                        sp.status AS period_status,
@@ -141,6 +157,18 @@ class SalaryDetail extends Model
                        ) AS applied_adjustment_total
                 FROM salary_details sd
                 JOIN employees e ON e.employee_id = sd.employee_id
+                LEFT JOIN (
+                    SELECT eh1.employee_id, eh1.department_id, eh1.position_id
+                    FROM employment_histories eh1
+                    JOIN (
+                        SELECT employee_id, MAX(history_id) AS max_history_id
+                        FROM employment_histories
+                        WHERE is_current = 1
+                        GROUP BY employee_id
+                    ) current_eh ON current_eh.max_history_id = eh1.history_id
+                ) eh ON eh.employee_id = e.employee_id
+                LEFT JOIN departments d ON d.department_id = eh.department_id
+                LEFT JOIN positions p ON p.position_id = eh.position_id
                 JOIN salary_periods sp ON sp.period_id = sd.period_id
                 WHERE sd.salary_detail_id = :id
                 LIMIT 1";

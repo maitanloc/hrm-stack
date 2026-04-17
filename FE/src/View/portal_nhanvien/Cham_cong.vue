@@ -97,6 +97,14 @@
             </h3>
             <div class="space-y-3 flex-grow">
               <div class="flex justify-between items-center p-3 rounded-md bg-[var(--sys-bg-page)] border border-[var(--sys-border-subtle)]">
+                <span class="text-[12px] font-medium text-[var(--sys-text-secondary)]">Ca áp dụng:</span>
+                <span class="text-[13px] font-bold text-[var(--sys-text-primary)] text-right">{{ todayShiftTitle }}</span>
+              </div>
+              <div class="flex justify-between items-center p-3 rounded-md bg-[var(--sys-bg-page)] border border-[var(--sys-border-subtle)]">
+                <span class="text-[12px] font-medium text-[var(--sys-text-secondary)]">Trạng thái lịch:</span>
+                <span class="text-[13px] font-bold text-[var(--sys-text-primary)] text-right">{{ todayShiftMeta }}</span>
+              </div>
+              <div class="flex justify-between items-center p-3 rounded-md bg-[var(--sys-bg-page)] border border-[var(--sys-border-subtle)]">
                 <span class="text-[12px] font-medium text-[var(--sys-text-secondary)]">Thời điểm Vào 1:</span>
                 <span class="text-[13px] font-bold text-[var(--sys-text-primary)] text-right">{{ formatAttendancePoint(attendanceToday?.checkIn1, attendanceTodayDate) }}</span>
               </div>
@@ -285,12 +293,15 @@ import Dropdown from '@/components/Dropdown.vue';
 import { useCurrentUser } from '@/composables/useCurrentUser.js';
 import { BE_API_BASE, getAccessToken } from '@/services/runtimeConfig.js';
 import { handleUnauthorized } from '@/services/session.js';
+import { fetchMyShiftToday } from '@/services/workforceApi.js';
+import { loadGeoState, nowApiTime, requestAttendancePrecheck } from '@/services/attendanceGeo.js';
 
 const currentHours = ref('00');
 const currentMinutes = ref('00');
 const currentSeconds = ref('00');
 const currentDateStr = ref('');
 let timerInterval = null;
+let geoInterval = null;
 
 const selectedMonth = ref(new Date().getMonth() + 1);
 const selectedYear = ref(new Date().getFullYear());
@@ -309,10 +320,12 @@ const monthOptions = computed(() => {
   return Array.from({ length: maxMonth }, (_, i) => ({ label: `Tháng ${i + 1}`, value: i + 1 }));
 });
 
-const { employeeId: currentEmpId, fullName: currentUserName } = useCurrentUser();
+const { employeeId: currentEmpId } = useCurrentUser();
 const userId = computed(() => currentEmpId.value);
 const attendanceToday = ref(null);
 const attendanceRows = ref([]);
+const todayShiftContext = ref(null);
+const geoState = ref(loadGeoState() || null);
 
 const showToast = ref(false);
 const toastMsg = ref('');
@@ -367,6 +380,45 @@ const formatAttendancePoint = (value, attendanceDate) => {
 };
 
 const attendanceTodayDate = computed(() => attendanceToday.value?.attendance_date || '');
+const todayShiftTitle = computed(() => {
+  const payload = todayShiftContext.value || {};
+  const shift = payload.shift || null;
+  const holiday = payload.holiday || null;
+  const leave = payload.leave || null;
+  const remote = payload.remote || null;
+  const businessTrip = payload.business_trip || null;
+
+  if (holiday?.holiday_name) return holiday.holiday_name;
+  if (leave?.leave_type_name) return leave.leave_type_name;
+  if (businessTrip) return 'Công tác';
+  if (remote) return shift?.shift_name ? `${shift.shift_name} · Remote` : 'Làm việc từ xa';
+  if (shift?.shift_name) {
+    const window = [shift.start_time, shift.end_time].filter(Boolean).join(' - ');
+    return window ? `${shift.shift_name} · ${window}` : shift.shift_name;
+  }
+  return 'Chưa phân ca';
+});
+const todayShiftMeta = computed(() => {
+  const payload = todayShiftContext.value || {};
+  const shift = payload.shift || null;
+  const holiday = payload.holiday || null;
+  const leave = payload.leave || null;
+  const remote = payload.remote || null;
+  const businessTrip = payload.business_trip || null;
+
+  if (holiday?.description) return holiday.description;
+  if (holiday) return 'Hệ thống đang áp ngày nghỉ lễ cho hôm nay.';
+  if (leave) return 'Bạn đã có đơn nghỉ được duyệt trong ngày.';
+  if (businessTrip) return 'Ngày làm việc được chuyển sang lịch công tác.';
+  if (remote) return 'Ngày làm việc được xử lý theo lịch remote đã duyệt.';
+
+  const sourceMap = {
+    OVERRIDE: 'Ca được chỉnh riêng cho hôm nay.',
+    EMPLOYEE_DEFAULT: 'Ca mặc định cá nhân đang có hiệu lực.',
+    DEPARTMENT_SCHEDULE: 'Ca lấy từ lịch phân ca phòng ban.',
+  };
+  return sourceMap[String(shift?.source || '').toUpperCase()] || 'Hệ thống đang dùng lịch làm việc hiện tại.';
+});
 
 const lastLogTime = computed(() => {
   if (!attendanceToday.value) return '--:-- --/--/----';
@@ -379,6 +431,7 @@ const lastLogTime = computed(() => {
 });
 
 const canCheckIn = computed(() => {
+  if (!isGeoClockAllowed.value) return false;
   const row = attendanceToday.value;
   if (!row) return true; // check-in 1
   if (row.check_out_time_2) return false; // done
@@ -387,6 +440,7 @@ const canCheckIn = computed(() => {
 });
 
 const canCheckOut = computed(() => {
+  if (!isGeoClockAllowed.value) return false;
   const row = attendanceToday.value;
   if (!row) return false;
   if (row.check_out_time_2) return false;
@@ -395,6 +449,7 @@ const canCheckOut = computed(() => {
 });
 
 const checkInActionText = computed(() => {
+  if (!isGeoClockAllowed.value) return geoBlockedLabel.value;
   const row = attendanceToday.value;
   if (!row) return 'Vào lần 1';
   if (!row.check_out_time) return 'Chờ ra lần 1';
@@ -403,6 +458,7 @@ const checkInActionText = computed(() => {
 });
 
 const checkOutActionText = computed(() => {
+  if (!isGeoClockAllowed.value) return geoBlockedLabel.value;
   const row = attendanceToday.value;
   if (!row) return 'Ra lần 1';
   if (!row.check_out_time) return 'Ra lần 1';
@@ -441,10 +497,53 @@ const apiRequest = async (path, options = {}) => {
   }
   const payload = await res.json().catch(() => ({}));
   if (!res.ok || payload?.success === false) {
-    throw new Error(payload?.message || `Request failed (${res.status})`);
+    const error = new Error(payload?.message || `Request failed (${res.status})`);
+    error.status = res.status;
+    error.payload = payload;
+    throw error;
   }
   return payload;
 };
+
+const apiRequestWithFallback = async (primaryPath, fallbackPath, options = {}) => {
+  try {
+    return await apiRequest(primaryPath, options);
+  } catch (error) {
+    if (Number(error?.status) !== 404 || !fallbackPath) {
+      throw error;
+    }
+    return apiRequest(fallbackPath, options);
+  }
+};
+
+const geoRiskLevel = computed(() => {
+  const raw = geoState.value?.riskLevel ?? geoState.value?.raw?.risk_level ?? '';
+  return String(raw || '').toUpperCase();
+});
+
+const geoReasonCode = computed(() => {
+  const raw = geoState.value?.reasonCode ?? geoState.value?.raw?.reason_code ?? '';
+  return String(raw || '').toUpperCase();
+});
+
+const isGeoClockAllowed = computed(() => {
+  const risk = geoRiskLevel.value;
+  const allowClockIn = Boolean(
+    geoState.value?.allowClockIn
+      ?? geoState.value?.raw?.allow_clock_in
+      ?? geoState.value?.raw?.precheck_token
+  );
+  return allowClockIn && (risk === 'GREEN' || risk === 'YELLOW');
+});
+
+const geoBlockedLabel = computed(() => {
+  const reason = geoReasonCode.value;
+  if (reason === 'DEVICE_NOT_TRUSTED') return 'Thiết bị mới';
+  if (reason === 'PERMISSION_DENIED') return 'Bật GPS';
+  if (reason === 'INSECURE_CONTEXT') return 'Cần HTTPS';
+  if (geoRiskLevel.value === 'RED') return 'Ngoài vùng';
+  return 'Đang kiểm tra GPS';
+});
 
 const mapAttendanceStatusToUi = (statusRaw) => {
   const key = String(statusRaw || '').toUpperCase();
@@ -548,52 +647,48 @@ const loadAttendance = async () => {
     });
     const today = getLocalDateStr();
     attendanceToday.value = attendanceRows.value.find((it) => String(it.attendance_date || '') === today) || null;
+    try {
+      todayShiftContext.value = await fetchMyShiftToday(today);
+    } catch (shiftError) {
+      console.warn('Không tải được ca hôm nay cho màn chấm công:', shiftError);
+      todayShiftContext.value = null;
+    }
   } catch (error) {
     console.error('Load attendance error:', error);
     triggerToast(`Không tải được dữ liệu chấm công: ${error.message}`, 'danger');
   }
 };
 
-const nowSqlDatetime = () => {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  const hh = String(now.getHours()).padStart(2, '0');
-  const mm = String(now.getMinutes()).padStart(2, '0');
-  const ss = String(now.getSeconds()).padStart(2, '0');
-  return `${y}-${m}-${d} ${hh}:${mm}:${ss}`;
-};
-
 const handleCheckIn = async () => {
   try {
-    const stamp = nowSqlDatetime();
-    const dateStr = getLocalDateStr();
-    if (!attendanceToday.value) {
-      await apiRequest('/attendances', {
-        method: 'POST',
-        body: JSON.stringify({
-          employee_id: userId.value,
-          attendance_date: dateStr,
-          check_in_time: stamp,
-          check_in_method: 'MÁY_QUÉT',
-          status: 'CHỜ_DUYỆT',
-        }),
-      });
-      triggerToast('Ghi nhận vào lần 1 thành công!');
-    } else if (!attendanceToday.value.check_out_time) {
+    if (!isGeoClockAllowed.value) {
+      triggerToast('Bạn đang ngoài khu vực làm việc. Chỉ GREEN/YELLOW mới được chấm công.', 'danger');
+      return;
+    }
+    if (attendanceToday.value && !attendanceToday.value.check_out_time) {
       triggerToast('Hãy chấm ra lần 1 trước khi vào lần 2.', 'warning');
       return;
-    } else if (!attendanceToday.value.check_in_time_2) {
-      await apiRequest(`/attendances/${attendanceToday.value.attendance_id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ check_in_time_2: stamp }),
-      });
-      triggerToast('Ghi nhận vào lần 2 thành công!');
-    } else {
+    }
+    if (attendanceToday.value && attendanceToday.value.check_in_time_2) {
       triggerToast('Bạn đã hoàn tất các lượt vào hôm nay.', 'warning');
       return;
     }
+
+    const precheck = await refreshGeoPrecheck('CHECKIN');
+    if (!precheck?.precheck_token) {
+      triggerToast(precheck?.user_message || 'Ngoài vùng cho phép. Không thể chấm công.', 'danger');
+      return;
+    }
+
+    const payload = await apiRequestWithFallback('/attendance/checkin', '/attendance/clock-in', {
+      method: 'POST',
+      body: JSON.stringify({
+        employee_id: userId.value,
+        precheck_token: precheck.precheck_token,
+        client_time: nowApiTime(),
+      }),
+    });
+    triggerToast(payload?.data?.user_message || 'Chấm vào thành công!');
     await loadAttendance();
   } catch (error) {
     console.error('Check-in error:', error);
@@ -603,17 +698,29 @@ const handleCheckIn = async () => {
 
 const handleCheckOut = async () => {
   try {
-    const stamp = nowSqlDatetime();
+    if (!isGeoClockAllowed.value) {
+      triggerToast('Bạn đang ngoài khu vực làm việc. Chỉ GREEN/YELLOW mới được chấm công.', 'danger');
+      return;
+    }
     if (!attendanceToday.value || !attendanceToday.value.check_in_time) {
       triggerToast('Bạn chưa vào ca hôm nay.', 'danger');
       return;
     }
     if (!attendanceToday.value.check_out_time) {
-      await apiRequest(`/attendances/${attendanceToday.value.attendance_id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ check_out_time: stamp }),
+      const precheck = await refreshGeoPrecheck('CHECKOUT');
+      if (!precheck?.precheck_token) {
+        triggerToast(precheck?.user_message || 'Ngoài vùng cho phép. Không thể chấm công.', 'danger');
+        return;
+      }
+      const payload = await apiRequestWithFallback('/attendance/checkout', '/attendance/clock-out', {
+        method: 'POST',
+        body: JSON.stringify({
+          employee_id: userId.value,
+          precheck_token: precheck.precheck_token,
+          client_time: nowApiTime(),
+        }),
       });
-      triggerToast('Ghi nhận ra lần 1 thành công!');
+      triggerToast(payload?.data?.user_message || 'Chấm ra thành công!');
       await loadAttendance();
       return;
     }
@@ -622,11 +729,20 @@ const handleCheckOut = async () => {
       return;
     }
     if (!attendanceToday.value.check_out_time_2) {
-      await apiRequest(`/attendances/${attendanceToday.value.attendance_id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ check_out_time_2: stamp }),
+      const precheck = await refreshGeoPrecheck('CHECKOUT');
+      if (!precheck?.precheck_token) {
+        triggerToast(precheck?.user_message || 'Ngoài vùng cho phép. Không thể chấm công.', 'danger');
+        return;
+      }
+      const payload = await apiRequestWithFallback('/attendance/checkout', '/attendance/clock-out', {
+        method: 'POST',
+        body: JSON.stringify({
+          employee_id: userId.value,
+          precheck_token: precheck.precheck_token,
+          client_time: nowApiTime(),
+        }),
       });
-      triggerToast('Ghi nhận ra lần 2 thành công!');
+      triggerToast(payload?.data?.user_message || 'Chấm ra thành công!');
       await loadAttendance();
       return;
     }
@@ -634,6 +750,28 @@ const handleCheckOut = async () => {
   } catch (error) {
     console.error('Check-out error:', error);
     triggerToast(`Không thể chấm ra: ${error.message}`, 'danger');
+  }
+};
+
+const refreshGeoPrecheck = async (attendanceType = 'CHECKIN') => {
+  if (!userId.value) return null;
+  try {
+    const result = await requestAttendancePrecheck({
+      employeeId: userId.value,
+      attendanceType,
+    });
+    geoState.value = result?.state || null;
+    const precheck = result?.precheck || null;
+    const riskLevel = String(precheck?.risk_level || '').toUpperCase();
+    const allow = Boolean(precheck?.precheck_token) && (riskLevel === 'GREEN' || riskLevel === 'YELLOW');
+    if (!allow) {
+      triggerToast(precheck?.user_message || 'Bạn đang ngoài khu vực làm việc. Vui lòng đến đúng vị trí rồi thử lại.', 'danger');
+    }
+    return precheck;
+  } catch (error) {
+    const message = String(error?.message || 'Không lấy được GPS thật từ thiết bị. Vui lòng bật GPS rồi thử lại.');
+    triggerToast(message, 'danger');
+    return null;
   }
 };
 
@@ -700,10 +838,15 @@ onMounted(() => {
   updateTime();
   timerInterval = setInterval(updateTime, 1000);
   void loadAttendance();
+  void refreshGeoPrecheck('CHECKIN');
+  geoInterval = setInterval(() => {
+    void refreshGeoPrecheck('CHECKIN');
+  }, 45000);
 });
 
 onUnmounted(() => {
   if (timerInterval) clearInterval(timerInterval);
+  if (geoInterval) clearInterval(geoInterval);
 });
 
 const getStatusClass = (status) => {

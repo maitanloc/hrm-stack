@@ -52,9 +52,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { mockAssets, mockEmployees, mockDepartments } from '@/mock-data/index.js'
+import { apiRequest } from '@/services/beApi.js'
+import { getSessionItem } from '@/services/session.js'
 
-const userDeptId = localStorage.getItem('userDeptId') || '1';
+const userDeptId = Number(getSessionItem('userDeptId')) || 0
 const assets = ref([])
 const deptName = ref('Phòng ban')
 
@@ -67,51 +68,66 @@ const CATEGORY_ICON_MAP = {
   'Server': 'dns',
 }
 
+const normalizeCategoryName = (asset = {}) => {
+  const raw = String(asset.category_name || asset.category || asset.asset_name || '').trim()
+  if (!raw) return 'Thiết bị'
+  if (/laptop/i.test(raw)) return 'Laptop'
+  if (/m[aà]n|monitor/i.test(raw)) return 'Màn hình'
+  if (/chu[oộ]t|mouse/i.test(raw)) return 'Chuột'
+  if (/b[aà]n ph[ií]m|keyboard/i.test(raw)) return 'Bàn phím'
+  if (/m[aá]y in|printer/i.test(raw)) return 'Máy in'
+  if (/server/i.test(raw)) return 'Server'
+  return raw
+}
+
+const normalizeStatus = (status) => {
+  const code = String(status || '').toUpperCase()
+  if (['ASSIGNED', 'IN_USE', 'ĐANG_SỬ_DỤNG', 'ACTIVE'].includes(code)) return 'Tốt'
+  if (['AVAILABLE', 'SẴN_SÀNG', 'SAN_SANG'].includes(code)) return 'Tốt'
+  return 'Cần bảo trì'
+}
+
 const loadData = async () => {
   try {
-    const departmentResult = mockDepartments.find(d => Number(d.departmentId) === Number(userDeptId) || d.id === userDeptId);
-    if (departmentResult) {
-      deptName.value = departmentResult.departmentName || departmentResult.name || 'Phòng ban';
+    const [employeeRes, assetRes, assignmentRes] = await Promise.all([
+      apiRequest('/employees', { query: { page: 1, per_page: 1000, department_id: userDeptId || undefined } }),
+      apiRequest('/assets', { query: { page: 1, per_page: 1000 } }),
+      apiRequest('/asset-assignments', { query: { page: 1, per_page: 1000, status: 'ASSIGNED' } }),
+    ])
+
+    const employees = Array.isArray(employeeRes?.data) ? employeeRes.data : []
+    const allAssets = Array.isArray(assetRes?.data) ? assetRes.data : []
+    const allAssignments = Array.isArray(assignmentRes?.data) ? assignmentRes.data : []
+
+    if (employees.length > 0) {
+      deptName.value = employees[0]?.department_name || getSessionItem('userDeptName') || 'Phòng ban'
+    } else {
+      deptName.value = getSessionItem('userDeptName') || 'Phòng ban'
     }
 
-    const employeesResult = mockEmployees.filter(e => {
-      const dId = e.department?.departmentId || e.departmentId || e.deptId;
-      return Number(dId) === Number(userDeptId);
-    });
-    const allAssets = mockAssets;
-    
-    let filteredAssets = allAssets.filter(a => 
-      employeesResult.some(e => (e.employeeId || e.id) === (a.assignedTo || a.employeeId))
-    );
+    const employeeMap = new Map(employees.map((emp) => [Number(emp.employee_id || 0), emp]))
+    const scopeEmployeeIds = new Set(Array.from(employeeMap.keys()))
+    const scopedAssignments = allAssignments.filter((assignment) => scopeEmployeeIds.has(Number(assignment.employee_id || 0)))
+    const assetMap = new Map(allAssets.map((asset) => [Number(asset.asset_id || 0), asset]))
 
-    if (filteredAssets.length === 0 && employeesResult.length > 0) {
-      filteredAssets = employeesResult.map((emp, idx) => ({
-        assetId: 1000 + emp.employeeId,
-        assetCode: `AST-MOCK-${emp.employeeId}`,
-        assetName: idx % 2 === 0 ? 'Laptop Dell Latitude 7420' : 'Màn hình Dell Ultrasharp 27',
-        category: idx % 2 === 0 ? 'Laptop' : 'Màn hình',
-        assignedTo: emp.employeeId,
-        status: 'ĐANG_SỬ_DỤNG',
-        purchaseDate: '2023-01-15'
-      }));
-    }
-
-    assets.value = filteredAssets.map(a => {
-      const emp = employeesResult.find(e => (e.employeeId || e.id) === (a.assignedTo || a.employeeId));
+    assets.value = scopedAssignments.map((assignment) => {
+      const asset = assetMap.get(Number(assignment.asset_id || 0)) || {}
+      const emp = employeeMap.get(Number(assignment.employee_id || 0))
+      const category = normalizeCategoryName(asset)
       return {
-        id: a.assetId || a.id,
-        name: (a.assetName || a.name || '').toUpperCase(),
-        code: a.assetCode || a.code,
-        category: a.category || ((a.assetName || a.name || '').includes('Laptop') ? 'Laptop' : 'Màn hình'),
-        user: emp?.fullName || emp?.name || 'N/A',
-        status: a.status === 'ĐANG_SỬ_DỤNG' || a.condition === 'Like New' || a.condition === 'Good' ? 'Tốt' : 'Cần bảo trì',
-        date: a.purchaseDate || a.issueDate || 'N/A',
-        icon: CATEGORY_ICON_MAP[a.category] || ((a.assetName || a.name || '').includes('Laptop') ? 'laptop_mac' : 'monitor')
+        id: Number(assignment.assignment_id || 0),
+        name: String(asset.asset_name || 'THIẾT BỊ').toUpperCase(),
+        code: asset.asset_code || 'N/A',
+        category,
+        user: emp?.full_name || assignment.employee_name || 'N/A',
+        status: normalizeStatus(assignment.status || asset.status),
+        date: String(assignment.assigned_date || asset.purchase_date || '').slice(0, 10) || 'N/A',
+        icon: CATEGORY_ICON_MAP[category] || 'inventory_2',
       }
-    });
-
+    })
   } catch (error) {
     console.error('Lỗi tải dữ liệu tài sản:', error);
+    assets.value = []
   }
 }
 

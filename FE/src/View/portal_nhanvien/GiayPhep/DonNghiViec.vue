@@ -171,6 +171,7 @@ import { BE_API_BASE, getAccessToken } from '@/services/runtimeConfig.js';
 import { useCurrentUser } from '@/composables/useCurrentUser.js';
 import { useConfirm } from '@/composables/useConfirm.js';
 import { getCurrentUserRole } from '@/services/session.js';
+import { parseJsonResponseSafely } from '@/utils/textEncodingFixed.js';
 
 const finalDate = ref('');
 const reasonType = ref('');
@@ -238,7 +239,7 @@ const apiJson = async (path, options = {}) => {
       ...(options.headers || {}),
     },
   });
-  const payload = await response.json().catch(() => ({}));
+  const payload = await parseJsonResponseSafely(response);
   if (!response.ok || payload?.success === false) {
     throw new Error(payload?.message || 'Không thể xử lý yêu cầu.');
   }

@@ -397,9 +397,10 @@ const lastUpdated = ref(new Date().toLocaleTimeString('vi-VN', { hour: '2-digit'
 onMounted(async () => {
   await store.fetchTickets()
   intervalId.value = setInterval(async () => {
+    if (typeof document !== 'undefined' && document.hidden) return
     await store.fetchTickets()
     lastUpdated.value = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-  }, 10000) // 10s auto-refresh
+  }, 45000)
 })
 
 onUnmounted(() => {

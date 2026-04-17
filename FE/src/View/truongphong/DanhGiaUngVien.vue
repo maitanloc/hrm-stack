@@ -206,12 +206,13 @@ onMounted(async () => {
     console.warn('[tp-danhgia] refresh failed:', error?.message || error);
   }
   refreshTimer = setInterval(async () => {
+    if (typeof document !== 'undefined' && document.hidden) return;
     try {
       await refreshRecruitmentCandidates();
     } catch {
       // best effort
     }
-  }, 10000);
+  }, 45000);
 });
 
 onUnmounted(() => {

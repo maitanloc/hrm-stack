@@ -73,6 +73,7 @@
             <span class="material-symbols-rounded" style="font-size:24px;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24">notifications</span>
             <!-- M3 Badge dot -->
             <span
+              v-if="unreadNotificationsCount > 0"
               class="absolute top-1.5 right-1.5 flex h-2.5 w-2.5 rounded-full bg-[oklch(0.55_0.22_25)] items-center justify-center ring-2 ring-white"
             ></span>
           </button>
@@ -89,12 +90,14 @@
                 <h6
                   class="text-sm font-semibold mb-0 text-[var(--sys-text-primary)]"
                 >Thông báo</h6>
-                <span class="text-[10px] font-semibold text-[var(--sys-brand-solid)] uppercase tracking-wider">2 Mới</span>
+                <span v-if="unreadNotificationsCount > 0" class="text-[10px] font-semibold text-[var(--sys-brand-solid)] uppercase tracking-wider">{{ unreadNotificationsCount }} Mới</span>
               </div>
               <div class="max-h-[300px] overflow-y-auto">
-                <div v-for="notif in processedNotifications" :key="notif.id"
-                  class="p-3 flex gap-3 transition-colors cursor-default border-b border-[var(--sys-border-subtle)] hover:bg-[var(--sys-bg-hover)]"
+                <button v-for="notif in processedNotifications" :key="notif.id"
+                  type="button"
+                  class="w-full p-3 flex gap-3 text-left transition-colors border-b border-[var(--sys-border-subtle)] hover:bg-[var(--sys-bg-hover)]"
                   :class="{'opacity-60': notif.isRead}"
+                  @click="handleNotificationClick(notif)"
                 >
                   <div :class="[
                     'w-8 h-8 rounded-md flex items-center justify-center shrink-0',
@@ -109,7 +112,7 @@
                     <p class="text-[10px] text-[var(--sys-text-secondary)] font-medium line-clamp-2">{{ notif.desc }}</p>
                     <p class="text-[9px] text-[var(--sys-text-disabled)] mt-1">{{ notif.time }}</p>
                   </div>
-                </div>
+                </button>
                 <div v-if="processedNotifications.length === 0" class="p-8 text-center text-xs text-[var(--sys-text-disabled)]">
                   Không có thông báo mới
                 </div>
@@ -324,6 +327,12 @@
         <NavSection label="Nghiệp vụ hằng ngày" :expanded="sidebarExpanded" :is-dark="isDark" />
         <div :class="sidebarExpanded ? 'w-full flex flex-col gap-1' : 'px-2 flex flex-col items-center gap-1'">
           <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/admin/chamcong')" icon="schedule" label="Chấm công" :is-dark="isDark" to="/admin/chamcong" @click="handleNavClick" />
+          <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/admin/timesheet')" icon="table_chart" label="Tổng hợp Công" :is-dark="isDark" to="/admin/timesheet" @click="handleNavClick" />
+          <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/admin/exceptions')" icon="report_problem" label="Xử lý Ngoại lệ" :is-dark="isDark" to="/admin/exceptions" @click="handleNavClick" />
+          <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/admin/import-logs')" icon="upload_file" label="Nhập Log Máy" :is-dark="isDark" to="/admin/import-logs" @click="handleNavClick" />
+          <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/admin/payroll-export')" icon="point_of_sale" label="Xuất dữ liệu lương" :is-dark="isDark" to="/admin/payroll-export" @click="handleNavClick" />
+          <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/admin/phanca')" icon="edit_calendar" label="Phân ca làm việc" :is-dark="isDark" to="/admin/phanca" @click="handleNavClick" />
+          <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/admin/giam-sat-gps')" icon="pin_drop" label="Giám sát Geofence" :is-dark="isDark" to="/admin/giam-sat-gps" @click="handleNavClick" />
           <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/admin/nghiphep')" icon="event_busy" label="Nghỉ phép" :is-dark="isDark" to="/admin/nghiphep" @click="handleNavClick" :badge="3" />
           <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/admin/tuyendung')" icon="person_search" label="Tuyển dụng" :is-dark="isDark" to="/admin/tuyendung" @click="handleNavClick" />
           <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/admin/lichphongvan')" icon="calendar_today" label="Lịch phỏng vấn" :is-dark="isDark" to="/admin/lichphongvan" @click="handleNavClick" />
@@ -348,7 +357,10 @@
           sidebarExpanded ? 'w-full flex flex-col gap-1' : 'px-2 flex flex-col items-center gap-1'
         ]"
       >
+        <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/admin/api-ui')" icon="space_dashboard" label="API UI" :is-dark="isDark" to="/admin/api-ui" @click="handleNavClick" />
         <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/admin/caidat')" icon="settings" label="Cài đặt" :is-dark="isDark" to="/admin/caidat" @click="handleNavClick" />
+        <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/admin/policy')" icon="policy" label="Trung tâm Chính sách" :is-dark="isDark" to="/admin/policy" @click="handleNavClick" />
+        <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/admin/audit-logs')" icon="history_edu" label="Nhật ký hệ thống" :is-dark="isDark" to="/admin/audit-logs" @click="handleNavClick" />
       </div>
     </aside>
 
@@ -376,6 +388,7 @@ import { useRoute, useRouter, RouterLink } from 'vue-router';
 import { useConfirm } from '@/composables/useConfirm';
 import { useCurrentUser } from '@/composables/useCurrentUser';
 import { clearAuthSession, getCurrentUserRole } from '@/services/session.js';
+import { fetchNotifications as fetchNotificationsService, markNotificationRead } from '@/services/notificationsApi.js';
 
 const { fullName, email, avatar } = useCurrentUser();
 const { showConfirm } = useConfirm();
@@ -416,31 +429,39 @@ const currentUserRole = ref(getCurrentUserRole() || 'admin');
 const notificationDropdownRef = ref(null);
 const profileDropdownRef = ref(null);
 const liveNotifications = ref([]);
-
-const { employeeId: currentEmpId } = useCurrentUser();
+let notificationInterval = null;
 
 const fetchNotifications = async () => {
   try {
-    const res = await fetch(`http://localhost:3000/notifications?userId=${currentEmpId.value}&_sort=id&_order=desc&_limit=20`);
-    if (res.ok) {
-      liveNotifications.value = await res.json();
-    }
+    liveNotifications.value = await fetchNotificationsService({ perPage: 20 });
   } catch (error) {
     console.error('Lỗi khi tải thông báo:', error);
   }
 };
 
 const processedNotifications = computed(() => {
-  return liveNotifications.value.map(n => ({
-    id: n.id,
-    title: n.title,
-    desc: n.desc,
-    time: n.time || 'Vừa xong',
-    icon: n.icon || 'notifications',
-    type: n.type || 'info', // success, danger, warning, info
-    isRead: n.isRead
-  }));
+  return liveNotifications.value;
 });
+const unreadNotificationsCount = computed(() => liveNotifications.value.filter((item) => !item.isRead).length || 0);
+
+const handleNotificationClick = async (notification) => {
+  try {
+    if (!notification?.isRead) {
+      await markNotificationRead(notification.id);
+      await fetchNotifications();
+    }
+  } catch (error) {
+    console.error('Không cập nhật thông báo được:', error);
+  } finally {
+    isNotificationOpen.value = false;
+    const actionUrl = String(notification?.actionUrl || '').trim();
+    if (actionUrl) {
+      router.push(actionUrl);
+      return;
+    }
+    router.push('/admin/api-ui/system/notifications');
+  }
+};
 
 // ── Dark mode effect ───────────────────────────────────────────────────────
 watch(isDark, (val) => {
@@ -463,6 +484,7 @@ const currentPageLabel = computed(() => {
   if (path.startsWith('/admin/nhan-su')) return 'Nhân viên';
   if (path.startsWith('/admin/phong-ban')) return 'Phòng ban';
   if (path.startsWith('/admin/cham-cong')) return 'Chấm công';
+  if (path.startsWith('/admin/phanca')) return 'Phân ca làm việc';
   if (path.startsWith('/admin/nghi-phep')) return 'Nghỉ phép';
   if (path.startsWith('/admin/tuyen-dung')) return 'Tuyển dụng';
   if (path.startsWith('/admin/hop-dong')) return 'Hợp đồng';
@@ -474,6 +496,12 @@ const currentPageLabel = computed(() => {
   if (path.startsWith('/admin/phe-duyet')) return 'Phê duyệt đơn';
   if (path.startsWith('/admin/lich-phong-van')) return 'Lịch phỏng vấn';
   if (path.startsWith('/admin/ho-tro')) return 'Hỗ trợ nội bộ';
+  if (path.startsWith('/admin/timesheet')) return 'Tổng hợp Công';
+  if (path.startsWith('/admin/exceptions')) return 'Xử lý Ngoại lệ';
+  if (path.startsWith('/admin/import-logs')) return 'Nhập Log Máy';
+  if (path.startsWith('/admin/payroll-export')) return 'Xuất dữ liệu lương';
+  if (path.startsWith('/admin/policy')) return 'Trung tâm Chính sách';
+  if (path.startsWith('/admin/audit-logs')) return 'Nhật ký hệ thống';
   return 'Dashboard';
  });
 
@@ -503,17 +531,20 @@ const handleClickOutside = (event) => {
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
   fetchNotifications();
-  const interval = setInterval(fetchNotifications, 10000);
-  onUnmounted(() => {
-    document.removeEventListener('click', handleClickOutside);
-    clearInterval(interval);
-  });
+  notificationInterval = setInterval(() => {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    fetchNotifications();
+  }, 45000);
   
   // Check authentication
   const userRole = getCurrentUserRole();
   if (!userRole || (userRole !== 'admin' && userRole !== 'hr')) {
     router.push('/login');
   }
+});
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+  if (notificationInterval) clearInterval(notificationInterval);
 });
 
 // ── Logout ─────────────────────────────────────────────────────────────────

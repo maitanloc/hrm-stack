@@ -501,9 +501,13 @@ const resetAttendanceFilters = () => {
 };
 
 let pollInterval = null;
+const ATTENDANCE_POLL_INTERVAL_MS = 60000;
 onMounted(() => {
   void loadData();
-  pollInterval = setInterval(() => void loadData(), 15000);
+  pollInterval = setInterval(() => {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    void loadData();
+  }, ATTENDANCE_POLL_INTERVAL_MS);
 });
 
 onUnmounted(() => {

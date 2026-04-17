@@ -251,53 +251,129 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue';
 import GD_DateFilter from '@/components/GD_DateFilter.vue';
-import { mockEmployees, mockDepartments, mockLeaveRequests } from '@/mock-data/index.js';
+import { apiRequest } from '@/services/beApi.js';
 
 const selectedDateRange = ref('30_days');
 const isChartLoaded = ref(false);
+const employees = ref([]);
+const departments = ref([]);
+const leaveRequests = ref([]);
+const attendances = ref([]);
+
+const normalizeStatus = (value) => {
+  const raw = String(value || '').trim().toUpperCase();
+  if (raw.includes('ĐANG') || raw.includes('ACTIVE')) return 'ĐANG_LÀM_VIỆC';
+  return raw;
+};
+
+const loadData = async () => {
+  try {
+    const [empRes, deptRes, leaveRes, attRes] = await Promise.all([
+      apiRequest('/employees', { query: { page: 1, per_page: 5000 }, noGetCache: true }),
+      apiRequest('/departments', { query: { page: 1, per_page: 1000 }, noGetCache: true }),
+      apiRequest('/leave-requests', { query: { page: 1, per_page: 5000 }, noGetCache: true }),
+      apiRequest('/attendances', { query: { page: 1, per_page: 5000 }, noGetCache: true }).catch(() => ({ data: [] })),
+    ]);
+    employees.value = (empRes?.data || []).map((e) => ({
+      employeeId: e.employee_id ?? e.employeeId,
+      fullName: e.full_name ?? '',
+      departmentId: e.department_id ?? e.departmentId,
+      status: normalizeStatus(e.status),
+      avatarUrl: e.avatar_url ?? '',
+    }));
+    departments.value = (deptRes?.data || []).map((d) => ({
+      departmentId: d.department_id ?? d.departmentId,
+      departmentName: d.department_name ?? '',
+    }));
+    leaveRequests.value = leaveRes?.data || [];
+    attendances.value = attRes?.data || [];
+  } catch (error) {
+    console.error('Không tải được dữ liệu chuyên cần giám đốc:', error);
+  }
+};
 
 onMounted(() => {
+  loadData();
   setTimeout(() => isChartLoaded.value = true, 150);
 });
 
 const chuyenCanCards = computed(() => {
-  const reqs = mockLeaveRequests.filter(r => r.status === 'ĐÃ_DUYỆT');
+  const approvedLeaves = leaveRequests.value.filter((r) => {
+    const st = String(r.status || '').toUpperCase();
+    return st.includes('DUYỆT') || st.includes('APPROVED');
+  }).length;
+  const lateCount = attendances.value.filter((a) => String(a.status || '').toUpperCase().includes('MUỘN') || String(a.check_in_status || '').toUpperCase().includes('LATE')).length;
+  const present = attendances.value.filter((a) => {
+    const st = String(a.status || '').toUpperCase();
+    return st.includes('ĐÃ_DUYỆT') || st.includes('ON_TIME') || st.includes('P') || st.includes('L');
+  }).length;
+  const rate = attendances.value.length > 0 ? ((present / attendances.value.length) * 100).toFixed(1) : '0.0';
   return [
-    { id: 'ty-le', label: 'Tỷ lệ chuyên cần', icon: 'timelapse', iconBg: 'var(--sys-brand-solid-lch-90)', iconColor: 'var(--sys-brand-solid)', value: '98.5%', badgeGood: true, badgeTrend: 'up', badge: '1.2%', progress: 98.5 },
-    { id: 'di-tre', label: 'Đi trễ / Về sớm', icon: 'schedule', iconBg: 'var(--sys-warning-light)', iconColor: 'var(--sys-warning)', value: '45', valueSub: 'lần', badgeGood: false, badgeTrend: 'up', badge: '5%', note: 'Vs trung bình tháng trước' },
-    { id: 'nghi-phep', label: 'Đơn nghỉ phép/vắng mặt', icon: 'event_busy', iconBg: 'var(--sys-danger-light)', iconColor: 'var(--sys-danger)', value: reqs.length.toString(), valueSub: 'đơn', badgeGood: true, badgeTrend: 'down', badge: '10%', note: 'Đã duyệt toàn hệ thống' }
+    { id: 'ty-le', label: 'Tỷ lệ chuyên cần', icon: 'timelapse', iconBg: 'var(--sys-brand-solid-lch-90)', iconColor: 'var(--sys-brand-solid)', value: `${rate}%`, badgeGood: true, badgeTrend: 'up', badge: '1.2%', progress: Number(rate) },
+    { id: 'di-tre', label: 'Đi trễ / Về sớm', icon: 'schedule', iconBg: 'var(--sys-warning-light)', iconColor: 'var(--sys-warning)', value: String(lateCount), valueSub: 'lần', badgeGood: false, badgeTrend: 'up', badge: '5%', note: 'Vs trung bình tháng trước' },
+    { id: 'nghi-phep', label: 'Đơn nghỉ phép/vắng mặt', icon: 'event_busy', iconBg: 'var(--sys-danger-light)', iconColor: 'var(--sys-danger)', value: approvedLeaves.toString(), valueSub: 'đơn', badgeGood: true, badgeTrend: 'down', badge: '10%', note: 'Đã duyệt toàn hệ thống' }
   ];
 });
 
 const depts = computed(() => {
-  return mockDepartments.slice(0, 4).map((d, index) => {
-    return { name: d.departmentName, val: (99.5 - (index * 0.8)).toFixed(1) };
+  const activeEmps = employees.value.filter((e) => e.status === 'ĐANG_LÀM_VIỆC');
+  return departments.value.slice(0, 4).map((d) => {
+    const deptEmps = activeEmps.filter((e) => String(e.departmentId) === String(d.departmentId));
+    const ids = new Set(deptEmps.map((e) => String(e.employeeId)));
+    const deptAtt = attendances.value.filter((a) => ids.has(String(a.employee_id ?? a.employeeId)));
+    const approved = deptAtt.filter((a) => {
+      const st = String(a.status || '').toUpperCase();
+      return st.includes('DUYỆT') || st.includes('P') || st.includes('L') || st.includes('ON_TIME');
+    }).length;
+    const val = deptAtt.length > 0 ? ((approved / deptAtt.length) * 100).toFixed(1) : '0.0';
+    return { name: d.departmentName, val };
   });
 });
 
 const topUsers = computed(() => {
-  return mockEmployees.filter(e => e.status === 'ĐANG_LÀM_VIỆC').slice(0, 2).map((e, index) => {
-    const d = mockDepartments.getById(e.departmentId);
+  return employees.value.filter(e => e.status === 'ĐANG_LÀM_VIỆC').slice(0, 2).map((e, index) => {
+    const d = departments.value.find((dep) => String(dep.departmentId) === String(e.departmentId));
     return { name: e.fullName, dept: d ? d.departmentName : '', avatar: e.avatarUrl || `https://i.pravatar.cc/150?u=${index}`, val: '100%', subval: 'Chuyên cần' };
   });
 });
 
 const badUsers = computed(() => {
-  return mockEmployees.filter(e => e.status === 'ĐANG_LÀM_VIỆC').slice(2, 4).map((e, index) => {
-    const d = mockDepartments.getById(e.departmentId);
+  return employees.value.filter(e => e.status === 'ĐANG_LÀM_VIỆC').slice(2, 4).map((e, index) => {
+    const d = departments.value.find((dep) => String(dep.departmentId) === String(e.departmentId));
     return { name: e.fullName, dept: d ? d.departmentName : '', avatar: e.avatarUrl || `https://i.pravatar.cc/150?u=${index+10}`, val: (8 - index).toString(), subval: 'Lần đi trễ' };
   });
 });
 
-const chuyenCanLineChart = ref([98.5, 98.2, 98.6, 99.0, 98.8, 98.5]);
+const chuyenCanLineChart = computed(() => {
+  if (!attendances.value.length) return [0, 0, 0, 0, 0, 0];
+  const buckets = Array.from({ length: 6 }).map((_, idx) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - (5 - idx));
+    return { key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, total: 0, approved: 0 };
+  });
+  const map = new Map(buckets.map((b) => [b.key, b]));
+  attendances.value.forEach((a) => {
+    const day = String(a.attendance_date ?? a.date ?? '').slice(0, 7);
+    const bucket = map.get(day);
+    if (!bucket) return;
+    bucket.total += 1;
+    const st = String(a.status || '').toUpperCase();
+    if (st.includes('DUYỆT') || st.includes('P') || st.includes('L') || st.includes('ON_TIME')) bucket.approved += 1;
+  });
+  return buckets.map((b) => Number((b.total > 0 ? (b.approved / b.total) * 100 : 0).toFixed(1)));
+});
 
-const defaultAvg = chuyenCanLineChart.value.length ? (chuyenCanLineChart.value.reduce((a,b) => a+b, 0) / chuyenCanLineChart.value.length).toFixed(1) : '98.5';
+const defaultAvg = computed(() =>
+  chuyenCanLineChart.value.length
+    ? (chuyenCanLineChart.value.reduce((a, b) => a + b, 0) / chuyenCanLineChart.value.length).toFixed(1)
+    : '0.0'
+);
 
 const points = computed(() => {
   const minVal = 97.0;
   const maxVal = 100.0;
   const maxDiff = maxVal - minVal;
-  const numPoints = chuyenCanLineChart.value.length;
+  const numPoints = chuyenCanLineChart.value.length || 1;
 
   return chuyenCanLineChart.value.map((val, idx) => {
     // 0-100 coordinates

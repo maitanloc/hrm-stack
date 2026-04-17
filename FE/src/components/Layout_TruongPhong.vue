@@ -77,11 +77,12 @@
                 <span v-if="totalNotificationsCount > 0" class="px-2 py-0.5 rounded-full bg-[var(--sys-brand-soft)] text-[var(--sys-brand-solid)] text-[10px] font-bold uppercase tracking-wider">{{ totalNotificationsCount }} Mới</span>
               </div>
               <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
-                <div 
-                  v-for="req in recentPendingRequests" 
+                <button 
+                  v-for="req in recentNotifications" 
                   :key="req.id"
-                  class="p-3 flex gap-3 transition-colors cursor-pointer border-b border-[var(--sys-border-subtle)] hover:bg-[var(--sys-bg-hover)]"
-                  @click="router.push(req.link); isNotificationOpen = false"
+                  type="button"
+                  class="w-full p-3 flex gap-3 text-left transition-colors border-b border-[var(--sys-border-subtle)] hover:bg-[var(--sys-bg-hover)]"
+                  @click="handleNotificationClick(req)"
                 >
                   <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-[var(--sys-brand-soft)] text-[var(--sys-brand-solid)] border border-[var(--sys-brand-border)]">
                     <span class="material-symbols-rounded text-base" style="font-variation-settings:'FILL' 1">{{ req.icon }}</span>
@@ -94,10 +95,10 @@
                        <span v-if="req.urgent" class="text-[8px] px-1.5 py-0.5 bg-[var(--sys-danger-soft)] text-[var(--sys-danger-text)] rounded border border-[var(--sys-danger-border)] font-black uppercase tracking-widest">Khẩn</span>
                     </div>
                   </div>
-                </div>
-                <div v-if="recentPendingRequests.length === 0" class="p-8 text-center bg-transparent">
+                </button>
+                <div v-if="recentNotifications.length === 0" class="p-8 text-center bg-transparent">
                   <span class="material-symbols-rounded text-4xl text-[var(--sys-text-disabled)] opacity-20">notifications_off</span>
-                  <p class="text-[11px] font-bold text-[var(--sys-text-disabled)] mt-2 uppercase tracking-widest">Không có yêu cầu mới</p>
+                  <p class="text-[11px] font-bold text-[var(--sys-text-disabled)] mt-2 uppercase tracking-widest">Không có thông báo mới</p>
                 </div>
               </div>
               <div class="border-t p-2 text-center border-[var(--sys-border-subtle)] bg-[var(--sys-bg-surface)]">
@@ -263,6 +264,7 @@
         <NavSection label="Nghiệp vụ hằng ngày" :expanded="sidebarExpanded" :is-dark="isDark" />
         <div :class="sidebarExpanded ? 'w-full flex flex-col gap-1' : 'px-2 flex flex-col items-center gap-1'">
           <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/truongphong/chamcong')" icon="schedule" label="Chấm công" :is-dark="isDark" to="/truongphong/chamcong" @click="handleNavClick" />
+          <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/truongphong/phanca')" icon="edit_calendar" label="Phân ca làm việc" :is-dark="isDark" to="/truongphong/phanca" @click="handleNavClick" />
           <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/truongphong/nghiphep')" icon="event_busy" label="Nghỉ phép" :is-dark="isDark" to="/truongphong/nghiphep" @click="handleNavClick" :badge="pendingLeaveCount" />
           <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/truongphong/tuyendung')" icon="person_search" label="Tuyển dụng" :is-dark="isDark" to="/truongphong/tuyendung" @click="handleNavClick" />
           <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/truongphong/danhgiaungvien')" icon="rate_review" label="Đánh giá ứng viên" :is-dark="isDark" to="/truongphong/danhgiaungvien" @click="handleNavClick" />
@@ -308,10 +310,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { useConfirm } from '@/composables/useConfirm';
 import { useCurrentUser } from '@/composables/useCurrentUser';
 import { clearAuthSession, getSessionItem, getCurrentUserRole } from '@/services/session.js';
-import {
-  useManagerApplications,
-} from '@/composables/useRecruitmentStore';
-import { mockLeaveRequests, mockEmployees } from '@/mock-data/index.js';
+import { fetchNotifications as fetchNotificationsService, markNotificationRead } from '@/services/notificationsApi.js';
+import { apiRequest } from '@/services/beApi.js';
 
 const { fullName, email, avatar } = useCurrentUser();
 const { showConfirm } = useConfirm();
@@ -326,13 +326,11 @@ const isProfileOpen = ref(false);
 const notificationDropdownRef = ref(null);
 const profileDropdownRef = ref(null);
 
-const userId = getSessionItem('userId') || 'NV008';
 const userDeptId = getSessionItem('userDeptId') || '1';
 
-const { pendingEval: pendingRecruitments } = useManagerApplications(userDeptId);
-
 const allLeaveRequests = ref([]);
-const deptEmployees = ref([]);
+const liveNotifications = ref([]);
+let notificationInterval = null;
 
 const transitionName = ref('fade');
 watch(() => route.meta.index, (toIndex, fromIndex) => {
@@ -346,54 +344,66 @@ watch(isDark, (val) => {
 
 const fetchDeptData = async () => {
     try {
-        const [empRes, reqRes] = await Promise.all([
-          fetch(`http://localhost:3000/employees?deptId=${userDeptId}`),
-          fetch(`http://localhost:3000/leaveRequests?status=pending`)
-        ]);
-        deptEmployees.value = await empRes.json();
-        allLeaveRequests.value = await reqRes.json();
+        const payload = await apiRequest('/leave-requests', {
+          query: {
+            page: 1,
+            per_page: 200,
+            status: 'CHO_DUYET',
+          },
+        });
+        allLeaveRequests.value = Array.isArray(payload?.data) ? payload.data : [];
     } catch (e) { console.error(e); }
 };
 
-const pendingLeaveRequests = computed(() => {
-  return allLeaveRequests.value.filter(r => 
-    deptEmployees.value.some(e => e.id === r.employeeId)
-  );
-});
+const pendingLeaveRequests = computed(() => allLeaveRequests.value);
 
 const pendingLeaveCount = computed(() => {
   return pendingLeaveRequests.value.length || undefined;
 });
 
-const recentPendingRequests = computed(() => {
-  const leaves = pendingLeaveRequests.value.map(r => ({
-    id: `leave-${r.id}`,
-    requester: r.name || 'Nhân viên',
-    title: `Xin nghỉ phép: ${r.type}`,
-    time: r.requestDate || 'Hôm nay',
-    urgent: r.urgent,
-    type: 'leave',
-    icon: r.urgent ? 'priority_high' : 'event_busy',
-    link: '/truongphong/nghiphep'
-  }));
-
-  const recruitments = pendingRecruitments.value.map(c => ({
-    id: `recruit-${c.id}`,
-    requester: c.name,
-    title: `Thẩm định hồ sơ: ${c.position}`,
-    time: c.date,
-    urgent: false,
-    type: 'recruitment',
-    icon: 'person_search',
-    link: '/truongphong/tuyendung'
-  }));
-
-  return [...leaves, ...recruitments].slice(0, 5);
-});
+const recentNotifications = computed(() =>
+  liveNotifications.value.slice(0, 5).map((item) => ({
+    id: item.id,
+    requester: item.raw?.sender_name || 'Hệ thống',
+    title: item.title,
+    time: item.time,
+    urgent: item.type === 'warning',
+    icon: item.icon,
+    actionUrl: item.actionUrl,
+    isRead: item.isRead,
+  }))
+);
 
 const totalNotificationsCount = computed(() => {
-  return (pendingLeaveRequests.value.length + pendingRecruitments.value.length) || 0;
+  return liveNotifications.value.filter((item) => !item.isRead).length || 0;
 });
+
+const refreshNotifications = async () => {
+  try {
+    liveNotifications.value = await fetchNotificationsService({ perPage: 20 });
+  } catch (error) {
+    console.error('Không tải được thông báo trưởng phòng:', error);
+  }
+};
+
+const handleNotificationClick = async (notification) => {
+  try {
+    if (!notification?.isRead) {
+      await markNotificationRead(notification.id);
+      await refreshNotifications();
+    }
+  } catch (error) {
+    console.error('Không cập nhật trạng thái thông báo được:', error);
+  } finally {
+    isNotificationOpen.value = false;
+    const actionUrl = String(notification?.actionUrl || '').trim();
+    if (actionUrl.startsWith('/truongphong')) {
+      router.push(actionUrl);
+      return;
+    }
+    router.push('/truongphong/dashboard');
+  }
+};
 
 const isActive = (path) => route.path.startsWith(path);
 
@@ -403,6 +413,7 @@ const currentPageLabel = computed(() => {
   if (path.includes('/nhan-su')) return 'Nhân viên phòng';
   if (path.includes('/hop-dong')) return 'Hợp đồng';
   if (path.includes('/cham-cong')) return 'Chấm công';
+  if (path.includes('/phanca')) return 'Phân ca làm việc';
   if (path.includes('/nghi-phep')) return 'Nghỉ phép';
   if (path.includes('/tuyen-dung')) return 'Tuyển dụng';
   if (path.includes('/bang-luong')) return 'Bảng lương';
@@ -434,8 +445,16 @@ onMounted(() => {
   }
   
   fetchDeptData();
+  void refreshNotifications();
+  notificationInterval = setInterval(() => {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    void refreshNotifications();
+  }, 45000);
 });
-onUnmounted(() => document.removeEventListener('click', handleClickOutside));
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+  if (notificationInterval) clearInterval(notificationInterval);
+});
 
 const logout = async () => {
   const ok = await showConfirm('Xác nhận đăng xuất', 'Bạn có chắc chắn muốn thoát khỏi hệ thống không?');

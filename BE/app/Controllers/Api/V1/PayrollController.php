@@ -15,6 +15,8 @@ use App\Models\PayrollAdjustment;
 use App\Models\SalaryBreakdown;
 use App\Models\SalaryDetail;
 use App\Models\SalaryPeriod;
+use App\Services\WorkflowAuditService;
+use App\Services\WorkflowTransitionGuardService;
 use Throwable;
 
 class PayrollController extends Controller
@@ -23,6 +25,8 @@ class PayrollController extends Controller
     private SalaryDetail $details;
     private SalaryBreakdown $breakdowns;
     private PayrollAdjustment $adjustments;
+    private WorkflowTransitionGuardService $workflowTransitionGuard;
+    private WorkflowAuditService $workflowAuditService;
 
     public function __construct()
     {
@@ -30,6 +34,8 @@ class PayrollController extends Controller
         $this->details = new SalaryDetail();
         $this->breakdowns = new SalaryBreakdown();
         $this->adjustments = new PayrollAdjustment();
+        $this->workflowTransitionGuard = new WorkflowTransitionGuardService();
+        $this->workflowAuditService = new WorkflowAuditService();
     }
 
     public function periodIndex(Request $request): array
@@ -77,16 +83,37 @@ class PayrollController extends Controller
             'status' => ['string'],
             'notes' => ['string'],
         ]);
+        $payload['status'] = strtoupper(trim((string) ($payload['status'] ?? 'OPEN')));
+        $this->workflowTransitionGuard->assertTransitionAllowed('payroll', 'OPEN', (string) $payload['status']);
+
         $id = $this->periods->create($payload);
+        $authUser = $request->attribute('auth_user');
+        $this->workflowAuditService->recordTransition(
+            'PAYROLL_PERIOD',
+            (string) $id,
+            'OPEN',
+            (string) $payload['status'],
+            (int) ($authUser['employee_id'] ?? 0),
+            [
+                'period_code' => (string) ($payload['period_code'] ?? ''),
+                'start_date' => (string) ($payload['start_date'] ?? ''),
+                'end_date' => (string) ($payload['end_date'] ?? ''),
+            ]
+        );
+
         return $this->created($this->periods->findDetail($id), 'Salary period created');
     }
 
     public function periodUpdate(Request $request, array $params): array
     {
         $id = (int) ($params['id'] ?? 0);
-        if ($this->periods->find($id) === null) {
+        $existing = $this->periods->findDetail($id);
+        if ($existing === null) {
             throw new HttpException('Salary period not found', 404, 'not_found');
         }
+
+        $this->assertPeriodNotLocked($existing, 'update salary period');
+
         $payload = Validator::validate($request->all(), [
             'period_name' => ['string'],
             'period_type' => ['string'],
@@ -101,7 +128,31 @@ class PayrollController extends Controller
             'closed_by' => ['integer'],
             'closed_date' => ['date'],
         ]);
+
+        $previousStatus = strtoupper((string) ($existing['status'] ?? 'OPEN'));
+        $nextStatus = $previousStatus;
+        if (array_key_exists('status', $payload)) {
+            $payload['status'] = strtoupper(trim((string) $payload['status']));
+            $nextStatus = (string) $payload['status'];
+            if ($nextStatus !== $previousStatus) {
+                $this->workflowTransitionGuard->assertTransitionAllowed('payroll', $previousStatus, $nextStatus);
+            }
+        }
+
         $this->periods->updateById($id, $payload);
+
+        if ($nextStatus !== $previousStatus) {
+            $authUser = $request->attribute('auth_user');
+            $this->workflowAuditService->recordTransition(
+                'PAYROLL_PERIOD',
+                (string) $id,
+                $previousStatus,
+                $nextStatus,
+                (int) ($authUser['employee_id'] ?? 0),
+                ['operation' => 'period_update']
+            );
+        }
+
         return $this->ok($this->periods->findDetail($id), 'Salary period updated');
     }
 
@@ -113,10 +164,11 @@ class PayrollController extends Controller
             throw new HttpException('Salary period not found', 404, 'not_found');
         }
 
-        $status = strtoupper((string) ($period['status'] ?? ''));
-        if (in_array($status, ['CLOSED', 'PAID'], true)) {
-            throw new HttpException('Salary period already finalized', 422, 'validation_error');
+        $status = strtoupper((string) ($period['status'] ?? 'OPEN'));
+        if ($status === 'CLOSED') {
+            throw new HttpException('Salary period already closed', 422, 'validation_error');
         }
+        $this->workflowTransitionGuard->assertTransitionAllowed('payroll', $status, 'CLOSED');
 
         $monthKey = $this->resolveApplyMonthByPeriod($period);
         $details = $this->details->listByPeriodId($periodId);
@@ -193,6 +245,20 @@ class PayrollController extends Controller
             throw new HttpException('Failed to close salary period: ' . $exception->getMessage(), 500, 'server_error');
         }
 
+        $this->workflowAuditService->recordTransition(
+            'PAYROLL_PERIOD',
+            (string) $periodId,
+            $status,
+            'CLOSED',
+            (int) ($authUser['employee_id'] ?? 0),
+            [
+                'apply_month' => $monthKey,
+                'employees_updated' => $updatedEmployees,
+                'adjustments_marked_paid' => $updatedAdjustments,
+                'adjustment_amount_total' => round($updatedAmount, 2),
+            ]
+        );
+
         return $this->ok([
             'period_id' => $periodId,
             'apply_month' => $monthKey,
@@ -264,6 +330,12 @@ class PayrollController extends Controller
             'notes' => ['string'],
         ]);
 
+        $period = $this->periods->findDetail((int) $payload['period_id']);
+        if ($period === null) {
+            throw new HttpException('Salary period not found', 404, 'not_found');
+        }
+        $this->assertPeriodNotLocked($period, 'create salary detail');
+
         $authUser = $request->attribute('auth_user');
         $employeeId = (int) ($payload['employee_id'] ?? $request->attribute('forced_employee_id') ?? ($authUser['employee_id'] ?? 0));
         if ($employeeId <= 0) {
@@ -285,6 +357,7 @@ class PayrollController extends Controller
         if ($existing === null) {
             throw new HttpException('Salary detail not found', 404, 'not_found');
         }
+        $this->assertPeriodStatusNotLocked((string) ($existing['period_status'] ?? ''), 'update salary detail');
 
         $authUser = $request->attribute('auth_user');
         if (!Auth::isPrivileged($authUser) && !Hierarchy::canAccessEmployee($authUser, (int) $existing['employee_id'], true)) {
@@ -359,6 +432,12 @@ class PayrollController extends Controller
             'is_insurable' => ['boolean'],
             'description' => ['string'],
         ]);
+        $salaryDetail = $this->details->findDetail((int) $payload['salary_detail_id']);
+        if ($salaryDetail === null) {
+            throw new HttpException('Salary detail not found', 404, 'not_found');
+        }
+        $this->assertPeriodStatusNotLocked((string) ($salaryDetail['period_status'] ?? ''), 'create salary breakdown');
+
         $id = $this->breakdowns->create($payload);
         return $this->created($this->breakdowns->findDetail($id), 'Salary breakdown created');
     }
@@ -366,9 +445,12 @@ class PayrollController extends Controller
     public function breakdownUpdate(Request $request, array $params): array
     {
         $id = (int) ($params['id'] ?? 0);
-        if ($this->breakdowns->find($id) === null) {
+        $existing = $this->breakdowns->findDetail($id);
+        if ($existing === null) {
             throw new HttpException('Salary breakdown not found', 404, 'not_found');
         }
+        $this->assertPeriodStatusNotLocked((string) ($existing['period_status'] ?? ''), 'update salary breakdown');
+
         $payload = Validator::validate($request->all(), [
             'item_type' => ['string'],
             'item_id' => ['integer'],
@@ -385,9 +467,11 @@ class PayrollController extends Controller
     public function breakdownDelete(Request $request, array $params): array
     {
         $id = (int) ($params['id'] ?? 0);
-        if ($this->breakdowns->find($id) === null) {
+        $existing = $this->breakdowns->findDetail($id);
+        if ($existing === null) {
             throw new HttpException('Salary breakdown not found', 404, 'not_found');
         }
+        $this->assertPeriodStatusNotLocked((string) ($existing['period_status'] ?? ''), 'delete salary breakdown');
         $this->breakdowns->deleteById($id);
         return $this->ok(null, 'Salary breakdown deleted');
     }
@@ -453,6 +537,7 @@ class PayrollController extends Controller
         ]);
 
         $this->assertApplyMonth((string) ($payload['apply_month'] ?? ''));
+        $this->assertApplyMonthNotLocked((string) $payload['apply_month'], 'create payroll adjustment');
 
         $authUser = $request->attribute('auth_user');
         $employeeId = (int) ($payload['employee_id'] ?? $request->attribute('forced_employee_id') ?? ($authUser['employee_id'] ?? 0));
@@ -499,8 +584,50 @@ class PayrollController extends Controller
             $this->assertApplyMonth((string) $payload['apply_month']);
         }
 
+        $applyMonth = (string) ($payload['apply_month'] ?? ($existing['apply_month'] ?? ''));
+        $this->assertApplyMonthNotLocked($applyMonth, 'update payroll adjustment');
+
         $this->adjustments->updateById($id, $payload);
         return $this->ok($this->adjustments->findDetail($id), 'Payroll adjustment updated');
+    }
+
+    private function assertPeriodNotLocked(array $period, string $operation): void
+    {
+        $status = (string) ($period['status'] ?? '');
+        $this->assertPeriodStatusNotLocked($status, $operation);
+    }
+
+    private function assertPeriodStatusNotLocked(string $status, string $operation): void
+    {
+        if (!$this->workflowTransitionGuard->isPayrollTerminalStatus($status)) {
+            return;
+        }
+
+        throw new HttpException(
+            sprintf('Cannot %s because payroll period is locked (%s).', $operation, strtoupper(trim($status))),
+            422,
+            'validation_error'
+        );
+    }
+
+    private function assertApplyMonthNotLocked(string $applyMonth, string $operation): void
+    {
+        $locked = $this->periods->findLockedByApplyMonth(
+            $applyMonth,
+            $this->workflowTransitionGuard->payrollTerminalStatuses()
+        );
+        if ($locked === null) {
+            return;
+        }
+
+        $status = strtoupper((string) ($locked['status'] ?? 'LOCKED'));
+        $periodCode = (string) ($locked['period_code'] ?? '');
+        $suffix = $periodCode !== '' ? (' [' . $periodCode . ']') : '';
+        throw new HttpException(
+            sprintf('Cannot %s because apply_month is already locked by payroll period %s%s.', $operation, $status, $suffix),
+            422,
+            'validation_error'
+        );
     }
 
     private function assertApplyMonth(string $value): void

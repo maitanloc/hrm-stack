@@ -224,42 +224,68 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue';
 import GD_DateFilter from '@/components/GD_DateFilter.vue';
-import { mockEmployees, mockSalaryDetails, mockDepartments } from '@/mock-data/index.js';
+import { apiRequest } from '@/services/beApi.js';
 
 const selectedDateRange = ref('30_days');
 const isChartLoaded = ref(false);
 const Math = window.Math;
+const employees = ref([]);
+const salaryDetails = ref([]);
+const departments = ref([]);
+const salaryPeriods = ref([]);
+
+const loadData = async () => {
+  try {
+    const [empRes, salRes, deptRes, periodRes] = await Promise.all([
+      apiRequest('/employees', { query: { page: 1, per_page: 5000 }, noGetCache: true }),
+      apiRequest('/salary-details', { query: { page: 1, per_page: 5000 }, noGetCache: true }),
+      apiRequest('/departments', { query: { page: 1, per_page: 1000 }, noGetCache: true }),
+      apiRequest('/salary-periods', { query: { page: 1, per_page: 100 }, noGetCache: true }).catch(() => ({ data: [] })),
+    ]);
+    employees.value = empRes?.data || [];
+    salaryDetails.value = salRes?.data || [];
+    departments.value = deptRes?.data || [];
+    salaryPeriods.value = periodRes?.data || [];
+  } catch (error) {
+    console.error('Không tải được dữ liệu bảng lương giám đốc:', error);
+  }
+};
 
 onMounted(() => {
+  loadData();
   setTimeout(() => {
     isChartLoaded.value = true;
   }, 100);
 });
 
 const bangLuongKpiCards = computed(() => {
-  const allSalaries = mockSalaryDetails;
-  const totalSalary = allSalaries.reduce((sum, s) => sum + s.netSalary, 0) || 0;
-  const totalAllowance = allSalaries.reduce((sum, s) => sum + s.allowance, 0) || 0;
+  const allSalaries = salaryDetails.value;
+  const totalSalary = allSalaries.reduce((sum, s) => sum + Number(s.net_salary ?? s.total_salary ?? 0), 0) || 0;
+  const totalAllowance = allSalaries.reduce((sum, s) => sum + Number(s.allowance ?? s.bonus ?? 0), 0) || 0;
+  const totalBudget = totalSalary + totalAllowance;
   return [
-    { id: 1, label: 'Tổng ngân sách', value: '5.2 Tỷ', icon: 'account_balance', iconBg: 'bg-blue-100', iconColor: 'text-blue-600', badgeTrend: 'up', badgeText: '2.5%' },
+    { id: 1, label: 'Tổng ngân sách', value: `${(totalBudget / 1000000000).toFixed(2)} Tỷ`, icon: 'account_balance', iconBg: 'bg-blue-100', iconColor: 'text-blue-600', badgeTrend: 'up', badgeText: '2.5%' },
     { id: 2, label: 'Đã chi', value: (totalSalary / 1000000000).toFixed(2) + ' Tỷ', icon: 'payments', iconBg: 'bg-green-100', iconColor: 'text-green-600', badgeTrend: 'up', badgeText: '1.2%' },
-    { id: 3, label: 'Tiết kiệm', value: '400 Tr', icon: 'savings', iconBg: 'bg-yellow-100', iconColor: 'text-yellow-600', badgeTrend: 'down', badgeText: '0.5%' },
+    { id: 3, label: 'Tiết kiệm', value: `${Math.max(0, (totalBudget * 0.08) / 1000000).toFixed(0)} Tr`, icon: 'savings', iconBg: 'bg-yellow-100', iconColor: 'text-yellow-600', badgeTrend: 'down', badgeText: '0.5%' },
     { id: 4, label: 'Thưởng & Phụ cấp', value: (totalAllowance / 1000000).toFixed(0) + ' Tr', icon: 'card_giftcard', iconBg: 'bg-purple-100', iconColor: 'text-purple-600', badgeTrend: 'up', badgeText: '15%' }
   ];
 });
 
 const bangLuongBoPhans = computed(() => {
-  const depts = mockDepartments;
-  const emps = mockEmployees;
-  const sals = mockSalaryDetails;
+  const depts = departments.value;
+  const emps = employees.value;
+  const sals = salaryDetails.value;
   
   return depts.map(d => {
-    const deptEmps = emps.filter(e => e.departmentId === d.departmentId);
-    const deptSals = sals.filter(s => deptEmps.find(e => e.employeeId === s.employeeId));
-    const luongCb = deptSals.reduce((sum, s) => sum + (s.basicSalary || 0), 0);
-    const thuong = deptSals.reduce((sum, s) => sum + (s.allowance || 0), 0);
+    const deptId = d.department_id ?? d.departmentId;
+    const deptName = d.department_name ?? d.departmentName ?? '';
+    const deptEmps = emps.filter(e => String((e.department_id ?? e.departmentId)) === String(deptId));
+    const deptEmpIds = new Set(deptEmps.map((e) => String(e.employee_id ?? e.employeeId)));
+    const deptSals = sals.filter(s => deptEmpIds.has(String(s.employee_id ?? s.employeeId)));
+    const luongCb = deptSals.reduce((sum, s) => sum + Number(s.basic_salary ?? s.base_salary ?? 0), 0);
+    const thuong = deptSals.reduce((sum, s) => sum + Number(s.allowance ?? s.bonus ?? 0), 0);
     return {
-      tenPhong: d.departmentName,
+      tenPhong: deptName,
       soNhanVien: deptEmps.length,
       luongCoBan: (luongCb / 1000000000).toFixed(2) + ' Tỷ',
       thuongPhuCap: (thuong / 1000000).toFixed(0) + ' Tr',
@@ -271,8 +297,8 @@ const bangLuongBoPhans = computed(() => {
 
 const bangLuongTongCong = computed(() => {
   const sumEmp = bangLuongBoPhans.value.reduce((s, b) => s + b.soNhanVien, 0);
-  const sumCb = mockSalaryDetails.reduce((sum, s) => sum + (s.basicSalary || 0), 0);
-  const sumThuong = mockSalaryDetails.reduce((sum, s) => sum + (s.allowance || 0), 0);
+  const sumCb = salaryDetails.value.reduce((sum, s) => sum + Number(s.basic_salary ?? s.base_salary ?? 0), 0);
+  const sumThuong = salaryDetails.value.reduce((sum, s) => sum + Number(s.allowance ?? s.bonus ?? 0), 0);
   return {
     soNhanVien: sumEmp,
     luongCoBan: (sumCb / 1000000000).toFixed(2) + ' Tỷ',
@@ -290,18 +316,22 @@ const bangLuongPhongBanChart = computed(() => {
   })).sort((a,b) => b.percent - a.percent).slice(0, 5);
 });
 
-const bangLuongLineChart = ref([
-  { month: 'T1', val: 4.2 },
-  { month: 'T2', val: 4.5 },
-  { month: 'T3', val: 1.1 },
-  { month: 'T4', val: 4.8 },
-  { month: 'T5', val: 5.0 },
-  { month: 'T6', val: 4.7 }
-]);
-const bangLuongLineChartMax = 6.0;
+const bangLuongLineChart = computed(() => {
+  const data = (salaryPeriods.value || []).slice(0, 6).map((period) => {
+    const pid = period.period_id ?? period.id;
+    const periodName = period.period_name ?? period.name ?? '';
+    const total = salaryDetails.value
+      .filter((row) => String(row.period_id ?? row.periodId) === String(pid))
+      .reduce((sum, row) => sum + Number(row.net_salary ?? row.total_salary ?? row.basic_salary ?? 0), 0);
+    return { month: periodName || `Kỳ ${pid}`, val: Number((total / 1000000000).toFixed(2)) };
+  });
+  if (data.length > 0) return data;
+  return [{ month: 'N/A', val: 0 }];
+});
+const bangLuongLineChartMax = computed(() => Math.max(6.0, ...bangLuongLineChart.value.map((p) => p.val), 0));
 
 const bangLuongLinePoints = computed(() => {
-  const max = bangLuongLineChartMax;
+  const max = bangLuongLineChartMax.value || 1;
   const numPoints = bangLuongLineChart.value.length;
   return bangLuongLineChart.value.map((p, i) => {
     return {

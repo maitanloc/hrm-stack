@@ -195,13 +195,10 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import {
-  importantNotifications as staticNotifs
-} from '@/mock-data/sampleData_GiamDoc.js';
-import { mockLeaveRequests, mockEmployees, mockRequestTypes } from '@/mock-data/index.js';
 import { getInitials, getAvatarColors } from '@/utils/uiMapper.js';
 import { useCurrentUser } from '@/composables/useCurrentUser';
 import { getCurrentUserRole } from '@/services/session.js';
+import { apiRequest } from '@/services/beApi.js';
 
 const { employeeId } = useCurrentUser();
 
@@ -230,17 +227,22 @@ const goToNotifications = () => {
 
 const liveNotifications = ref([]);
 const liveLeaveRequests = ref([]);
+const liveEmployees = ref([]);
+const liveRequestTypes = ref([]);
 
 const fetchNotifications = async () => {
   try {
-    const [resNotif, resReq] = await Promise.all([
-      fetch(`http://localhost:3000/notifications?userId=${employeeId.value}&_sort=id&_order=desc&_limit=20`),
-      fetch(`http://localhost:3000/leaveRequests`)
+    const [notifRes, leaveRes, employeeRes, requestTypeRes] = await Promise.all([
+      apiRequest('/notifications', { query: { page: 1, per_page: 20, receiver_id: employeeId.value || undefined } }),
+      apiRequest('/leave-requests', { query: { page: 1, per_page: 200 } }),
+      apiRequest('/employees', { query: { page: 1, per_page: 1000 } }),
+      apiRequest('/request-types', { query: { page: 1, per_page: 200 } }),
     ]);
 
-    if (resNotif.ok) liveNotifications.value = await resNotif.json();
-    if (resReq.ok) liveLeaveRequests.value = await resReq.json();
-
+    liveNotifications.value = notifRes?.data || [];
+    liveLeaveRequests.value = leaveRes?.data || [];
+    liveEmployees.value = employeeRes?.data || [];
+    liveRequestTypes.value = requestTypeRes?.data || [];
   } catch (error) {
     console.error('Lỗi khi tải thông báo hoặc yêu cầu:', error);
   }
@@ -248,7 +250,10 @@ const fetchNotifications = async () => {
 
 onMounted(() => {
   fetchNotifications();
-  const interval = setInterval(fetchNotifications, 10000); // Polling every 10s
+  const interval = setInterval(() => {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    fetchNotifications();
+  }, 45000);
   onUnmounted(() => clearInterval(interval));
 });
 
@@ -257,10 +262,9 @@ const handleNotifClick = async (item) => {
   // Mark as read (optional, depends on backend capability)
   if (!item.isRead) {
     try {
-      await fetch(`http://localhost:3000/notifications/${item.id}`, {
+      await apiRequest(`/notifications/${item.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isRead: true })
+        body: { is_read: true },
       });
       fetchNotifications();
     } catch (e) {}
@@ -275,13 +279,14 @@ const handleNotifClick = async (item) => {
 
 // Lấy yêu cầu phê duyệt REAL từ API (chỉ CHỜ_GIÁM_ĐỐC_DUYỆT)
 const realApprovals = computed(() => {
-  const allReqs = liveLeaveRequests.value.length > 0 ? liveLeaveRequests.value : mockLeaveRequests;
+  const allReqs = liveLeaveRequests.value;
   return allReqs.filter(r => {
     return r.status === 'CHỜ_GIÁM_ĐỐC_DUYỆT';
   }).map(r => {
-    const emp = mockEmployees.getById(r.requesterId) || {};
-    const type = mockRequestTypes.getById(r.requestTypeId) || {};
-    const avatarUI = getAvatarColors(emp.employeeId || 1);
+    const emp = liveEmployees.value.find((e) => String(e.employee_id || e.id) === String(r.employee_id || r.requesterId)) || {};
+    const type =
+      liveRequestTypes.value.find((t) => String(t.request_type_id || t.id) === String(r.request_type_id || r.requestTypeId)) || {};
+    const avatarUI = getAvatarColors(emp.employee_id || emp.id || 1);
     
     return {
       id: r.id || r.requestId,
@@ -327,7 +332,7 @@ const recentNotifications = computed(() => {
     time: 'Vừa xong',
     isRead: false
   }));
-  return [...dynamicNotifs, ...staticNotifs.slice(0, 2)];
+  return dynamicNotifs;
 });
 
 const recentApprovals = computed(() => {

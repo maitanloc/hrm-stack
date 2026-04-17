@@ -11,14 +11,20 @@ use App\Core\Paginator;
 use App\Core\Request;
 use App\Core\Validator;
 use App\Models\RequestModel;
+use App\Services\WorkflowAuditService;
+use App\Services\WorkflowTransitionGuardService;
 
 class RequestController extends Controller
 {
     private RequestModel $requests;
+    private WorkflowTransitionGuardService $workflowTransitionGuard;
+    private WorkflowAuditService $workflowAuditService;
 
     public function __construct()
     {
         $this->requests = new RequestModel();
+        $this->workflowTransitionGuard = new WorkflowTransitionGuardService();
+        $this->workflowAuditService = new WorkflowAuditService();
     }
 
     public function index(Request $request): array
@@ -87,6 +93,7 @@ class RequestController extends Controller
 
         if (isset($payload['status'])) {
             $payload['status'] = $this->normalizeRequestStatus((string) $payload['status']);
+            $this->workflowTransitionGuard->assertTransitionAllowed('request', 'NHÁP', (string) $payload['status']);
         }
 
         $authUser = $request->attribute('auth_user');
@@ -99,7 +106,21 @@ class RequestController extends Controller
         $payload['updated_by'] = (int) ($authUser['employee_id'] ?? 1);
 
         $id = $this->requests->create($payload);
-        return $this->created($this->requests->findDetail($id), 'Request created');
+        $created = $this->requests->findDetail($id);
+        $status = (string) (($created['status'] ?? $payload['status'] ?? 'NHÁP'));
+        $this->workflowAuditService->recordTransition(
+            'REQUEST',
+            (string) $id,
+            'NHÁP',
+            $status,
+            (int) ($authUser['employee_id'] ?? 0),
+            [
+                'requester_id' => (int) ($created['requester_id'] ?? $payload['requester_id']),
+                'request_type_id' => (int) ($created['request_type_id'] ?? $payload['request_type_id']),
+            ]
+        );
+
+        return $this->created($created, 'Request created');
     }
 
     public function update(Request $request, array $params): array
@@ -131,10 +152,31 @@ class RequestController extends Controller
             $payload['status'] = $this->normalizeRequestStatus((string) $payload['status']);
         }
 
+        $previousStatus = (string) ($existing['status'] ?? 'NHÁP');
+        $nextStatus = isset($payload['status']) ? (string) $payload['status'] : $previousStatus;
+        if ($nextStatus !== $previousStatus) {
+            $this->workflowTransitionGuard->assertTransitionAllowed('request', $previousStatus, $nextStatus);
+        }
+
         $payload['updated_by'] = (int) ($authUser['employee_id'] ?? 1);
 
         $this->requests->updateById($id, $payload);
-        return $this->ok($this->requests->findDetail($id), 'Request updated');
+        $updated = $this->requests->findDetail($id);
+
+        if ($nextStatus !== $previousStatus) {
+            $this->workflowAuditService->recordTransition(
+                'REQUEST',
+                (string) $id,
+                $previousStatus,
+                $nextStatus,
+                (int) ($authUser['employee_id'] ?? 0),
+                [
+                    'requester_id' => (int) ($existing['requester_id'] ?? 0),
+                ]
+            );
+        }
+
+        return $this->ok($updated, 'Request updated');
     }
 
     public function destroy(Request $request, array $params): array

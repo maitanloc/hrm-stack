@@ -38,6 +38,11 @@ class Database
                     PDO::ATTR_EMULATE_PREPARES => false,
                 ]
             );
+            self::$connection->exec(sprintf(
+                "SET NAMES '%s' COLLATE '%s'",
+                $config['charset'],
+                $config['collation']
+            ));
         } catch (PDOException $exception) {
             throw new HttpException('Cannot connect database: ' . $exception->getMessage(), 500, 'db_connection_error');
         }

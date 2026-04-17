@@ -20,6 +20,8 @@ use App\Controllers\Api\V1\RecruitmentController;
 use App\Controllers\Api\V1\RequestController;
 use App\Controllers\Api\V1\RequestTypeController;
 use App\Controllers\Api\V1\SettingController;
+use App\Controllers\Api\V1\WorkflowGovernanceController;
+use App\Controllers\Api\V1\WorkforceController;
 use App\Middlewares\AuthMiddleware;
 use App\Middlewares\HierarchyEmployeeBodyMiddleware;
 use App\Middlewares\HierarchyEmployeeParamMiddleware;
@@ -42,6 +44,8 @@ $router->get('/', function (): array {
 $router->group('/api/v1', function ($router): void {
     $router->get('/health', [HealthController::class, 'index']);
     $router->post('/auth/login', [AuthController::class, 'login']);
+    $router->post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+    $router->post('/auth/reset-password', [AuthController::class, 'resetPassword']);
     $router->get('/public/positions', [PositionController::class, 'publicCatalog']);
     $router->post('/public/recruitment/applications', [RecruitmentController::class, 'publicCandidateApply']);
     $router->get('/recruitment-candidates/{id}/cv', [RecruitmentController::class, 'candidateDownloadCv']);
@@ -108,6 +112,78 @@ $router->group('/api/v1', function ($router): void {
         ]);
         $router->put('/settings/notifications', [SettingController::class, 'notificationUpdate'], [
             [PermissionMiddleware::class, 'SYSTEM_CONFIG', 'edit'],
+        ]);
+        $router->get('/shifts', [WorkforceController::class, 'shiftCatalog'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->get('/my-shift/today', [WorkforceController::class, 'myShiftToday'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->get('/my-schedule', [WorkforceController::class, 'mySchedule'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->get('/team-schedule', [WorkforceController::class, 'teamSchedule'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->post('/team-schedule/assign', [WorkforceController::class, 'assignShift'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+        ]);
+        $router->post('/team-schedule/bulk-assign', [WorkforceController::class, 'bulkAssignShift'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+        ]);
+        $router->patch('/team-schedule/override', [WorkforceController::class, 'overrideShift'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'edit'],
+        ]);
+        $router->post('/team-schedule/publish', [WorkforceController::class, 'publishSchedule'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'edit'],
+        ]);
+        $router->post('/team-schedule/copy-week', [WorkforceController::class, 'copyScheduleWeek'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'edit'],
+        ]);
+        $router->get('/team-schedule/suggestions', [WorkforceController::class, 'teamScheduleSuggestions'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->get('/team-schedule/warnings', [WorkforceController::class, 'teamScheduleWarnings'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->get('/workflow-governance/overview', [WorkflowGovernanceController::class, 'overview'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->get('/workflow-governance/catalog', [WorkflowGovernanceController::class, 'catalog'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->get('/workflow-governance/transitions', [WorkflowGovernanceController::class, 'transitions'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->post('/workflow-governance/validate-transition', [WorkflowGovernanceController::class, 'validateTransition'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'edit'],
+        ]);
+        $router->post('/workflow-governance/validate-schedule-publish', [WorkflowGovernanceController::class, 'validateSchedulePublish'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'edit'],
+        ]);
+        $router->get('/workflow-governance/audit-logs', [WorkflowGovernanceController::class, 'auditLogs'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->get('/attendance-results', [WorkforceController::class, 'attendanceResultIndex'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->get('/holidays', [WorkforceController::class, 'holidayIndex'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->get('/holidays/{id}', [WorkforceController::class, 'holidayShow'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->post('/holidays', [WorkforceController::class, 'holidayStore'], [
+            [PermissionMiddleware::class, 'SYSTEM_CONFIG', 'create'],
+        ]);
+        $router->put('/holidays/{id}', [WorkforceController::class, 'holidayUpdate'], [
+            [PermissionMiddleware::class, 'SYSTEM_CONFIG', 'edit'],
+        ]);
+        $router->patch('/holidays/{id}', [WorkforceController::class, 'holidayUpdate'], [
+            [PermissionMiddleware::class, 'SYSTEM_CONFIG', 'edit'],
+        ]);
+        $router->delete('/holidays/{id}', [WorkforceController::class, 'holidayDelete'], [
+            [PermissionMiddleware::class, 'SYSTEM_CONFIG', 'delete'],
         ]);
 
         $router->get('/recruitment-positions', [RecruitmentController::class, 'positionIndex'], [
@@ -182,6 +258,10 @@ $router->group('/api/v1', function ($router): void {
             [PermissionMiddleware::class, 'EMP_VIEW', 'access'],
             [HierarchyEmployeeParamMiddleware::class, 'id', true],
         ]);
+        $router->get('/employees/{id}/profile', [EmployeeController::class, 'profileShow'], [
+            [PermissionMiddleware::class, 'EMP_VIEW', 'access'],
+            [HierarchyEmployeeParamMiddleware::class, 'id', true],
+        ]);
         $router->post('/employees', [EmployeeController::class, 'store'], [
             [PermissionMiddleware::class, 'EMP_CREATE', 'create'],
         ]);
@@ -194,6 +274,26 @@ $router->group('/api/v1', function ($router): void {
         ]);
         $router->patch('/employees/{id}', [EmployeeController::class, 'update'], [
             [PermissionMiddleware::class, 'EMP_EDIT', 'edit'],
+            [HierarchyEmployeeParamMiddleware::class, 'id', true],
+        ]);
+        $router->patch('/employees/{id}/profile', [EmployeeController::class, 'profileUpdate'], [
+            [PermissionMiddleware::class, 'EMP_VIEW', 'access'],
+            [HierarchyEmployeeParamMiddleware::class, 'id', true],
+        ]);
+        $router->get('/employees/{id}/employment-histories', [EmployeeController::class, 'employmentHistory'], [
+            [PermissionMiddleware::class, 'EMP_VIEW', 'access'],
+            [HierarchyEmployeeParamMiddleware::class, 'id', true],
+        ]);
+        $router->get('/employees/{id}/certificates', [EmployeeController::class, 'certificateIndex'], [
+            [PermissionMiddleware::class, 'EMP_VIEW', 'access'],
+            [HierarchyEmployeeParamMiddleware::class, 'id', true],
+        ]);
+        $router->post('/employees/{id}/certificates', [EmployeeController::class, 'certificateStore'], [
+            [PermissionMiddleware::class, 'EMP_VIEW', 'access'],
+            [HierarchyEmployeeParamMiddleware::class, 'id', true],
+        ]);
+        $router->delete('/employees/{id}/certificates/{certificateId}', [EmployeeController::class, 'certificateDelete'], [
+            [PermissionMiddleware::class, 'EMP_VIEW', 'access'],
             [HierarchyEmployeeParamMiddleware::class, 'id', true],
         ]);
         $router->delete('/employees/{id}', [EmployeeController::class, 'destroy'], [
@@ -328,7 +428,32 @@ $router->group('/api/v1', function ($router): void {
             [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'delete'],
         ]);
 
+        $router->get('/timesheet/daily', [App\Controllers\Api\V1\TimesheetController::class, 'dailyEntry'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->post('/timesheet/period-summary', [App\Controllers\Api\V1\TimesheetController::class, 'periodSummary'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->post('/timesheet/exceptions', [App\Controllers\Api\V1\TimesheetController::class, 'exceptions'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->post('/timesheet/import', [App\Controllers\Api\V1\TimesheetController::class, 'import'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+        ]);
+        $router->post('/timesheet/payroll-export', [App\Controllers\Api\V1\TimesheetController::class, 'payrollExport'], [
+            [PermissionMiddleware::class, 'SALARY_CALCULATE', 'access'],
+        ]);
+
+
+        $router->post('/attendance/bootstrap', [AttendanceRiskController::class, 'bootstrapDevice'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+            [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
+        ]);
         $router->post('/attendance/precheck', [AttendanceRiskController::class, 'precheck'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+            [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
+        ]);
+        $router->post('/attendance/pre-check', [AttendanceRiskController::class, 'precheck'], [
             [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
             [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
         ]);
@@ -336,7 +461,15 @@ $router->group('/api/v1', function ($router): void {
             [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
             [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
         ]);
+        $router->post('/attendance/clock-in', [AttendanceRiskController::class, 'checkin'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+            [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
+        ]);
         $router->post('/attendance/checkout', [AttendanceRiskController::class, 'checkout'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+            [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
+        ]);
+        $router->post('/attendance/clock-out', [AttendanceRiskController::class, 'checkout'], [
             [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
             [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
         ]);
@@ -348,10 +481,20 @@ $router->group('/api/v1', function ($router): void {
             [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
             [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
         ]);
+        $router->post('/attendance/exceptions', [AttendanceRiskController::class, 'requestException'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+            [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
+        ]);
         $router->post('/exceptions/{id}/approve-once', [AttendanceRiskController::class, 'approveExceptionOnce'], [
             [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'approve'],
         ]);
+        $router->post('/attendance/exceptions/{id}/approve-once', [AttendanceRiskController::class, 'approveExceptionOnce'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'approve'],
+        ]);
         $router->get('/risk-alerts', [AttendanceRiskController::class, 'riskAlerts'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->get('/attendance/risk-alerts', [AttendanceRiskController::class, 'riskAlerts'], [
             [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
         ]);
 

@@ -78,4 +78,88 @@ class SalaryPeriod extends Model
         $row = $stmt->fetch();
         return $row === false ? null : $row;
     }
+
+    public function findLockedWithinRange(string $fromDate, string $toDate, array $lockedStatuses = ['PAID', 'CLOSED']): ?array
+    {
+        $statuses = $this->normalizeStatuses($lockedStatuses);
+        if ($statuses === []) {
+            return null;
+        }
+
+        $statusParams = [];
+        foreach ($statuses as $index => $status) {
+            $statusParams['status_' . $index] = $status;
+        }
+        $statusSql = implode(', ', array_map(static fn(string $key): string => ':' . $key, array_keys($statusParams)));
+
+        $sql = "SELECT sp.*
+                FROM salary_periods sp
+                WHERE sp.status IN ($statusSql)
+                  AND sp.start_date <= :to_date
+                  AND sp.end_date >= :from_date
+                ORDER BY sp.start_date ASC, sp.period_id ASC
+                LIMIT 1";
+        $stmt = $this->db->prepare($sql);
+        foreach ($statusParams as $key => $value) {
+            $stmt->bindValue(':' . $key, $value);
+        }
+        $stmt->bindValue(':from_date', $fromDate);
+        $stmt->bindValue(':to_date', $toDate);
+        $stmt->execute();
+        $row = $stmt->fetch();
+        return $row === false ? null : $row;
+    }
+
+    public function findLockedByApplyMonth(string $applyMonth, array $lockedStatuses = ['PAID', 'CLOSED']): ?array
+    {
+        $statuses = $this->normalizeStatuses($lockedStatuses);
+        if ($statuses === []) {
+            return null;
+        }
+        if (preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $applyMonth) !== 1) {
+            return null;
+        }
+
+        $year = (int) substr($applyMonth, 0, 4);
+        $month = (int) substr($applyMonth, 5, 2);
+
+        $statusParams = [];
+        foreach ($statuses as $index => $status) {
+            $statusParams['status_' . $index] = $status;
+        }
+        $statusSql = implode(', ', array_map(static fn(string $key): string => ':' . $key, array_keys($statusParams)));
+
+        $sql = "SELECT sp.*
+                FROM salary_periods sp
+                WHERE sp.status IN ($statusSql)
+                  AND (
+                    (sp.year = :year AND sp.month = :month)
+                    OR DATE_FORMAT(sp.start_date, '%Y-%m') = :apply_month
+                  )
+                ORDER BY sp.start_date DESC, sp.period_id DESC
+                LIMIT 1";
+        $stmt = $this->db->prepare($sql);
+        foreach ($statusParams as $key => $value) {
+            $stmt->bindValue(':' . $key, $value);
+        }
+        $stmt->bindValue(':year', $year, PDO::PARAM_INT);
+        $stmt->bindValue(':month', $month, PDO::PARAM_INT);
+        $stmt->bindValue(':apply_month', $applyMonth);
+        $stmt->execute();
+        $row = $stmt->fetch();
+        return $row === false ? null : $row;
+    }
+
+    private function normalizeStatuses(array $statuses): array
+    {
+        $items = [];
+        foreach ($statuses as $status) {
+            $normalized = strtoupper(trim((string) $status));
+            if ($normalized !== '') {
+                $items[] = $normalized;
+            }
+        }
+
+        return array_values(array_unique($items));
+    }
 }

@@ -223,7 +223,7 @@
  */
 import { ref, computed, onMounted } from 'vue';
 import { useConfirm } from '@/composables/useConfirm';
-const LEGACY_BASE = 'http://localhost:3000';
+import { apiRequest } from '@/services/beApi.js';
 
 const { showAlert, showConfirm } = useConfirm();
 const periodsRaw = ref([]);
@@ -265,24 +265,17 @@ const mapPeriodStatusToUi = (rawStatus) => {
   return 'ĐANG_XỬ_LÝ';
 };
 
-const fetchJson = async (url, options = {}) => {
-  const response = await fetch(url, options);
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload?.message || `HTTP ${response.status}`);
-  return payload;
-};
-
 const loadData = async () => {
   isLoading.value = true;
   try {
     const [periods, salaryDetails, employees] = await Promise.all([
-      fetchJson(`${LEGACY_BASE}/salaryPeriods?_limit=500`),
-      fetchJson(`${LEGACY_BASE}/salaryDetails?_limit=5000`),
-      fetchJson(`${LEGACY_BASE}/employees?_limit=2000`),
+      apiRequest('/salary-periods', { query: { page: 1, per_page: 500 } }),
+      apiRequest('/salary-details', { query: { page: 1, per_page: 5000 } }),
+      apiRequest('/employees', { query: { page: 1, per_page: 2000 } }),
     ]);
-    periodsRaw.value = Array.isArray(periods) ? periods : [];
-    salaryDetailsRaw.value = Array.isArray(salaryDetails) ? salaryDetails : [];
-    employeesRaw.value = Array.isArray(employees) ? employees : [];
+    periodsRaw.value = Array.isArray(periods?.data) ? periods.data : [];
+    salaryDetailsRaw.value = Array.isArray(salaryDetails?.data) ? salaryDetails.data : [];
+    employeesRaw.value = Array.isArray(employees?.data) ? employees.data : [];
   } catch (error) {
     await showAlert('Không tải được dữ liệu lương', error?.message || 'Không thể tải dữ liệu kỳ lương.');
   } finally {
@@ -408,10 +401,9 @@ const saveSalaryAdjustment = async () => {
     net_salary: gross - deduction,
   };
   try {
-    await fetchJson(`${LEGACY_BASE}/salaryDetails/${editForm.value.id}`, {
+    await apiRequest(`/salary-details/${editForm.value.id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: payload,
     });
     await loadData();
     showEditModal.value = false;
@@ -428,10 +420,9 @@ const approvePeriod = async () => {
   const ok = await showConfirm('Phê chuẩn quyết toán', `Bạn có chắc muốn chốt bảng lương tháng ${selectedPeriod.value.month}/${selectedPeriod.value.year}? Dữ liệu sau khi chốt sẽ không thể chỉnh sửa.`);
   if (ok) {
     try {
-      await fetchJson(`${LEGACY_BASE}/salaryPeriods/${selectedPeriod.value.id}/close`, {
+      await apiRequest(`/salary-periods/${selectedPeriod.value.id}/close`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: {},
       });
       await loadData();
     } catch (error) {
@@ -456,10 +447,9 @@ const createCurrentPeriod = async () => {
   const paymentDate = `${paymentDateObj.getFullYear()}-${pad2(paymentDateObj.getMonth() + 1)}-${pad2(paymentDateObj.getDate())}`;
 
   try {
-    const created = await fetchJson(`${LEGACY_BASE}/salaryPeriods`, {
+    const created = await apiRequest('/salary-periods', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: {
         period_code: `SP-${year}-${pad2(month)}`,
         period_name: `Salary Period ${pad2(month)}/${year}`,
         period_type: 'MONTHLY',
@@ -470,10 +460,11 @@ const createCurrentPeriod = async () => {
         payment_date: paymentDate,
         standard_working_days: 26,
         status: 'OPEN',
-      }),
+      },
     });
     await loadData();
-    selectedPeriodId.value = Number(created.periodId ?? created.period_id ?? created.id ?? selectedPeriodId.value);
+    const createdData = created?.data || created;
+    selectedPeriodId.value = Number(createdData.periodId ?? createdData.period_id ?? createdData.id ?? selectedPeriodId.value);
   } catch (error) {
     await showAlert('Tạo kỳ lương thất bại', error?.message || 'Không thể tạo kỳ lương mới.');
   }

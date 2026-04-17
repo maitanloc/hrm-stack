@@ -27,10 +27,10 @@ class Response
 
         $status = (int) ($payload['status'] ?? 200);
         $success = $status >= 200 && $status < 400;
-        $message = (string) ($payload['message'] ?? ($success ? 'OK' : 'Request failed'));
-        $data = $payload['data'] ?? null;
-        $meta = $payload['meta'] ?? null;
-        $error = $payload['error'] ?? null;
+        $message = (string) TextEncoding::fixMojibake($payload['message'] ?? ($success ? 'OK' : 'Request failed'));
+        $data = TextEncoding::deepFixMojibake($payload['data'] ?? null);
+        $meta = TextEncoding::deepFixMojibake($payload['meta'] ?? null);
+        $error = TextEncoding::deepFixMojibake($payload['error'] ?? null);
 
         http_response_code($status);
         header('Content-Type: application/json; charset=utf-8');

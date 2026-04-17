@@ -61,52 +61,50 @@
           <h2 class="text-[11px] font-bold text-[var(--sys-text-disabled)] uppercase tracking-[0.2em] ml-1">Đang chờ xử lý / Mới</h2>
           
           <div class="flex flex-col gap-3">
-            <!-- Unread Item 1 -->
-            <div class="group relative bg-white rounded-lg border-l-4 border-l-[var(--sys-brand-solid)] border-y border-r border-[var(--sys-border-subtle)] shadow-sm cursor-pointer hover:bg-[var(--sys-bg-hover)] transition-all">
+            <button
+              v-for="item in unreadNotifications"
+              :key="item.id"
+              type="button"
+              class="group relative bg-white rounded-lg border-l-4 border-l-[var(--sys-brand-solid)] border-y border-r border-[var(--sys-border-subtle)] shadow-sm cursor-pointer hover:bg-[var(--sys-bg-hover)] transition-all text-left"
+              @click="handleNotificationClick(item)"
+            >
               <div class="p-5 flex gap-5 items-start">
-                <div class="w-11 h-11 rounded-md bg-[var(--sys-brand-soft)] text-[var(--sys-brand-solid)] flex items-center justify-center shrink-0 border border-[var(--sys-brand-border)] group-hover:bg-[var(--sys-brand-solid)] group-hover:text-white transition-all">
-                  <span class="material-symbols-outlined text-[24px]">event_available</span>
+                <div :class="['w-11 h-11 rounded-md flex items-center justify-center shrink-0 border group-hover:text-white transition-all',
+                  item.type === 'success'
+                    ? 'bg-[var(--sys-success-soft)] text-[var(--sys-success-text)] border-[var(--sys-success-border)] group-hover:bg-[var(--sys-success-solid)]'
+                    : item.type === 'warning'
+                      ? 'bg-[var(--sys-warning-soft)] text-[var(--sys-warning-text)] border-[var(--sys-warning-border)] group-hover:bg-[var(--sys-warning-solid)]'
+                      : 'bg-[var(--sys-brand-soft)] text-[var(--sys-brand-solid)] border-[var(--sys-brand-border)] group-hover:bg-[var(--sys-brand-solid)]'
+                ]">
+                  <span class="material-symbols-outlined text-[24px]">{{ item.icon }}</span>
                 </div>
                 <div class="flex-grow">
                   <div class="flex justify-between items-start gap-4 mb-1">
-                    <h3 class="text-sm font-bold text-[var(--sys-text-primary)] group-hover:text-[var(--sys-brand-solid)] transition-colors">Đơn nghỉ phép đã được phê duyệt</h3>
+                    <h3 class="text-sm font-bold text-[var(--sys-text-primary)] group-hover:text-[var(--sys-brand-solid)] transition-colors">{{ item.title }}</h3>
                     <div class="flex items-center gap-2 shrink-0">
-                      <span class="text-[10px] font-bold text-[var(--sys-text-disabled)] uppercase tracking-tight">10 phút trước</span>
+                      <span class="text-[10px] font-bold text-[var(--sys-text-disabled)] uppercase tracking-tight">{{ item.time }}</span>
                       <span class="w-2 h-2 rounded-full bg-[var(--sys-brand-solid)] animate-pulse"></span>
                     </div>
                   </div>
                   <p class="text-[13px] font-medium text-[var(--sys-text-secondary)] leading-relaxed mb-3 opacity-80">
-                    Đơn nghỉ phép (20/10 - 22/10) đã được phê duyệt bởi BP. Hành chính Nhân sự.
+                    {{ item.desc }}
                   </p>
                   <div class="flex items-center gap-2">
-                    <span class="px-2 py-0.5 rounded-md bg-[var(--sys-brand-soft)] text-[var(--sys-brand-solid)] text-[10px] font-bold uppercase border border-[var(--sys-brand-border)]">Hành chính</span>
+                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border"
+                      :class="item.type === 'success'
+                        ? 'bg-[var(--sys-success-soft)] text-[var(--sys-success-text)] border-[var(--sys-success-border)]'
+                        : item.type === 'warning'
+                          ? 'bg-[var(--sys-warning-soft)] text-[var(--sys-warning-text)] border-[var(--sys-warning-border)]'
+                          : 'bg-[var(--sys-brand-soft)] text-[var(--sys-brand-solid)] border-[var(--sys-brand-border)]'"
+                    >
+                      {{ item.priorityLabel }}
+                    </span>
                   </div>
                 </div>
               </div>
-            </div>
-
-            <!-- Unread Item 2 -->
-            <div class="group relative bg-white rounded-lg border-l-4 border-l-[var(--sys-brand-solid)] border-y border-r border-[var(--sys-border-subtle)] shadow-sm cursor-pointer hover:bg-[var(--sys-bg-hover)] transition-all">
-              <div class="p-5 flex gap-5 items-start">
-                <div class="w-11 h-11 rounded-md bg-[var(--sys-success-soft)] text-[var(--sys-success-text)] flex items-center justify-center shrink-0 border border-[var(--sys-success-border)] group-hover:bg-[var(--sys-success-solid)] group-hover:text-white transition-all">
-                  <span class="material-symbols-outlined text-[24px]">payments</span>
-                </div>
-                <div class="flex-grow">
-                  <div class="flex justify-between items-start gap-4 mb-1">
-                    <h3 class="text-sm font-bold text-[var(--sys-text-primary)] group-hover:text-[var(--sys-brand-solid)] transition-colors">Phiếu lương tháng 10/2023</h3>
-                    <div class="flex items-center gap-2 shrink-0">
-                      <span class="text-[10px] font-bold text-[var(--sys-text-disabled)] uppercase tracking-tight">2 giờ trước</span>
-                      <span class="w-2 h-2 rounded-full bg-[var(--sys-brand-solid)] animate-pulse"></span>
-                    </div>
-                  </div>
-                  <p class="text-[13px] font-medium text-[var(--sys-text-secondary)] leading-relaxed mb-3 opacity-80">
-                    Cổng thông tin lương đã cập nhật phiếu lương tháng 10. Vui lòng xác nhận trước ngày 08/11.
-                  </p>
-                  <div class="flex items-center gap-2">
-                    <span class="px-2 py-0.5 rounded-md bg-[var(--sys-success-soft)] text-[var(--sys-success-text)] text-[10px] font-bold uppercase border border-[var(--sys-success-border)]">Tài chính</span>
-                  </div>
-                </div>
-              </div>
+            </button>
+            <div v-if="unreadNotifications.length === 0" class="rounded-lg border border-dashed border-[var(--sys-border-subtle)] bg-white px-5 py-8 text-center text-[12px] font-medium text-[var(--sys-text-secondary)]">
+              Không còn thông báo chưa đọc phù hợp với bộ lọc hiện tại.
             </div>
           </div>
         </div>
@@ -116,8 +114,9 @@
           <h2 class="text-[11px] font-bold text-[var(--sys-text-disabled)] uppercase tracking-[0.2em] ml-1">Trước đó / Đã xem</h2>
           
           <div class="flex flex-col gap-2">
-            <div v-for="(item, idx) in notifications" :key="idx" 
-              class="group bg-white rounded-lg border border-[var(--sys-border-subtle)] shadow-sm cursor-pointer hover:bg-[var(--sys-bg-hover)] transition-all">
+            <button v-for="item in readNotifications" :key="item.id" type="button"
+              class="group bg-white rounded-lg border border-[var(--sys-border-subtle)] shadow-sm cursor-pointer hover:bg-[var(--sys-bg-hover)] transition-all text-left"
+              @click="handleNotificationClick(item)">
               <div class="p-4 flex gap-4 items-start">
                 <div :class="`w-10 h-10 rounded-md flex items-center justify-center shrink-0 border transition-all bg-[var(--sys-${item.color}-soft)] text-[var(--sys-${item.color}-text)] border-[var(--sys-${item.color}-border)] group-hover:bg-[var(--sys-${item.color}-solid)] group-hover:text-white`">
                   <span class="material-symbols-outlined text-[20px]">{{ item.icon }}</span>
@@ -130,6 +129,9 @@
                   <p class="text-[12px] font-medium text-[var(--sys-text-secondary)] opacity-70 truncate">{{ item.desc }}</p>
                 </div>
               </div>
+            </button>
+            <div v-if="readNotifications.length === 0" class="rounded-lg border border-dashed border-[var(--sys-border-subtle)] bg-white px-5 py-8 text-center text-[12px] font-medium text-[var(--sys-text-secondary)]">
+              Chưa có thông báo đã xem phù hợp với bộ lọc hiện tại.
             </div>
           </div>
         </div>
@@ -147,16 +149,59 @@
  * - Bo góc chuẩn B2B: 6px (MD), 8px (LG)
  * - Hệ màu Semantic đồng bộ, xóa bỏ font-black/italic rườm rà
  */
-import { ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { fetchNotifications, markNotificationRead } from '@/services/notificationsApi.js';
 
 const searchQuery = ref('');
 const activeFilter = ref('Tất cả');
+const notifications = ref([]);
 
-const notifications = [
-  { title: 'Thông báo họp tổng kết quý 4', desc: 'Tất cả nhân viên tham gia buổi họp tổng kết quý 3 và định hướng quý 4 vào 09:00 sáng Thứ Hai.', icon: 'campaign', time: 'Hôm qua, 14:30', tag: 'Sự kiện', color: 'brand' },
-  { title: 'Yêu cầu cập nhật mật khẩu Portal', desc: 'Mật khẩu của bạn sắp hết hạn. Vui lòng thay đổi để đảm bảo tính bảo mật của tài khoản.', icon: 'security', time: '2 ngày trước', tag: 'Hệ thống', color: 'warning' },
-  { title: 'Chúc mừng sinh nhật thành viên mới', desc: 'Chúc mừng sinh nhật các thành viên tháng 11. Bữa tiệc trà chiều nay lúc 16:00.', icon: 'cake', time: '1 tuần trước', tag: 'Văn hóa', color: 'danger' }
-];
+const decorateNotification = (item) => ({
+  ...item,
+  color: item.type === 'success' ? 'success' : item.type === 'warning' ? 'warning' : 'brand',
+  priorityLabel: item.priority === 'CAO' ? 'Ưu tiên cao' : item.priority === 'THẤP' ? 'Thông tin' : 'Cập nhật',
+});
+
+const filteredNotifications = computed(() => {
+  const query = String(searchQuery.value || '').trim().toLowerCase();
+  return notifications.value.filter((item) => {
+    const matchesQuery = !query
+      || item.title.toLowerCase().includes(query)
+      || item.desc.toLowerCase().includes(query);
+    if (!matchesQuery) return false;
+
+    if (activeFilter.value === 'Chưa đọc') return !item.isRead;
+    if (activeFilter.value === 'Quan trọng') return item.priority === 'CAO' || item.type === 'warning';
+    return true;
+  });
+});
+
+const unreadNotifications = computed(() => filteredNotifications.value.filter((item) => !item.isRead));
+const readNotifications = computed(() => filteredNotifications.value.filter((item) => item.isRead));
+
+const loadNotifications = async () => {
+  try {
+    notifications.value = (await fetchNotifications({ perPage: 100 })).map(decorateNotification);
+  } catch (error) {
+    console.error('Không tải được thông báo nhân viên:', error);
+    notifications.value = [];
+  }
+};
+
+const handleNotificationClick = async (item) => {
+  try {
+    if (!item?.isRead) {
+      await markNotificationRead(item.id);
+      await loadNotifications();
+    }
+  } catch (error) {
+    console.error('Không đánh dấu đã đọc được:', error);
+  }
+};
+
+onMounted(() => {
+  void loadNotifications();
+});
 </script>
 
 <style scoped>

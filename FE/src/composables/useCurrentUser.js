@@ -5,13 +5,14 @@
 import { computed } from 'vue';
 import { AUTH_USER_KEY } from '@/services/runtimeConfig.js';
 import { getSessionItem } from '@/services/session.js';
+import { deepFixMojibake, fixMojibake } from '@/utils/textEncodingFixed.js';
 
 export function useCurrentUser() {
   const pickFirst = (...values) => {
     for (const value of values) {
       if (value === null || value === undefined) continue;
       if (typeof value === 'string' && value.trim() === '') continue;
-      return value;
+      return typeof value === 'string' ? fixMojibake(value) : value;
     }
     return '';
   };
@@ -23,17 +24,17 @@ export function useCurrentUser() {
 
   // Các key cơ bản được lưu lúc login
   const storedId    = getSessionItem('userId');        // employeeId (number dạng string)
-  const storedName  = getSessionItem('userName');
-  const storedEmail = getSessionItem('userEmail');
+  const storedName  = fixMojibake(getSessionItem('userName'));
+  const storedEmail = fixMojibake(getSessionItem('userEmail'));
   const storedRole  = getSessionItem('userRole');      // 'employee' | 'manager' | 'director' | 'admin'
   const storedDept  = getSessionItem('userDeptId');
-  const storedDeptName = getSessionItem('userDeptName');
-  const storedPosition = getSessionItem('userPosition');
-  const storedPhone = getSessionItem('userPhone');
+  const storedDeptName = fixMojibake(getSessionItem('userDeptName'));
+  const storedPosition = fixMojibake(getSessionItem('userPosition'));
+  const storedPhone = fixMojibake(getSessionItem('userPhone'));
   const storedAuthUser = (() => {
     try {
       const raw = getSessionItem(AUTH_USER_KEY);
-      return raw ? JSON.parse(raw) : null;
+      return raw ? deepFixMojibake(JSON.parse(raw)) : null;
     } catch {
       return null;
     }
@@ -89,7 +90,7 @@ export function useCurrentUser() {
     if (!storedId) return null;
     return {
       employeeId: storedId,
-      employeeCode: getSessionItem('userCode') || '',
+      employeeCode: fixMojibake(getSessionItem('userCode')) || '',
       fullName: storedName || '',
       companyEmail: storedEmail || '',
       phoneNumber: storedPhone || '',

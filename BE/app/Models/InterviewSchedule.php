@@ -10,6 +10,7 @@ class InterviewSchedule extends Model
 {
     protected string $table = 'interview_schedules';
     protected string $primaryKey = 'interview_id';
+    private ?array $featureSupport = null;
     protected array $fillable = [
         'candidate_id',
         'interviewer_id',
@@ -53,6 +54,16 @@ class InterviewSchedule extends Model
         }
 
         $whereSql = $where === [] ? '' : 'WHERE ' . implode(' AND ', $where);
+        $support = $this->featureSupport();
+
+        $selectManagerCols = $support['interview_department_manager_id_column']
+            ? 'i.department_manager_id,
+                       dm.full_name AS department_manager_name'
+            : 'NULL AS department_manager_id,
+                       NULL AS department_manager_name';
+        $joinManager = $support['interview_department_manager_id_column']
+            ? 'LEFT JOIN employees dm ON dm.employee_id = i.department_manager_id'
+            : '';
 
         $sql = "SELECT i.*,
                        c.full_name AS candidate_name,
@@ -60,13 +71,13 @@ class InterviewSchedule extends Model
                        rp.department_id,
                        d.department_name,
                        e.full_name AS interviewer_name,
-                       dm.full_name AS department_manager_name
+                       {$selectManagerCols}
                 FROM interview_schedules i
                 JOIN recruitment_candidates c ON c.candidate_id = i.candidate_id
                 LEFT JOIN recruitment_positions rp ON rp.recruitment_position_id = c.recruitment_position_id
                 LEFT JOIN employees e ON e.employee_id = i.interviewer_id
                 LEFT JOIN departments d ON d.department_id = rp.department_id
-                LEFT JOIN employees dm ON dm.employee_id = i.department_manager_id
+                {$joinManager}
                 $whereSql
                 ORDER BY i.interview_date DESC, i.interview_time DESC, i.interview_id DESC
                 LIMIT :limit OFFSET :offset";
@@ -97,19 +108,29 @@ class InterviewSchedule extends Model
 
     public function findDetail(int $id): ?array
     {
+        $support = $this->featureSupport();
+        $selectManagerCols = $support['interview_department_manager_id_column']
+            ? 'i.department_manager_id,
+                       dm.full_name AS department_manager_name'
+            : 'NULL AS department_manager_id,
+                       NULL AS department_manager_name';
+        $joinManager = $support['interview_department_manager_id_column']
+            ? 'LEFT JOIN employees dm ON dm.employee_id = i.department_manager_id'
+            : '';
+
         $sql = "SELECT i.*,
                        c.full_name AS candidate_name,
                        rp.position_name,
                        rp.department_id,
                        d.department_name,
                        e.full_name AS interviewer_name,
-                       dm.full_name AS department_manager_name
+                       {$selectManagerCols}
                 FROM interview_schedules i
                 JOIN recruitment_candidates c ON c.candidate_id = i.candidate_id
                 LEFT JOIN recruitment_positions rp ON rp.recruitment_position_id = c.recruitment_position_id
                 LEFT JOIN employees e ON e.employee_id = i.interviewer_id
                 LEFT JOIN departments d ON d.department_id = rp.department_id
-                LEFT JOIN employees dm ON dm.employee_id = i.department_manager_id
+                {$joinManager}
                 WHERE i.interview_id = :id
                 LIMIT 1";
         $stmt = $this->db->prepare($sql);
@@ -120,9 +141,14 @@ class InterviewSchedule extends Model
 
     public function findReviewContext(int $id): ?array
     {
+        $support = $this->featureSupport();
+        $selectDepartmentManager = $support['interview_department_manager_id_column']
+            ? 'i.department_manager_id,'
+            : 'NULL AS department_manager_id,';
+
         $sql = "SELECT i.interview_id,
                        i.candidate_id,
-                       i.department_manager_id,
+                       {$selectDepartmentManager}
                        i.status,
                        i.result,
                        c.full_name AS candidate_name,
@@ -154,5 +180,30 @@ class InterviewSchedule extends Model
         $stmt->execute(['candidate_id' => $candidateId]);
         $row = $stmt->fetch();
         return $row === false ? null : $row;
+    }
+
+    private function featureSupport(): array
+    {
+        if (is_array($this->featureSupport)) {
+            return $this->featureSupport;
+        }
+
+        $columns = [];
+        $columnStmt = $this->db->prepare("
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'interview_schedules'
+        ");
+        $columnStmt->execute();
+        foreach (($columnStmt->fetchAll(PDO::FETCH_COLUMN) ?: []) as $columnName) {
+            $columns[(string) $columnName] = true;
+        }
+
+        $this->featureSupport = [
+            'interview_department_manager_id_column' => isset($columns['department_manager_id']),
+        ];
+
+        return $this->featureSupport;
     }
 }

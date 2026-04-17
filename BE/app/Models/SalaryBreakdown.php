@@ -36,7 +36,13 @@ class SalaryBreakdown extends Model
         }
 
         $whereSql = $where === [] ? '' : 'WHERE ' . implode(' AND ', $where);
-        $sql = "SELECT sb.*, sd.employee_id, e.employee_code, e.full_name, sp.period_code
+        $sql = "SELECT sb.*,
+                       sd.employee_id,
+                       sd.period_id,
+                       e.employee_code,
+                       e.full_name,
+                       sp.period_code,
+                       sp.status AS period_status
                 FROM salary_breakdowns sb
                 JOIN salary_details sd ON sd.salary_detail_id = sb.salary_detail_id
                 JOIN employees e ON e.employee_id = sd.employee_id
@@ -70,7 +76,13 @@ class SalaryBreakdown extends Model
 
     public function findDetail(int $id): ?array
     {
-        $sql = "SELECT sb.*, sd.employee_id, e.employee_code, e.full_name, sp.period_code
+        $sql = "SELECT sb.*,
+                       sd.employee_id,
+                       sd.period_id,
+                       e.employee_code,
+                       e.full_name,
+                       sp.period_code,
+                       sp.status AS period_status
                 FROM salary_breakdowns sb
                 JOIN salary_details sd ON sd.salary_detail_id = sb.salary_detail_id
                 JOIN employees e ON e.employee_id = sd.employee_id

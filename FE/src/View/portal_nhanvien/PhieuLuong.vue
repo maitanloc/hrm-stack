@@ -277,6 +277,7 @@ import { exportEmployeePayrollPDF } from '@/utils/pdfExport.js';
 import { useCurrentUser } from '@/composables/useCurrentUser';
 import { BE_API_BASE, getAccessToken } from '@/services/runtimeConfig.js';
 import { handleUnauthorized } from '@/services/session.js';
+import { parseJsonResponseSafely } from '@/utils/textEncodingFixed.js';
 
 const { employeeId: currentEmpId, fullName, employeeCode, deptName, positionName } = useCurrentUser();
 const mySalaries = ref([]);
@@ -437,7 +438,7 @@ const apiRequest = async (path, { method = 'GET', body } = {}) => {
     handleUnauthorized();
     throw new Error('Phiên đăng nhập đã hết hạn');
   }
-  const payload = await response.json().catch(() => ({}));
+  const payload = await parseJsonResponseSafely(response);
   if (!response.ok || payload?.success === false) {
     throw new Error(payload?.message || `Request failed (${response.status})`);
   }

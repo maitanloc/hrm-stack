@@ -46,8 +46,18 @@
             </div>
             <div class="flex items-center gap-2.5">
               <span class="w-2.5 h-2.5 rounded-full bg-[var(--sys-danger-solid)]"></span>
-              <span class="text-[11px] font-bold text-[var(--sys-text-secondary)] uppercase tracking-widest">Vắng mặt</span>
+              <span class="text-[11px] font-bold text-[var(--sys-text-secondary)] uppercase tracking-widest">Nghỉ / Vắng</span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-4 py-3 border-b border-[var(--sys-border-subtle)] bg-[var(--sys-bg-surface)]">
+        <div class="grid grid-cols-2 xl:grid-cols-5 gap-3">
+          <div v-for="metric in overviewCards" :key="metric.label" class="rounded-md border px-4 py-3 shadow-sm" :class="metric.cardClass">
+            <p class="m-0 text-[10px] font-bold uppercase tracking-[0.14em] opacity-70">{{ metric.label }}</p>
+            <p class="m-0 mt-2 text-[20px] font-bold tracking-tight">{{ metric.value }}</p>
+            <p class="m-0 mt-1 text-[11px] font-medium opacity-80">{{ metric.note }}</p>
           </div>
         </div>
       </div>
@@ -88,9 +98,12 @@
                 class="px-1 py-3 border-r border-[var(--sys-border-subtle)]/50 text-center transition-colors"
                 :class="isWeekend(d) ? 'bg-[var(--sys-bg-page)] opacity-40' : ''">
                 <div v-if="!isWeekend(d)" class="flex justify-center h-7 items-center">
-                   <div v-if="staff.data[d] === 'on'" class="w-7 h-7 rounded-md flex items-center justify-center font-bold text-[10px] bg-[var(--sys-success-soft)] text-[var(--sys-success-text)] border border-[var(--sys-success-border)] shadow-sm scale-95 hover:scale-105 transition-transform" title="Đúng giờ">✔</div>
-                   <div v-if="staff.data[d] === 'late'" class="w-7 h-7 rounded-md flex items-center justify-center font-bold text-[10px] bg-[var(--sys-warning-soft)] text-[var(--sys-warning-text)] border border-[var(--sys-warning-border)] shadow-sm scale-95 hover:scale-105 transition-transform" title="Đi muộn">M</div>
-                   <div v-if="staff.data[d] === 'off'" class="w-7 h-7 rounded-md flex items-center justify-center font-bold text-[10px] bg-[var(--sys-danger-soft)] text-[var(--sys-danger-text)] border border-[var(--sys-danger-border)] shadow-sm scale-95 hover:scale-105 transition-transform" title="Vắng mặt">V</div>
+                   <div v-if="staff.data[d]?.kind === 'on'" class="w-7 h-7 rounded-md flex items-center justify-center font-bold text-[10px] bg-[var(--sys-success-soft)] text-[var(--sys-success-text)] border border-[var(--sys-success-border)] shadow-sm scale-95 hover:scale-105 transition-transform" :title="staff.data[d]?.title || 'Đi làm đúng ca'">✔</div>
+                   <div v-if="staff.data[d]?.kind === 'late'" class="w-7 h-7 rounded-md flex items-center justify-center font-bold text-[10px] bg-[var(--sys-warning-soft)] text-[var(--sys-warning-text)] border border-[var(--sys-warning-border)] shadow-sm scale-95 hover:scale-105 transition-transform" :title="staff.data[d]?.title || 'Đi muộn / về sớm'">M</div>
+                   <div v-if="staff.data[d]?.kind === 'off'" class="w-10 h-8 rounded-md flex flex-col items-center justify-center font-bold bg-[var(--sys-danger-soft)] text-[var(--sys-danger-text)] border border-[var(--sys-danger-border)] shadow-sm scale-95 hover:scale-105 transition-transform leading-none" :title="staff.data[d]?.title || 'Off'">
+                     <span class="text-[8px] tracking-[0.12em]">OFF</span>
+                     <span class="text-[7px] font-black uppercase opacity-80 mt-[1px]">{{ staff.data[d]?.reasonShort || 'OFF' }}</span>
+                   </div>
                    <div v-if="!staff.data[d]" class="w-1.5 h-1.5 rounded-full bg-[var(--sys-border-strong)] opacity-20"></div>
                 </div>
                 <div v-else class="text-[9px] font-bold text-[var(--sys-text-secondary)] uppercase tracking-tighter opacity-60">OFF</div>
@@ -114,7 +127,7 @@
           <p class="text-[11px] text-[var(--sys-text-secondary)] font-bold flex items-center gap-4 uppercase tracking-widest">
             <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded bg-[var(--sys-success-solid)]"></span> ✔ ĐỦ CÔNG</span>
             <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded bg-[var(--sys-warning-solid)]"></span> M ĐI MUỘN</span>
-            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded bg-[var(--sys-danger-solid)]"></span> V VẮNG MẶT</span>
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded bg-[var(--sys-danger-solid)]"></span> OFF NGHỈ / VẮNG</span>
           </p>
         </div>
         <button @click="showHistoryModal = true" class="text-[11px] font-bold uppercase tracking-widest text-[var(--sys-brand-solid)] hover:opacity-80 transition-all flex items-center gap-2 group">
@@ -268,11 +281,13 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import Dropdown from '@/components/Dropdown.vue'
-import { mockEmployees, mockDB, mockDepartments } from '@/mock-data/index.js'
+import { useCurrentUser } from '@/composables/useCurrentUser'
+import { fetchTeamSchedule } from '@/services/workforceApi.js'
 
 const showHistoryModal = ref(false)
-const selectedMonth = ref('03')
-const selectedYear = ref('2026')
+const now = new Date()
+const selectedMonth = ref(String(now.getMonth() + 1).padStart(2, '0'))
+const selectedYear = ref(String(now.getFullYear()))
 const deptName = ref('Phòng ban')
 const todayStr = ref('')
 const sevenDaysAgoStr = ref('')
@@ -280,6 +295,8 @@ const sevenDaysAgoStr = ref('')
 const showExportPreview = ref(false)
 const exportData = ref([])
 const fullAttendances = ref([])
+const workforceRows = ref([])
+const { deptId, deptName: currentDeptName } = useCurrentUser()
 
 const monthOptions = [
   { label: 'Tháng 01', value: '01' },
@@ -311,153 +328,265 @@ const isWeekend = (day) => {
   return d === 0 || d === 6;
 };
 
-// Trạng thái chấm công giả lập dựa trên attendance_id
-const getAttStatus = (seed) => {
-  const r = seed % 10
-  if (r < 7) return 'on'
-  if (r === 7) return 'late'
-  return 'off'
-}
-
 const attendanceList = ref([])
 const historyLogs = ref([])
-const userDeptId = localStorage.getItem('userDeptId') || '1';
+
+const overviewCards = computed(() => {
+  const summary = {
+    totalEmployees: new Set(),
+    onTime: 0,
+    attention: 0,
+    absent: 0,
+    leaveLike: 0,
+    unassigned: 0,
+  }
+
+  workforceRows.value.forEach((row) => {
+    const employeeId = Number(row?.employee?.employee_id || 0)
+    if (employeeId) summary.totalEmployees.add(employeeId)
+
+    const status = String(row?.attendance_result?.primary_status_code || '').toUpperCase()
+    if (['P', 'OT', 'NS'].includes(status)) {
+      summary.onTime += 1
+    } else if (['L', 'EO'].includes(status)) {
+      summary.attention += 1
+    } else if (status === 'AB') {
+      summary.absent += 1
+    } else if (['AL', 'SL', 'UNP', 'H', 'REMOTE', 'CT'].includes(status)) {
+      summary.leaveLike += 1
+    } else if (status === 'UNASSIGNED') {
+      summary.unassigned += 1
+    }
+  })
+
+  return [
+    {
+      label: 'Nhân sự theo dõi',
+      value: summary.totalEmployees.size,
+      note: 'Tổng nhân sự trong phạm vi phòng ban đang xem',
+      cardClass: 'bg-[var(--sys-brand-soft)] text-[var(--sys-brand-solid)] border-[var(--sys-brand-border)]',
+    },
+    {
+      label: 'Đúng ca / làm việc',
+      value: summary.onTime,
+      note: 'Bao gồm đúng giờ, OT, ca đêm',
+      cardClass: 'bg-[var(--sys-success-soft)] text-[var(--sys-success-text)] border-[var(--sys-success-border)]',
+    },
+    {
+      label: 'Cần chú ý',
+      value: summary.attention,
+      note: 'Đi muộn hoặc về sớm theo attendance result',
+      cardClass: 'bg-[var(--sys-warning-soft)] text-[var(--sys-warning-text)] border-[var(--sys-warning-border)]',
+    },
+    {
+      label: 'Nghỉ / công tác',
+      value: summary.leaveLike,
+      note: 'Leave, holiday, remote hoặc công tác đã được áp lịch',
+      cardClass: 'bg-[var(--sys-info-soft)] text-[var(--sys-info-text)] border-[var(--sys-info-border)]',
+    },
+    {
+      label: 'Vắng / chưa phân ca',
+      value: summary.absent + summary.unassigned,
+      note: `AB: ${summary.absent} · Chưa phân ca: ${summary.unassigned}`,
+      cardClass: 'bg-[var(--sys-danger-soft)] text-[var(--sys-danger-text)] border-[var(--sys-danger-border)]',
+    },
+  ]
+})
+
+const toIsoDate = (date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const formatDateVi = (value) => {
+  if (!value) return '--/--/----'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString('vi-VN')
+}
+
+const getDayKey = (dateString) => {
+  const date = new Date(dateString)
+  if (Number.isNaN(date.getTime())) return null
+  return date.getDate()
+}
+
+const buildGridCell = (row) => {
+  const attendanceResult = row?.attendance_result || {}
+  const status = String(attendanceResult?.primary_status_code || '').toUpperCase()
+  const holidayName = String(row?.holiday?.holiday_name || '').trim()
+  const leaveName = String(row?.leave?.leave_type_name || '').trim()
+
+  if (['L', 'EO'].includes(status)) {
+    return {
+      kind: 'late',
+      title: `${getStatusLabel(attendanceResult)}${attendanceResult?.late_minutes ? ` · Muộn ${attendanceResult.late_minutes} phút` : ''}${attendanceResult?.early_out_minutes ? ` · Sớm ${attendanceResult.early_out_minutes} phút` : ''}`,
+    }
+  }
+
+  if (status === 'H') {
+    return {
+      kind: 'off',
+      reasonShort: 'LỄ',
+      title: `OFF · ${holidayName || 'Ngày nghỉ lễ hệ thống'}`,
+    }
+  }
+
+  if (['AL', 'SL', 'UNP'].includes(status)) {
+    return {
+      kind: 'off',
+      reasonShort: status === 'AL' ? 'PHÉP' : status === 'SL' ? 'ỐM' : 'K LƯƠNG',
+      title: `OFF · ${leaveName || getStatusLabel(attendanceResult)}`,
+    }
+  }
+
+  if (status === 'AB') {
+    return {
+      kind: 'off',
+      reasonShort: 'VẮNG',
+      title: 'OFF · Vắng mặt chưa có đơn hợp lệ',
+    }
+  }
+
+  if (status === 'UNASSIGNED') {
+    return {
+      kind: 'off',
+      reasonShort: 'CHƯA CA',
+      title: 'OFF · Chưa được phân ca làm việc',
+    }
+  }
+
+  if (['P', 'OT', 'NS', 'REMOTE', 'CT'].includes(status)) {
+    return {
+      kind: 'on',
+      title: getStatusLabel(attendanceResult),
+    }
+  }
+
+  return null
+}
+
+const getStatusLabel = (attendanceResult) => {
+  const status = String(attendanceResult?.primary_status_code || '').toUpperCase()
+  const labels = {
+    P: 'Đúng giờ',
+    L: 'Đi muộn',
+    EO: 'Về sớm',
+    OT: 'Làm thêm giờ',
+    NS: 'Ca đêm',
+    AL: 'Nghỉ phép năm',
+    SL: 'Nghỉ ốm',
+    UNP: 'Nghỉ không lương',
+    AB: 'Vắng mặt',
+    H: 'Ngày lễ',
+    CT: 'Công tác',
+    REMOTE: 'Làm việc từ xa',
+    UNASSIGNED: 'Chưa phân ca',
+  }
+  return labels[status] || 'Đang cập nhật'
+}
+
+const getSourceLabel = (shift) => {
+  const source = String(shift?.source || '').toLowerCase()
+  if (source === 'override') return 'Ca chỉnh riêng'
+  if (source === 'assignment') return 'Ca mặc định cá nhân'
+  if (source === 'department_schedule') return 'Lịch phòng ban'
+  return 'Ngữ cảnh hệ thống'
+}
 
 const loadData = async () => {
   try {
-    const departmentResult = mockDepartments.find(d => Number(d.departmentId) === Number(userDeptId) || d.id === userDeptId);
-    if (departmentResult) {
-      deptName.value = departmentResult.departmentName || departmentResult.name || 'Phòng ban';
-    }
+    const resolvedDeptId = Number(deptId.value || 0)
+    const fromDate = `${selectedYear.value}-${selectedMonth.value}-01`
+    const toDate = `${selectedYear.value}-${selectedMonth.value}-${String(daysInMonth.value).padStart(2, '0')}`
 
-    const employeesResult = mockEmployees.filter(e => {
-      const dId = e.department?.departmentId || e.departmentId || e.deptId;
-      return Number(dId) === Number(userDeptId);
-    });
-    let allAtts = [];
-    try {
-      const attRes = await fetch('http://localhost:3000/attendances');
-      if (attRes.ok) allAtts = await attRes.json();
-      else allAtts = mockDB.attendances || [];
-    } catch (e) {
-      allAtts = mockDB.attendances || [];
-    }
-    fullAttendances.value = allAtts;
+    deptName.value = currentDeptName.value || 'Phòng ban'
 
-    // Build the grid
-    attendanceList.value = employeesResult.map(emp => {
-      const empId = emp.employeeId || emp.id;
-      const empAtts = allAtts.filter(a => a.employeeId === empId || a.employeeId === empId);
-      const data = {};
-      let totalDays = 0;
+    const payload = await fetchTeamSchedule({
+      fromDate,
+      toDate,
+      departmentId: resolvedDeptId || undefined,
+    })
 
-      empAtts.forEach(att => {
-        const d = new Date(att.attendanceDate || att.date);
-        if (!isNaN(d)) {
-          const day = d.getDate();
-          const status = att.status === 'ĐÃ_DUYỆT' ? 'on' : (att.status === 'ontime' ? 'on' : (att.status === 'late' ? 'late' : 'off'));
-          data[day] = status;
-          if (status !== 'off') totalDays += status === 'late' ? 0.5 : 1;
-        }
-      });
+    const rows = Array.isArray(payload) ? payload : []
+    workforceRows.value = rows
 
-      // Fill mock data logic
-      const now = new Date();
-      const isCurrentMonth = now.getFullYear() === Number(selectedYear.value) && (now.getMonth() + 1) === Number(selectedMonth.value);
-      const isPastMonth = Number(selectedYear.value) < now.getFullYear() || (Number(selectedYear.value) === now.getFullYear() && Number(selectedMonth.value) < (now.getMonth() + 1));
-      const limitDay = isCurrentMonth ? now.getDate() : (isPastMonth ? (daysInMonth.value + 1) : 0);
+    const employeeMap = new Map()
+    rows.forEach((row) => {
+      const employee = row?.employee || {}
+      const employeeIdValue = Number(employee.employee_id || 0)
+      if (!employeeIdValue) return
 
-      for (let d = 1; d < limitDay; d++) {
-        if (!data[d] && !isWeekend(d)) {
-          const seed = (parseInt(String(empId).replace(/\D/g, '')) * 31 + d) % 10;
-          data[d] = seed < 8 ? 'on' : (seed === 8 ? 'late' : 'off');
-          totalDays += data[d] === 'on' ? 1 : (data[d] === 'late' ? 0.5 : 0);
-        }
+      const existing = employeeMap.get(employeeIdValue) || {
+        id: employeeIdValue,
+        name: employee.full_name || `Nhân sự #${employeeIdValue}`,
+        dept: employee.department_name || deptName.value,
+        total: 0,
+        data: {},
       }
 
-      return {
-        id: empId,
-        name: emp.fullName || emp.name,
-        dept: deptName.value,
-        total: totalDays.toFixed(1),
-        data
+      const dayKey = getDayKey(row?.work_date)
+      const gridCell = buildGridCell(row)
+      if (dayKey) {
+        existing.data[dayKey] = gridCell
       }
-    });
 
-    // Build history logs - Show last 7 days from current date
-    const now = new Date();
-    todayStr.value = now.toLocaleDateString('vi-VN');
-    
-    // Normalize to midnight for comparison
-    const todayLimit = new Date(now);
-    todayLimit.setHours(23, 59, 59, 999);
-    
-    const sevenDaysAgoMatch = new Date(now);
-    sevenDaysAgoMatch.setDate(now.getDate() - 6); // 6 days before today = 7 days total inclusive
-    sevenDaysAgoMatch.setHours(0, 0, 0, 0);
-    
-    sevenDaysAgoStr.value = sevenDaysAgoMatch.toLocaleDateString('vi-VN');
+      if (gridCell?.kind === 'on') existing.total += 1
+      if (gridCell?.kind === 'late') existing.total += 0.5
 
-    // Build history logs for ALL department members (Last 7 Days)
-    const history = [];
-    // Iterate through last 7 days from today back
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(now);
-      d.setDate(now.getDate() - i);
-      d.setHours(0, 0, 0, 0);
-      
-      const dateStr = d.toISOString().split('T')[0];
-      const showDay = d.toLocaleDateString('vi-VN');
+      employeeMap.set(employeeIdValue, existing)
+    })
 
-      employeesResult.forEach(emp => {
-        const empId = emp.employeeId || emp.id;
-        const att = allAtts.find(a => (a.employeeId === empId) && (a.attendanceDate === dateStr || a.date === dateStr));
-        
-        const formatTime = (time) => {
-          if (!time) return '--:--';
-          if (time.includes('T')) return time.split('T')[1].substring(0, 5);
-          if (time.includes(' ')) return time.split(' ')[1].substring(0, 5);
-          return time.substring(0, 5);
-        };
+    attendanceList.value = Array.from(employeeMap.values()).map((item) => ({
+      ...item,
+      total: item.total.toFixed(1),
+    }))
 
-        if (att) {
-          const statusConverted = att.status === 'ĐÃ_DUYỆT' ? 'ontime' : (att.status || 'ontime');
-          history.push({
-            date: dateStr,
-            name: emp.fullName || emp.name,
-            role: deptName.value,
-            in: formatTime(att.checkInTime || att.checkIn1),
-            out: formatTime(att.checkOutTime || att.checkOut1),
-            in2: formatTime(att.checkIn2),
-            out2: formatTime(att.checkOut2),
-            status: statusConverted,
-            statusLabel: statusConverted === 'ontime' ? 'Đúng giờ' : (statusConverted === 'late' ? 'Đi muộn' : 'Vắng mặt')
-          });
-        } else if (!isWeekend(d.getDate())) {
-          // If no live data, use the mock logic to show a complete 7-day view
-          const dayNum = d.getDate();
-          const seed = (parseInt(String(empId).replace(/\D/g, '')) * 31 + dayNum) % 10;
-          const status = seed < 8 ? 'ontime' : (seed === 8 ? 'late' : 'off');
-          
-          if (status !== 'off') {
-            history.push({
-              date: dateStr,
-              name: emp.fullName || emp.name,
-              role: deptName.value,
-              in: '08:00',
-              out: '12:00',
-              in2: '13:00',
-              out2: '17:00',
-              status: status,
-              statusLabel: status === 'ontime' ? 'Đúng giờ' : 'Đi muộn'
-            });
-          }
+    fullAttendances.value = rows
+
+    todayStr.value = formatDateVi(now)
+    const sevenDaysAgo = new Date(now)
+    sevenDaysAgo.setDate(now.getDate() - 6)
+    sevenDaysAgoStr.value = formatDateVi(sevenDaysAgo)
+
+    historyLogs.value = rows
+      .filter((row) => {
+        const date = new Date(row?.work_date || '')
+        if (Number.isNaN(date.getTime())) return false
+        date.setHours(0, 0, 0, 0)
+        return date >= new Date(sevenDaysAgo.getFullYear(), sevenDaysAgo.getMonth(), sevenDaysAgo.getDate())
+      })
+      .map((row) => {
+        const employee = row?.employee || {}
+        const shift = row?.shift || {}
+        const attendanceResult = row?.attendance_result || {}
+        const gridCell = buildGridCell(row)
+        return {
+          date: formatDateVi(row?.work_date || ''),
+          name: employee.full_name || `Nhân sự #${employee.employee_id || '--'}`,
+          role: employee.department_name || deptName.value,
+          in: shift?.start_time || '--:--',
+          out: shift?.end_time || '--:--',
+          in2: row?.leave?.leave_type_name || (row?.holiday?.holiday_name ? 'Ngày lễ' : row?.remote ? 'Remote' : row?.business_trip ? 'Công tác' : getSourceLabel(shift)),
+          out2: attendanceResult?.overtime_minutes
+            ? `${attendanceResult.overtime_minutes}p OT`
+            : attendanceResult?.late_minutes
+              ? `${attendanceResult.late_minutes}p muộn`
+              : attendanceResult?.early_out_minutes
+                ? `${attendanceResult.early_out_minutes}p sớm`
+                : (attendanceResult?.primary_status_code === 'UNASSIGNED' ? 'Chưa phân ca' : '--:--'),
+          status: gridCell?.kind || '',
+          statusLabel: getStatusLabel(attendanceResult),
         }
-      });
-    }
-    historyLogs.value = history;
+      })
+      .sort((left, right) => String(right.date).localeCompare(String(left.date)))
   } catch (error) {
     console.error('Lỗi khi tải dữ liệu chuyên cần:', error);
+    attendanceList.value = []
+    historyLogs.value = []
+    fullAttendances.value = []
   }
 }
 
@@ -476,32 +605,32 @@ const openExportPreview = () => {
 
   employees.forEach(emp => {
     // We iterate through all days of the selected month
-    for (let d = 1; d <= daysInMonth; d++) {
+    for (let d = 1; d <= daysInMonth.value; d++) {
       if (isWeekend(d)) continue;
 
       const dateStr = `${selectedYear.value}-${selectedMonth.value}-${String(d).padStart(2, '0')}`;
-      const att = fullAttendances.value.find(a => (a.employeeId === emp.id) && (a.attendanceDate === dateStr || a.date === dateStr));
+      const att = fullAttendances.value.find((row) => Number(row?.employee?.employee_id) === Number(emp.id) && row?.work_date === dateStr);
       
       if (att) {
+         const shift = att.shift || {}
          data.push({
            name: emp.name,
            dept: emp.dept,
            date: dateStr,
-           in1: getFTime(att.checkIn1 || att.checkInTime),
-           out1: getFTime(att.checkOut1 || att.checkOutTime),
-           in2: getFTime(att.checkIn2),
-           out2: getFTime(att.checkOut2)
+           in1: getFTime(shift.start_time || ''),
+           out1: getFTime(shift.end_time || ''),
+           in2: '--',
+           out2: att?.attendance_result?.overtime_minutes ? `${att.attendance_result.overtime_minutes}p OT` : '--'
          });
-      } else if (emp.data[d] && emp.data[d] !== 'off') {
-         // Mock row for complete table
+      } else if (emp.data[d]?.kind && emp.data[d]?.kind !== 'off') {
          data.push({
            name: emp.name,
            dept: emp.dept,
            date: dateStr,
-           in1: '08:00',
-           out1: '12:00',
-           in2: '13:00',
-           out2: '17:00'
+           in1: '--',
+           out1: '--',
+           in2: '--',
+           out2: '--'
          });
       }
     }
@@ -565,13 +694,14 @@ const handleExportHistoryExcel = () => {
 };
 
 const getStatusClass = (status) => {
-  if (status === 'ontime') return 'text-[var(--sys-success-text)] bg-[var(--sys-success-soft)] px-2 py-0.5 rounded border border-[var(--sys-success-border)]';
+  if (status === 'ontime' || status === 'on') return 'text-[var(--sys-success-text)] bg-[var(--sys-success-soft)] px-2 py-0.5 rounded border border-[var(--sys-success-border)]';
   if (status === 'late') return 'text-[var(--sys-warning-text)] bg-[var(--sys-warning-soft)] px-2 py-0.5 rounded border border-[var(--sys-warning-border)]';
   if (status === 'off') return 'text-[var(--sys-danger-text)] bg-[var(--sys-danger-soft)] px-2 py-0.5 rounded border border-[var(--sys-danger-border)]';
   return 'text-[var(--sys-text-secondary)] bg-[var(--sys-bg-hover)] px-2 py-0.5 rounded border border-[var(--sys-border-strong)]';
 }
 
 let pollInterval = null;
+const TEAM_ATTENDANCE_POLL_INTERVAL_MS = 60000;
 
 watch([selectedMonth, selectedYear], () => {
   loadData();
@@ -579,7 +709,10 @@ watch([selectedMonth, selectedYear], () => {
 
 onMounted(() => {
   loadData();
-  pollInterval = setInterval(loadData, 10000); // Poll every 10 seconds
+  pollInterval = setInterval(() => {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    loadData();
+  }, TEAM_ATTENDANCE_POLL_INTERVAL_MS);
 });
 
 onUnmounted(() => {

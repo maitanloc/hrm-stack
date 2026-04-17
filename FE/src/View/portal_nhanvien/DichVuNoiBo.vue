@@ -357,7 +357,10 @@ const intervalId = ref(null)
 // ── Lifecycle ──────────────────────────────────────────
 onMounted(async () => {
   await store.fetchTickets()
-  intervalId.value = setInterval(store.fetchTickets, 10000)
+  intervalId.value = setInterval(() => {
+    if (typeof document !== 'undefined' && document.hidden) return
+    store.fetchTickets()
+  }, 45000)
 })
 
 onUnmounted(() => {

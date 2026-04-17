@@ -19,6 +19,7 @@ use App\Controllers\Api\V1\RecruitmentController;
 use App\Controllers\Api\V1\RequestController;
 use App\Controllers\Api\V1\RequestTypeController;
 use App\Controllers\Api\V1\SettingController;
+use App\Controllers\Api\V1\AttendanceRiskController;
 use App\Middlewares\AuthMiddleware;
 use App\Middlewares\HierarchyEmployeeBodyMiddleware;
 use App\Middlewares\HierarchyEmployeeParamMiddleware;
@@ -351,6 +352,52 @@ $router->group('/api/v1', function ($router): void {
         ]);
         $router->delete('/attendances/{id}', [AttendanceController::class, 'attendanceDelete'], [
             [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'delete'],
+        ]);
+
+        $router->post('/attendance/bootstrap', [AttendanceRiskController::class, 'bootstrapDevice'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+            [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
+        ]);
+        $router->post('/attendance/precheck', [AttendanceRiskController::class, 'precheck'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+            [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
+        ]);
+        $router->post('/attendance/pre-check', [AttendanceRiskController::class, 'precheck'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+            [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
+        ]);
+        $router->post('/attendance/checkin', [AttendanceRiskController::class, 'checkin'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+            [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
+        ]);
+        $router->post('/attendance/clock-in', [AttendanceRiskController::class, 'checkin'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+            [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
+        ]);
+        $router->post('/attendance/checkout', [AttendanceRiskController::class, 'checkout'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+            [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
+        ]);
+        $router->post('/attendance/clock-out', [AttendanceRiskController::class, 'checkout'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+            [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
+        ]);
+        $router->post('/device/reverify', [AttendanceRiskController::class, 'reverifyDevice'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'edit'],
+            [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
+        ]);
+        $router->post('/attendance/exceptions', [AttendanceRiskController::class, 'requestException'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+            [HierarchyEmployeeBodyMiddleware::class, 'employee_id', true],
+        ]);
+        $router->post('/attendance/exceptions/{id}/approve-once', [AttendanceRiskController::class, 'approveExceptionOnce'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'approve'],
+        ]);
+        $router->get('/risk-alerts', [AttendanceRiskController::class, 'riskAlerts'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->get('/attendance/risk-alerts', [AttendanceRiskController::class, 'riskAlerts'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
         ]);
 
         $router->get('/overtime-requests', [AttendanceController::class, 'overtimeIndex'], [
