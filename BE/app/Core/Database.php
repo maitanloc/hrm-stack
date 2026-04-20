@@ -40,9 +40,12 @@ class Database
             );
             self::$connection->exec(sprintf(
                 "SET NAMES '%s' COLLATE '%s'",
-                $config['charset'],
-                $config['collation']
+                $config['charset'] ?? 'utf8mb4',
+                $config['collation'] ?? 'utf8mb4_unicode_ci'
             ));
+            // Additional Unicode safety
+            self::$connection->exec("SET CHARACTER SET utf8mb4");
+            self::$connection->exec("SET character_set_connection=utf8mb4");
         } catch (PDOException $exception) {
             throw new HttpException('Cannot connect database: ' . $exception->getMessage(), 500, 'db_connection_error');
         }

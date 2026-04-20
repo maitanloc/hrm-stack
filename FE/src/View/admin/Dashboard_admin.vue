@@ -391,10 +391,6 @@ const syncDashboardData = async () => {
       .map((req) => {
         const requesterId = Number(req.requester_id || req.requesterId || 0);
         const requester = employeeMap.get(requesterId) || null;
-        const requesterDeptId = Number(
-          requester?.department_id || req.department_id || req.departmentId || 0,
-        );
-        const requesterDept = departmentMap.get(requesterDeptId) || null;
         const statusMeta = mapRequestStatusUi(req.status);
         const typeName = req.request_type_name || req.requestTypeName || 'Yêu cầu nội bộ';
         const reason = String(req.reason || '').trim();
@@ -413,8 +409,19 @@ const syncDashboardData = async () => {
       .sort((a, b) => b.requestId - a.requestId)
       .slice(0, 12);
   } catch (error) {
-    console.error('Dashboard load failed:', error);
-    await showAlert('Không tải được Dashboard', error?.message || 'Lỗi tải dữ liệu dashboard.');
+    console.error('Dashboard sync error:', error);
+    if (stats.value.length === 0) {
+      stats.value = [
+        { label: 'TỔNG NHÂN SỰ', value: '...', change: '--', color: 'brand', icon: 'groups' },
+        { label: 'YÊU CẦU DUYỆT', value: '...', change: '--', color: 'warning', icon: 'pending_actions' },
+        { label: 'NHÂN SỰ MỚI', value: '...', change: '--', color: 'success', icon: 'person_add' },
+        { label: 'TỶ LỆ NGHỈ VIỆC', value: '...', change: '--', color: 'danger', icon: 'trending_down' },
+        { label: 'ĐI MUỘN HÔM NAY', value: '...', change: '--', color: 'danger', icon: 'schedule' },
+      ];
+    }
+    if (!error.message?.includes('syntax error')) {
+        await showAlert('Hệ thống đang bận', 'Dữ liệu tổng quan hiện chưa được cập nhật mới nhất. Vui lòng thử lại sau.');
+    }
   }
 };
 

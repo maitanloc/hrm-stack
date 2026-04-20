@@ -37,6 +37,7 @@ class TimesheetService
         $gracePeriodMinutes = (int) ($policy['grace_period_minutes'] ?? 5);
         $halfDayThreshold   = (int) ($policy['half_day_threshold_minutes'] ?? 240);
         $fullDayMinutes     = (int) ($policy['full_day_minutes'] ?? 480);
+        $minimumOtAfterShiftMinutes = (int) ($policy['overtime_minimum_after_shift_minutes'] ?? 30);
 
         $flags    = [];
         $status   = 'AB';
@@ -152,15 +153,17 @@ class TimesheetService
 
             // --- Approved Overtime ---
             if ($overtime !== null) {
-                $otMinutes = $this->computeOtMinutes($overtime);
+                $otMinutes = $this->computeEligibleOtMinutes(
+                    $attendance,
+                    $overtime,
+                    $shiftEndTs,
+                    $minimumOtAfterShiftMinutes
+                );
                 if ($otMinutes > 0) {
-                    // Was there actual log during OT?
-                    if ($attendance !== null) {
-                        $overtimeMinutes = $otMinutes;
-                        $flags[] = 'OT_VALID';
-                    } else {
-                        $flags[] = 'OT_NO_LOG';
-                    }
+                    $overtimeMinutes = $otMinutes;
+                    $flags[] = 'OT_VALID';
+                } elseif ($attendance === null) {
+                    $flags[] = 'OT_NO_LOG';
                 }
             }
 
@@ -195,6 +198,8 @@ class TimesheetService
         ];
         $this->attendanceResultService->evaluateAndPersist($employeeId, $workDate);
 
+        $exception = $this->hasBlockingFlags($flags);
+
         return [
             'employee_id'      => $employeeId,
             'work_date'        => $workDate,
@@ -214,7 +219,7 @@ class TimesheetService
             'undertime_minutes'=> $undertimeMinutes,
             'overtime_minutes' => $overtimeMinutes,
             'flags'            => $flags,
-            'exception'        => count($flags) > 0,
+            'exception'        => $exception,
         ];
     }
 
@@ -425,6 +430,39 @@ class TimesheetService
         return max(0, (int) floor((strtotime((string)$end) - strtotime((string)$start)) / 60) - $breakM);
     }
 
+    private function computeEligibleOtMinutes(
+        ?array $attendance,
+        array $overtime,
+        ?int $shiftEndTs,
+        int $minimumOtAfterShiftMinutes
+    ): int {
+        if ($attendance === null || $shiftEndTs === null) {
+            return 0;
+        }
+
+        $checkOut = $attendance['check_out_time'] ?? null;
+        if ($checkOut === null) {
+            return 0;
+        }
+
+        $checkoutTs = strtotime((string) $checkOut);
+        if ($checkoutTs === false || $checkoutTs <= $shiftEndTs) {
+            return 0;
+        }
+
+        $actualOtMinutes = (int) floor(($checkoutTs - $shiftEndTs) / 60);
+        if ($actualOtMinutes < $minimumOtAfterShiftMinutes) {
+            return 0;
+        }
+
+        $approvedOtMinutes = $this->computeOtMinutes($overtime);
+        if ($approvedOtMinutes <= 0) {
+            return 0;
+        }
+
+        return min($approvedOtMinutes, $actualOtMinutes);
+    }
+
     private function mapLeaveStatus(array $leave): string
     {
         $code = mb_strtoupper(trim((string)($leave['leave_type_code'] ?? '') . ' ' . (string)($leave['leave_type_name'] ?? '')), 'UTF-8');
@@ -439,6 +477,19 @@ class TimesheetService
     {
         $halfDay = !empty($leave['is_half_day']) || !empty($leave['half_day']);
         return $halfDay ? 0.5 : 1.0;
+    }
+
+    private function hasBlockingFlags(array $flags): bool
+    {
+        foreach ($flags as $flag) {
+            if (in_array((string) $flag, ['OT_VALID', 'WORKED_ON_HOLIDAY'], true)) {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     private function findAttendance(int $employeeId, string $workDate): ?array
@@ -457,7 +508,7 @@ class TimesheetService
     {
         $stmt = Database::connection()->query(
             "SELECT config_key, config_value FROM system_configs
-             WHERE config_key IN ('grace_period_minutes','half_day_threshold_minutes','full_day_minutes')"
+             WHERE config_key IN ('grace_period_minutes','half_day_threshold_minutes','full_day_minutes','overtime_minimum_after_shift_minutes')"
         );
         $rows = $stmt->fetchAll();
         $policy = [];
@@ -473,8 +524,11 @@ class TimesheetService
             "SELECT e.employee_id, e.employee_code, e.full_name,
                     d.department_name, p.position_name
              FROM employees e
-             LEFT JOIN departments d ON d.department_id = e.department_id
-             LEFT JOIN positions p ON p.position_id = e.position_id
+             LEFT JOIN employment_histories eh
+                    ON eh.employee_id = e.employee_id
+                   AND eh.is_current = 1
+             LEFT JOIN departments d ON d.department_id = eh.department_id
+             LEFT JOIN positions p ON p.position_id = eh.position_id
              WHERE e.employee_id = :eid LIMIT 1"
         );
         $stmt->execute(['eid' => $employeeId]);

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -e
+cd /opt/hrm-stack
+MYSQL_ROOT_PASSWORD=$(grep '^MYSQL_ROOT_PASSWORD=' .env.deploy | cut -d= -f2-)
+docker compose --env-file .env.deploy exec -T mysql mysql --default-character-set=utf8mb4 -uroot -p"$MYSQL_ROOT_PASSWORD" -Nse "SELECT 'employees', COUNT(*) FROM HRM_SYSTEM.employees UNION ALL SELECT 'departments', COUNT(*) FROM HRM_SYSTEM.departments UNION ALL SELECT 'shift_types', COUNT(*) FROM HRM_SYSTEM.shift_types UNION ALL SELECT 'shift_schedules', COUNT(*) FROM HRM_SYSTEM.shift_schedules UNION ALL SELECT 'shift_schedule_details', COUNT(*) FROM HRM_SYSTEM.shift_schedule_details UNION ALL SELECT 'shift_assignments', COUNT(*) FROM HRM_SYSTEM.shift_assignments UNION ALL SELECT 'attendances', COUNT(*) FROM HRM_SYSTEM.attendances UNION ALL SELECT 'requests', COUNT(*) FROM HRM_SYSTEM.requests UNION ALL SELECT 'leave_requests', COUNT(*) FROM HRM_SYSTEM.leave_requests UNION ALL SELECT 'overtime_requests', COUNT(*) FROM HRM_SYSTEM.overtime_requests UNION ALL SELECT 'notifications', COUNT(*) FROM HRM_SYSTEM.notifications UNION ALL SELECT 'salary_details', COUNT(*) FROM HRM_SYSTEM.salary_details;"

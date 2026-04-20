@@ -73,8 +73,14 @@ class Attendance extends Model
             $params['date_to'] = $dateTo;
         }
         if ($status !== null && $status !== '') {
-            $where[] = 'a.status = :status';
-            $params['status'] = $status;
+            $statusCandidates = array_unique([$status, 'ĐÃ_DUYỆT', 'DA_DUYET', 'CHỜ_DUYỆT', 'CHO_DUYET', 'TỪ_CHỐI', 'TU_CHOI']);
+            $placeholders = [];
+            foreach ($statusCandidates as $i => $val) {
+                $key = 'status_cand_' . $i;
+                $placeholders[] = ':' . $key;
+                $params[$key] = $val;
+            }
+            $where[] = 'a.status IN (' . implode(', ', $placeholders) . ')';
         }
         if (is_array($employeeIds) && $employeeIds !== []) {
             $in = [];

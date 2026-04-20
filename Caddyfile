@@ -8,7 +8,7 @@
         @api path /api/*
         handle @api {
             root * /srv/app/public
-            php_fastcgi be:9000
+            php_fastcgi hrm-be:9000
         }
 
         handle_path /hrm-api/* {
@@ -16,13 +16,17 @@
         }
 
         handle {
-            reverse_proxy fe:80
+            reverse_proxy hrm-fe:80
         }
     }
 }
 
 http://157.66.46.75 {
     redir https://anhsinhvienfpoly.click{uri}
+}
+
+:80 {
+    import hrm_routes
 }
 
 anhsinhvienfpoly.click {

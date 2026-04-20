@@ -152,7 +152,7 @@ class RequestController extends Controller
             $payload['status'] = $this->normalizeRequestStatus((string) $payload['status']);
         }
 
-        $previousStatus = (string) ($existing['status'] ?? 'NHÁP');
+        $previousStatus = $this->normalizeRequestStatus((string) ($existing['status'] ?? 'NHÁP'));
         $nextStatus = isset($payload['status']) ? (string) $payload['status'] : $previousStatus;
         if ($nextStatus !== $previousStatus) {
             $this->workflowTransitionGuard->assertTransitionAllowed('request', $previousStatus, $nextStatus);
@@ -196,20 +196,57 @@ class RequestController extends Controller
 
     private function normalizeRequestStatus(string $status): string
     {
-        $normalized = strtoupper(trim($status));
-        $normalized = str_replace(' ', '_', $normalized);
+        $normalized = $this->normalizeStatusToken($status);
 
-        return match ($normalized) {
-            'NHAP', 'DRAFT' => 'NHÁP',
-            'CHO_DUYET', 'CHỜ_DUYỆT', 'PENDING' => 'CHỜ_DUYỆT',
-            'CHO_GIAM_DOC_DUYET', 'CHỜ_GIÁM_ĐỐC_DUYỆT', 'WAIT_DIRECTOR', 'PENDING_DIRECTOR' => 'CHỜ_GIÁM_ĐỐC_DUYỆT',
-            'CHO_XAC_NHAN_HR', 'CHỜ_XÁC_NHẬN_HR', 'WAIT_HR_CONFIRM', 'WAIT_HR' => 'CHỜ_XÁC_NHẬN_HR',
-            'DANG_XU_LY', 'ĐANG_XỬ_LÝ', 'IN_PROGRESS' => 'ĐANG_XỬ_LÝ',
-            'DA_DUYET', 'ĐÃ_DUYỆT', 'APPROVED' => 'ĐÃ_DUYỆT',
-            'TU_CHOI', 'TỪ_CHỐI', 'REJECTED' => 'TỪ_CHỐI',
-            'DA_HUY', 'ĐÃ_HỦY', 'CANCELED', 'CANCELLED' => 'ĐÃ_HỦY',
-            'HOAN_THANH', 'HOÀN_THÀNH', 'DONE', 'COMPLETED' => 'HOÀN_THÀNH',
+        return match (true) {
+            $normalized === 'NHAP',
+            $normalized === 'NH_P',
+            $normalized === 'DRAFT' => 'NHÁP',
+            str_contains($normalized, 'GIAM') && str_contains($normalized, 'DUY') => 'CHỜ_GIÁM_ĐỐC_DUYỆT',
+            (str_contains($normalized, 'XAC') && str_contains($normalized, 'HR')),
+            (str_starts_with($normalized, 'CH') && str_contains($normalized, 'HR')),
+            in_array($normalized, ['WAIT_HR_CONFIRM', 'WAIT_HR'], true) => 'CHỜ_XÁC_NHẬN_HR',
+            $normalized === 'ANG_X_L',
+            str_contains($normalized, 'DANG') && (str_contains($normalized, 'XU') || str_contains($normalized, 'PROGRESS')) => 'ĐANG_XỬ_LÝ',
+            in_array($normalized, ['CH_DUY_T', 'CHO_DUYET'], true),
+            (str_contains($normalized, 'CH') && str_contains($normalized, 'DUY') && !str_contains($normalized, 'GIAM') && !str_contains($normalized, 'XAC')),
+            in_array($normalized, ['PENDING', 'SUBMITTED'], true) => 'CHỜ_DUYỆT',
+            in_array($normalized, ['DUY_T', 'DA_DUYET'], true),
+            (str_contains($normalized, 'DA') && str_contains($normalized, 'DUY')),
+            $normalized === 'APPROVED' => 'ĐÃ_DUYỆT',
+            $normalized === 'T_CH_I',
+            str_contains($normalized, 'CHOI'),
+            $normalized === 'REJECTED' => 'TỪ_CHỐI',
+            in_array($normalized, ['H_Y', 'DA_HUY'], true),
+            str_contains($normalized, 'HUY'),
+            in_array($normalized, ['CANCELED', 'CANCELLED'], true) => 'ĐÃ_HỦY',
+            in_array($normalized, ['HO_N_TH_NH', 'HOAN_THANH'], true),
+            str_contains($normalized, 'HOAN'),
+            in_array($normalized, ['DONE', 'COMPLETED'], true) => 'HOÀN_THÀNH',
             default => 'CHỜ_DUYỆT',
         };
+    }
+
+    private function normalizeStatusToken(string $status): string
+    {
+        $upper = mb_strtoupper(trim($status), 'UTF-8');
+        $ascii = strtr($upper, [
+            'À' => 'A', 'Á' => 'A', 'Ả' => 'A', 'Ã' => 'A', 'Ạ' => 'A',
+            'Ă' => 'A', 'Ằ' => 'A', 'Ắ' => 'A', 'Ẳ' => 'A', 'Ẵ' => 'A', 'Ặ' => 'A',
+            'Â' => 'A', 'Ầ' => 'A', 'Ấ' => 'A', 'Ẩ' => 'A', 'Ẫ' => 'A', 'Ậ' => 'A',
+            'Đ' => 'D',
+            'È' => 'E', 'É' => 'E', 'Ẻ' => 'E', 'Ẽ' => 'E', 'Ẹ' => 'E',
+            'Ê' => 'E', 'Ề' => 'E', 'Ế' => 'E', 'Ể' => 'E', 'Ễ' => 'E', 'Ệ' => 'E',
+            'Ì' => 'I', 'Í' => 'I', 'Ỉ' => 'I', 'Ĩ' => 'I', 'Ị' => 'I',
+            'Ò' => 'O', 'Ó' => 'O', 'Ỏ' => 'O', 'Õ' => 'O', 'Ọ' => 'O',
+            'Ô' => 'O', 'Ồ' => 'O', 'Ố' => 'O', 'Ổ' => 'O', 'Ỗ' => 'O', 'Ộ' => 'O',
+            'Ơ' => 'O', 'Ờ' => 'O', 'Ớ' => 'O', 'Ở' => 'O', 'Ỡ' => 'O', 'Ợ' => 'O',
+            'Ù' => 'U', 'Ú' => 'U', 'Ủ' => 'U', 'Ũ' => 'U', 'Ụ' => 'U',
+            'Ư' => 'U', 'Ừ' => 'U', 'Ứ' => 'U', 'Ử' => 'U', 'Ữ' => 'U', 'Ự' => 'U',
+            'Ỳ' => 'Y', 'Ý' => 'Y', 'Ỷ' => 'Y', 'Ỹ' => 'Y', 'Ỵ' => 'Y',
+        ]);
+
+        $token = preg_replace('/[^A-Z0-9]+/', '_', $ascii) ?? '';
+        return trim($token, '_');
     }
 }

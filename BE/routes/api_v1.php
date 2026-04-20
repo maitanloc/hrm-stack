@@ -11,6 +11,7 @@ use App\Controllers\Api\V1\ContractController;
 use App\Controllers\Api\V1\DepartmentController;
 use App\Controllers\Api\V1\EmployeeController;
 use App\Controllers\Api\V1\HealthController;
+use App\Controllers\Api\V1\DebugConfigController;
 use App\Controllers\Api\V1\InternalServiceController;
 use App\Controllers\Api\V1\LeaveController;
 use App\Controllers\Api\V1\NotificationController;
@@ -42,7 +43,20 @@ $router->get('/', function (): array {
 });
 
 $router->group('/api/v1', function ($router): void {
+    $router->get('/test-db', function() {
+        try {
+            $db = \App\Core\Database::connection();
+            $stmt = $db->query("SELECT COUNT(*) as total FROM employees");
+            $res = $stmt->fetch();
+            return ['status' => 200, 'message' => 'Database OK', 'data' => ['employee_count' => $res['total']]];
+        } catch (\Exception $e) {
+            return ['status' => 500, 'message' => 'Database Error: ' . $e->getMessage(), 'error' => 'db_error'];
+        }
+    });
+    $router->get('/', [HealthController::class, 'index']);
     $router->get('/health', [HealthController::class, 'index']);
+    $router->get('/debug-config', [DebugConfigController::class, 'index']);
+    $router->post('/debug-config/repair-db', [DebugConfigController::class, 'repairDatabase']);
     $router->post('/auth/login', [AuthController::class, 'login']);
     $router->post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
     $router->post('/auth/reset-password', [AuthController::class, 'resetPassword']);
@@ -137,6 +151,10 @@ $router->group('/api/v1', function ($router): void {
         $router->post('/team-schedule/publish', [WorkforceController::class, 'publishSchedule'], [
             [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'edit'],
         ]);
+        $router->get('/team-schedule/publish-logs', [WorkforceController::class, 'publishLogs'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+
         $router->post('/team-schedule/copy-week', [WorkforceController::class, 'copyScheduleWeek'], [
             [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'edit'],
         ]);

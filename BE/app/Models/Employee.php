@@ -47,8 +47,14 @@ class Employee extends Model
             $params['search'] = '%' . $search . '%';
         }
         if ($status !== null && $status !== '') {
-            $where[] = 'e.status = :status';
-            $params['status'] = $status;
+            $statusCandidates = array_unique([$status, 'ĐANG_LÀM_VIỆC', 'DANG_LAM_VIEC', 'Đang làm việc', 'THỬ_VIỆC', 'THU_VIEC', 'Thử việc']);
+            $placeholders = [];
+            foreach ($statusCandidates as $i => $val) {
+                $key = 'status_cand_' . $i;
+                $placeholders[] = ':' . $key;
+                $params[$key] = $val;
+            }
+            $where[] = 'e.status IN (' . implode(', ', $placeholders) . ')';
         }
         if ($departmentId !== null) {
             $where[] = 'd.department_id = :department_id';

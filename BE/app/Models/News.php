@@ -41,8 +41,14 @@ class News extends Model
             $params['search'] = '%' . $search . '%';
         }
         if ($status !== null && $status !== '') {
-            $where[] = 'n.status = :status';
-            $params['status'] = $status;
+            $statusCandidates = array_unique([$status, 'ĐÃ_XUẤT_BẢN', 'DA_XUAT_BAN', 'NHÁP', 'NHAP', 'DRAFT', 'PUBLISHED']);
+            $p = [];
+            foreach ($statusCandidates as $i => $val) {
+                $key = 'news_st_cand_' . $i;
+                $p[] = ':' . $key;
+                $params[$key] = $val;
+            }
+            $where[] = 'n.status IN (' . implode(', ', $p) . ')';
         }
 
         $whereSql = $where === [] ? '' : 'WHERE ' . implode(' AND ', $where);

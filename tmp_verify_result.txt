@@ -1,0 +1,90 @@
+test
+TEST: employee_roles per employee
+employee_id	employee_code	full_name	roles
+1	NV0001	Nguy?n V?n An	HR, MANAGER
+2	NV0002	Tr?n Th? Mai	ACCOUNTANT, EMPLOYEE
+3	NV0003	L? V?n C??ng	MANAGER, EMPLOYEE
+4	NV0004	Ph?m Th? H??ng	MANAGER, EMPLOYEE
+5	NV0005	Ho?ng V?n ??c	MANAGER, EMPLOYEE
+6	NV0006	??ng Th? Ng?c	EMPLOYEE
+7	NV0007	B?i V?n Qu?n	MANAGER, EMPLOYEE
+8	NV0008	V? Th? Lan	EMPLOYEE
+9	NV0009	?? V?n H?i	MANAGER, ADMIN
+10	NV0010	L? Th? Hoa	EMPLOYEE
+11	NV0011	Ng? V?n T?ng	EMPLOYEE
+12	NV0012	D??ng Th? H?ng	EMPLOYEE
+13	NV0013	Tr?nh V?n Ph?c	EMPLOYEE
+14	NV0014	?inh Th? Nhung	EMPLOYEE
+15	NV0015	L??ng V?n Ki?n	MANAGER, EMPLOYEE
+16	NV0016	Mai Th? Qu?nh	EMPLOYEE
+17	NV0017	H? V?n Ph?t	EMPLOYEE
+18	NV0018	L?m Th? Ng?c	EMPLOYEE
+19	NV0019	T? V?n T?i	EMPLOYEE
+20	NV0020	Nguy?n Ho?ng Nam	EMPLOYEE
+test
+TEST: permissions per role
+role_code	perm_count
+ADMIN	27
+HR	19
+MANAGER	12
+EMPLOYEE	9
+ACCOUNTANT	8
+test
+TEST: employment_histories current
+employee_id	employee_code	full_name	department_name	position_name
+1	NV0001	Nguy?n V?n An	H?nh ch?nh Nh?n s?	Tr??ng ph?ng
+2	NV0002	Tr?n Th? Mai	K? to?n	Ph? ph?ng
+3	NV0003	L? V?n C??ng	Kinh doanh	Tr??ng ph?ng
+4	NV0004	Ph?m Th? H??ng	C?ng ngh? th?ng tin	Ph? ph?ng
+5	NV0005	Ho?ng V?n ??c	C?ng ngh? th?ng tin	Tr??ng ph?ng
+6	NV0006	??ng Th? Ng?c	Marketing	Chuy?n vi?n
+7	NV0007	B?i V?n Qu?n	Ch?m s?c kh?ch h?ng	Tr??ng ph?ng
+8	NV0008	V? Th? Lan	Qu?n l? kho	Ph? ph?ng
+9	NV0009	?? V?n H?i	H?nh ch?nh Nh?n s?	Gi?m ??c
+10	NV0010	L? Th? Hoa	S?n xu?t	Nh?n vi?n
+11	NV0011	Ng? V?n T?ng	H?nh ch?nh Nh?n s?	Chuy?n vi?n
+12	NV0012	D??ng Th? H?ng	K? to?n	Nh?n vi?n
+13	NV0013	Tr?nh V?n Ph?c	Kinh doanh	Chuy?n vi?n
+14	NV0014	?inh Th? Nhung	C?ng ngh? th?ng tin	Nh?n vi?n
+15	NV0015	L??ng V?n Ki?n	Marketing	Tr??ng ph?ng
+16	NV0016	Mai Th? Qu?nh	Marketing	Nh?n vi?n
+17	NV0017	H? V?n Ph?t	Ch?m s?c kh?ch h?ng	Chuy?n vi?n
+18	NV0018	L?m Th? Ng?c	Qu?n l? kho	Nh?n vi?n
+19	NV0019	T? V?n T?i	S?n xu?t	Chuy?n vi?n
+20	NV0020	Nguy?n Ho?ng Nam	Ph?p ch?	Nh?n vi?n
+test
+TEST: password status
+employee_id	employee_code	company_email	auth_method
+1	NV0001	an.nguyen@company.com	NO_PASSWORD_USE_EMP_CODE
+2	NV0002	mai.tran@company.com	NO_PASSWORD_USE_EMP_CODE
+3	NV0003	cuong.le@company.com	NO_PASSWORD_USE_EMP_CODE
+4	NV0004	huong.pham@company.com	NO_PASSWORD_USE_EMP_CODE
+5	NV0005	duc.hoang@company.com	NO_PASSWORD_USE_EMP_CODE
+6	NV0006	ngoc.dang@company.com	NO_PASSWORD_USE_EMP_CODE
+7	NV0007	quan.bui@company.com	NO_PASSWORD_USE_EMP_CODE
+8	NV0008	lan.vu@company.com	NO_PASSWORD_USE_EMP_CODE
+9	NV0009	hai.do@company.com	HAS_PASSWORD
+10	NV0010	hoa.ly@company.com	NO_PASSWORD_USE_EMP_CODE
+11	NV0011	tung.ngo@company.com	NO_PASSWORD_USE_EMP_CODE
+12	NV0012	hong.duong@company.com	NO_PASSWORD_USE_EMP_CODE
+13	NV0013	phuc.trinh@company.com	NO_PASSWORD_USE_EMP_CODE
+14	NV0014	nhung.dinh@company.com	NO_PASSWORD_USE_EMP_CODE
+15	NV0015	kien.luong@company.com	NO_PASSWORD_USE_EMP_CODE
+16	NV0016	quynh.mai@company.com	NO_PASSWORD_USE_EMP_CODE
+17	NV0017	phat.ha@company.com	NO_PASSWORD_USE_EMP_CODE
+18	NV0018	ngoc.lam@company.com	NO_PASSWORD_USE_EMP_CODE
+19	NV0019	tai.to@company.com	NO_PASSWORD_USE_EMP_CODE
+20	NV0020	nam.nh@company.com	NO_PASSWORD_USE_EMP_CODE
+test
+TEST: departments with managers
+department_id	department_code	department_name	manager_id	manager_name
+1	HCNS	H?nh ch?nh Nh?n s?	9	?? V?n H?i
+2	KT	K? to?n	NULL	NULL
+3	KD	Kinh doanh	3	L? V?n C??ng
+4	IT	C?ng ngh? th?ng tin	5	Ho?ng V?n ??c
+5	MKT	Marketing	15	L??ng V?n Ki?n
+6	CSKH	Ch?m s?c kh?ch h?ng	7	B?i V?n Qu?n
+7	KHO	Qu?n l? kho	NULL	NULL
+8	SX	S?n xu?t	NULL	NULL
+9	PHA	Ph?p ch?	NULL	NULL
+10	QLDA	Qu?n l? d? ?n	NULL	NULL

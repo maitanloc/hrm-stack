@@ -19,6 +19,7 @@ class AttendanceResultService
     {
         $context = $this->planningContextService->build($employeeId, $workDate);
         $attendance = $this->attendanceModel->findByEmployeeDate($employeeId, $workDate);
+        $policy = $this->loadPolicy();
 
         $resolvedShift = $context['shift'];
         $holiday = $context['holiday'];
@@ -26,6 +27,8 @@ class AttendanceResultService
         $businessTrip = $context['business_trip'];
         $remote = $context['remote'];
         $overtime = $context['overtime'];
+        $gracePeriodMinutes = (int) ($policy['grace_period_minutes'] ?? 5);
+        $minimumOtAfterShiftMinutes = (int) ($policy['overtime_minimum_after_shift_minutes'] ?? 30);
 
         $status = 'AB';
         $lateMinutes = 0;
@@ -45,12 +48,14 @@ class AttendanceResultService
             $checkOut = $attendance['check_out_time'] ?? null;
             $shiftStart = $resolvedShift['start_time'] ?? null;
             $shiftEnd = $resolvedShift['end_time'] ?? null;
+            $shiftEndTimestamp = null;
 
             $status = !empty($resolvedShift['is_night_shift']) ? 'NS' : 'P';
 
             if ($checkIn !== null && $shiftStart !== null) {
-                $lateMinutes = max(0, (int) floor((strtotime((string) $checkIn) - strtotime($workDate . ' ' . (string) $shiftStart)) / 60));
-                if ($lateMinutes > 0) {
+                $rawLateMinutes = max(0, (int) floor((strtotime((string) $checkIn) - strtotime($workDate . ' ' . (string) $shiftStart)) / 60));
+                if ($rawLateMinutes > $gracePeriodMinutes) {
+                    $lateMinutes = $rawLateMinutes;
                     $status = 'L';
                 }
             }
@@ -60,14 +65,20 @@ class AttendanceResultService
                 if (!empty($resolvedShift['is_night_shift']) || ((string) $shiftEnd < (string) ($resolvedShift['start_time'] ?? '00:00:00'))) {
                     $shiftEndTimestamp = strtotime($workDate . ' ' . (string) $shiftEnd . ' +1 day');
                 }
-                $earlyOutMinutes = max(0, (int) floor(($shiftEndTimestamp - strtotime((string) $checkOut)) / 60));
-                if ($earlyOutMinutes > 0 && $status === 'P') {
+                $rawEarlyOutMinutes = max(0, (int) floor(($shiftEndTimestamp - strtotime((string) $checkOut)) / 60));
+                if ($rawEarlyOutMinutes > $gracePeriodMinutes) {
+                    $earlyOutMinutes = $rawEarlyOutMinutes;
                     $status = 'EO';
                 }
             }
 
             if ($overtime !== null && ($resolvedShift['allow_overtime'] ?? false)) {
-                $overtimeMinutes = $this->calculateOvertimeMinutes($overtime);
+                $overtimeMinutes = $this->calculateEligibleOvertimeMinutes(
+                    $attendance,
+                    $overtime,
+                    $shiftEndTimestamp,
+                    $minimumOtAfterShiftMinutes
+                );
                 if ($overtimeMinutes > 0) {
                     $status = 'OT';
                 }
@@ -126,6 +137,55 @@ class AttendanceResultService
 
         $minutes = (int) floor((strtotime((string) $end) - strtotime((string) $start)) / 60) - $break;
         return max(0, $minutes);
+    }
+
+    private function calculateEligibleOvertimeMinutes(
+        array $attendance,
+        array $overtime,
+        ?int $shiftEndTimestamp,
+        int $minimumOtAfterShiftMinutes
+    ): int {
+        if ($shiftEndTimestamp === null) {
+            return 0;
+        }
+
+        $checkOut = $attendance['check_out_time'] ?? null;
+        if ($checkOut === null) {
+            return 0;
+        }
+
+        $actualCheckoutTimestamp = strtotime((string) $checkOut);
+        if ($actualCheckoutTimestamp === false || $actualCheckoutTimestamp <= $shiftEndTimestamp) {
+            return 0;
+        }
+
+        $actualOtMinutes = (int) floor(($actualCheckoutTimestamp - $shiftEndTimestamp) / 60);
+        if ($actualOtMinutes < $minimumOtAfterShiftMinutes) {
+            return 0;
+        }
+
+        $approvedOtMinutes = $this->calculateOvertimeMinutes($overtime);
+        if ($approvedOtMinutes <= 0) {
+            return 0;
+        }
+
+        return min($approvedOtMinutes, $actualOtMinutes);
+    }
+
+    private function loadPolicy(): array
+    {
+        $stmt = \App\Core\Database::connection()->query(
+            "SELECT config_key, config_value
+             FROM system_configs
+             WHERE config_key IN ('grace_period_minutes','overtime_minimum_after_shift_minutes')"
+        );
+        $rows = $stmt->fetchAll() ?: [];
+        $policy = [];
+        foreach ($rows as $row) {
+            $policy[$row['config_key']] = $row['config_value'];
+        }
+
+        return $policy;
     }
 
     private function mapLeaveStatus(string $leaveTypeCode, string $leaveTypeName): string

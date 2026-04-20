@@ -65,7 +65,7 @@ class WorkforceController extends Controller
     {
         $authUser = $this->authUser($request);
         $date = $this->normalizeDate((string) ($request->query('date', date('Y-m-d')) ?? date('Y-m-d')));
-        $context = $this->planningContextService->build((int) $authUser['employee_id'], $date);
+        $context = $this->planningContextService->build((int) $authUser['employee_id'], $date, true);
 
         return $this->ok([
             'employee_id' => (int) $authUser['employee_id'],
@@ -86,7 +86,7 @@ class WorkforceController extends Controller
 
         $items = [];
         foreach ($this->iterateDates($fromDate, $toDate) as $workDate) {
-            $context = $this->planningContextService->build((int) $authUser['employee_id'], $workDate);
+            $context = $this->planningContextService->build((int) $authUser['employee_id'], $workDate, true);
             $items[] = [
                 'employee_id' => (int) $authUser['employee_id'],
                 'work_date' => $workDate,
@@ -111,12 +111,12 @@ class WorkforceController extends Controller
         [$fromDate, $toDate] = $this->dateRange($request);
         $departmentFilter = $request->query('department_id');
         $departmentId = is_numeric((string) $departmentFilter) ? (int) $departmentFilter : null;
-        $items = $this->buildTeamScheduleItems($authUser, $fromDate, $toDate, $departmentId, false, true);
+        $items = $this->buildTeamScheduleItems($authUser, $fromDate, $toDate, $departmentId, true, true);
 
         return $this->ok($items, 'Team schedule', [
             'from_date' => $fromDate,
             'to_date' => $toDate,
-            'row_mode' => 'RECORDS_ONLY',
+            'row_mode' => 'FULL_MATRIX',
             'record_count' => count($items),
         ]);
     }
@@ -289,7 +289,8 @@ class WorkforceController extends Controller
         $employeeId = (int) $payload['employee_id'];
         $shiftTypeId = (int) $payload['shift_type_id'];
         $effectiveDate = $this->normalizeDate((string) $payload['effective_date']);
-        $expiryDate = isset($payload['expiry_date']) ? $this->normalizeDate((string) $payload['expiry_date']) : null;
+        // Fix: Default expiry_date to effective_date to prevent shift from carrying forward indefinitely in single assignment
+        $expiryDate = isset($payload['expiry_date']) ? $this->normalizeDate((string) $payload['expiry_date']) : $effectiveDate;
         $this->assertDateRangeNotLocked($effectiveDate, $expiryDate ?? $effectiveDate, 'assign shift');
 
         $this->assertCanManageEmployee($authUser, $employeeId);
@@ -426,6 +427,41 @@ class WorkforceController extends Controller
         ], 'Shift override saved');
     }
 
+    public function publishLogs(Request $request): array
+    {
+        $authUser = $this->authUser($request);
+        $page = max(1, (int) $request->query('page', 1));
+        $limit = max(1, min(100, (int) $request->query('per_page', 20)));
+        $offset = ($page - 1) * $limit;
+        
+        $departmentId = $request->query('department_id');
+        
+        // Basic filtering logic
+        $sql = "SELECT spl.*, e.full_name as published_by_name 
+                FROM schedule_publish_logs spl
+                LEFT JOIN employees e ON e.employee_id = spl.published_by";
+        $where = [];
+        $params = [];
+        
+        if ($departmentId) {
+            $where[] = "spl.scope_id = :dept_id AND spl.scope_type = 'DEPARTMENT'";
+            $params['dept_id'] = (int) $departmentId;
+        }
+        
+        if ($where !== []) {
+            $sql .= " WHERE " . implode(' AND ', $where);
+        }
+        
+        $sql .= " ORDER BY spl.published_at DESC LIMIT $offset, $limit";
+        
+        $pdo = \App\Core\Database::connection();
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $items = $stmt->fetchAll();
+        
+        return $this->ok($items, 'Publish logs retrieved');
+    }
+
     public function publishSchedule(Request $request): array
     {
         $authUser = $this->authUser($request);
@@ -453,7 +489,8 @@ class WorkforceController extends Controller
             $employeeIds[] = $scopeId;
         } else {
             $this->assertCanManageDepartment($authUser, $scopeId);
-            $page = $this->employees->paginateList(0, 500, null, null, $scopeId, null);
+            // Only fetch active employees to validate schedule
+            $page = $this->employees->paginateList(0, 1000, null, 'ĐANG_LÀM_VIỆC', $scopeId);
             foreach ($page['items'] ?? [] as $employee) {
                 $employeeIds[] = (int) ($employee['employee_id'] ?? 0);
             }
@@ -513,6 +550,7 @@ class WorkforceController extends Controller
                 'strict_mode' => $strictMode,
                 'employee_count' => count($employeeIds),
                 'generated_result_count' => $generatedCount,
+                'publish_readiness' => $publishReadiness,
             ]
         );
 
@@ -571,37 +609,43 @@ class WorkforceController extends Controller
             if ($employee === null) {
                 continue;
             }
-            $existing = $this->shiftAssignments->findByEmployeeEffectiveDate($employeeId, $effectiveDate);
-            $this->shiftAssignments->upsertForEmployeeDate($employeeId, $effectiveDate, [
-                'employee_id' => $employeeId,
-                'shift_type_id' => $shiftTypeId,
-                'effective_date' => $effectiveDate,
-                'expiry_date' => $expiryDate,
-                'is_permanent' => array_key_exists('is_permanent', $payload) ? (!empty($payload['is_permanent']) ? 1 : 0) : ($expiryDate === null ? 1 : 0),
-                'assigned_by' => (int) $authUser['employee_id'],
-                'notes' => $payload['notes'] ?? null,
-                'status' => 'HIỆU_LỰC',
-            ]);
-            $this->shiftChangeLogs->create([
-                'employee_id' => $employeeId,
-                'work_date' => $effectiveDate,
-                'old_shift_type_id' => $existing['shift_type_id'] ?? null,
-                'new_shift_type_id' => $shiftTypeId,
-                'change_type' => 'ASSIGN',
-                'changed_by' => (int) $authUser['employee_id'],
-                'changed_at' => date('Y-m-d H:i:s'),
-                'reason' => 'Bulk assign shift',
-            ]);
-            $this->attendanceResultService->evaluateAndPersist($employeeId, $effectiveDate);
-            $saved++;
+
+            // Requirements: Bulk assign = 1 Week logic
+            for ($i = 0; $i < 7; $i++) {
+                $workDate = date('Y-m-d', strtotime("$effectiveDate +$i days"));
+                
+                // Get existing for log
+                $existing = $this->shiftAssignments->findByEmployeeEffectiveDate($employeeId, $workDate);
+                
+                $this->shiftAssignments->upsertForEmployeeDate($employeeId, $workDate, [
+                    'employee_id' => $employeeId,
+                    'shift_type_id' => $shiftTypeId,
+                    'effective_date' => $workDate,
+                    // Fix: Set expiry_date to workDate for each record in a week to prevent it from carrying forward
+                    'expiry_date' => $workDate,
+                    'is_permanent' => 0, // Weekly bulk assignments are usually tactical/draft
+                    'assigned_by' => (int) $authUser['employee_id'],
+                    'notes' => $payload['notes'] ?? 'Bulk weekly assignment',
+                    'status' => 'HIỆU_LỰC',
+                ]);
+
+                $this->shiftChangeLogs->create([
+                    'employee_id' => $employeeId,
+                    'work_date' => $workDate,
+                    'old_shift_type_id' => $existing['shift_type_id'] ?? null,
+                    'new_shift_type_id' => $shiftTypeId,
+                    'change_type' => 'ASSIGN',
+                    'changed_by' => (int) $authUser['employee_id'],
+                    'changed_at' => date('Y-m-d H:i:s'),
+                    'reason' => 'Bulk weekly assignment',
+                ]);
+
+                $this->attendanceResultService->evaluateAndPersist($employeeId, $workDate);
+                $saved++;
+            }
         }
 
-        return $this->ok([
-            'shift_type_id' => $shiftTypeId,
-            'effective_date' => $effectiveDate,
-            'saved_count' => $saved,
-            'employee_count' => count($employeeIds),
-        ], 'Bulk shift assign completed');
+        return $this->ok(['processed_days' => $saved, 'employee_count' => count($employeeIds)], "Đã gán ca cho " . count($employeeIds) . " nhân sự trong 1 tuần (bắt đầu từ $effectiveDate)");
     }
 
     public function copyScheduleWeek(Request $request): array
@@ -841,7 +885,8 @@ class WorkforceController extends Controller
         bool $includeWorkflow = false
     ): array
     {
-        $employeeIds = array_values(array_unique(array_map('intval', $authUser['hierarchy_employee_ids'] ?? [])));
+        $hierarchyIdsRaw = $authUser['hierarchy_employee_ids'] ?? [];
+        $employeeIds = array_values(array_unique(array_map('intval', is_array($hierarchyIdsRaw) ? $hierarchyIdsRaw : [])));
         if ($employeeIds === [] && !Auth::isPrivileged($authUser)) {
             throw new HttpException('Bạn chưa có phạm vi quản lý nhân sự để xem lịch phòng ban.', 403, 'forbidden');
         }

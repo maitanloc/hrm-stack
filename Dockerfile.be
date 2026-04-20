@@ -22,7 +22,7 @@ RUN apk add --no-cache icu-dev oniguruma-dev libzip-dev \
       echo 'pm.max_requests = 500'; \
     } > /usr/local/etc/php-fpm.d/zz-perf.conf
 
-WORKDIR /var/www/html
+WORKDIR /srv/app
 
 COPY BE/ ./
 

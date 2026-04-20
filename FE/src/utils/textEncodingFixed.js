@@ -52,8 +52,20 @@ const cp1252BytesFromString = (value) => {
 };
 
 export const fixMojibake = (value) => {
-  const text = String(value ?? '');
-  if (text === '' || !LIKELY_MOJIBAKE_RE.test(text)) {
+  let text = String(value ?? '');
+  if (text === '') return text;
+
+  // 1. Khôi phục các từ ENUM phổ biến bị hỏng ngay tại FE (Dành cho hiển thị)
+  const commonFixes = {
+    'HI?U L?C': 'HIỆU_LỰC',
+    '??NG L?M VI?C': 'ĐANG_LÀM_VIỆC',
+    '?? DUY?T': 'ĐÃ_DUYỆT',
+    'CH? DUY?T': 'CHỜ_DUYỆT',
+    'T? CH?I': 'TỪ_CHỐI'
+  };
+  if (commonFixes[text]) return commonFixes[text];
+
+  if (!LIKELY_MOJIBAKE_RE.test(text)) {
     return text;
   }
 

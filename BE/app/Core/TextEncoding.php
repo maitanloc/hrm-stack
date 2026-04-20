@@ -45,16 +45,21 @@ final class TextEncoding
 
     public static function fixMojibake(mixed $value): mixed
     {
-        if ($value === null) {
-            return null;
-        }
-
-        if (!is_string($value)) {
+        if (!is_string($value) || $value === '') {
             return $value;
         }
 
         $text = $value;
-        if ($text === '' || preg_match(self::LIKELY_MOJIBAKE_RE, $text) !== 1) {
+
+        // If string contains clear Vietnamese markers and NO known mojibake noise, keep it.
+        $hasVietnamese = (bool) preg_match(self::VIETNAMESE_CHAR_RE, $text);
+        $hasMojibakeNoise = (bool) preg_match(self::LIKELY_MOJIBAKE_RE, $text);
+
+        if ($hasVietnamese && !$hasMojibakeNoise) {
+            return $text;
+        }
+
+        if (!$hasMojibakeNoise) {
             return $text;
         }
 

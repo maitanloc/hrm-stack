@@ -33,6 +33,9 @@ class Response
         $error = TextEncoding::deepFixMojibake($payload['error'] ?? null);
 
         http_response_code($status);
+        if ($status === 204) {
+            return;
+        }
         header('Content-Type: application/json; charset=utf-8');
 
         $body = [
@@ -48,6 +51,17 @@ class Response
             $body['error'] = $error;
         }
 
-        echo json_encode($body, JSON_UNESCAPED_UNICODE);
+        $json = json_encode($body, JSON_UNESCAPED_UNICODE);
+        if ($json === false) {
+            error_log('JSON ENCODE ERROR: ' . json_last_error_msg());
+            $errorBody = [
+                'success' => false,
+                'error' => 'json_encode_error',
+                'message' => 'Lỗi định dạng dữ liệu (JSON Encode Error): ' . json_last_error_msg()
+            ];
+            echo json_encode($errorBody, JSON_UNESCAPED_UNICODE);
+        } else {
+            echo $json;
+        }
     }
 }

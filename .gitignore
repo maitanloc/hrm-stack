@@ -41,3 +41,5 @@ caddy_config/
 !BE/scripts/20260415_attendance_risk_flow.sql
 storage/cv-uploads/
 FE/vite_err.txt
+node_modules/
+deploy_temp/node_modules/

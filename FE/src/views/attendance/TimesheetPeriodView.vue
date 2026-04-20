@@ -1,110 +1,161 @@
 <template>
-  <div class="px-6 py-6">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold text-gray-900 border-l-4 border-indigo-600 pl-3">Bảng Công (Timesheet)</h1>
+  <div class="px-6 py-6 bg-[#F8FAFC] min-h-screen animate-in fade-in duration-500">
+    <!-- Header -->
+    <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+          <span class="material-symbols-outlined text-indigo-600">table_chart</span>
+          Bảng công tổng hợp (Timesheet)
+        </h1>
+        <p class="text-slate-500 text-sm mt-1">Theo dõi chi tiết công làm việc, nghỉ phép và các ngoại lệ chấm công.</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button @click="fetchTimesheet" class="p-2.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 transition-all text-slate-600">
+           <span class="material-symbols-outlined text-[20px]" :class="{'animate-spin': loading}">refresh</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Summary KPI Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+       <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+             <span class="material-symbols-outlined">person</span>
+          </div>
+          <div>
+             <p class="text-xs font-bold text-slate-400 uppercase">Nhân sự</p>
+             <p class="text-xl font-black text-slate-900">{{ timesheetData.length }}</p>
+          </div>
+       </div>
+       <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+             <span class="material-symbols-outlined">work_history</span>
+          </div>
+          <div>
+             <p class="text-xs font-bold text-slate-400 uppercase">Ngày công</p>
+             <p class="text-xl font-black text-emerald-600">{{ totals.present }}</p>
+          </div>
+       </div>
+       <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+             <span class="material-symbols-outlined">event_busy</span>
+          </div>
+          <div>
+             <p class="text-xs font-bold text-slate-400 uppercase">Vắng/Nghỉ</p>
+             <p class="text-xl font-black text-rose-600">{{ totals.absent + totals.leave }}</p>
+          </div>
+       </div>
+       <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+             <span class="material-symbols-outlined">warning</span>
+          </div>
+          <div>
+             <p class="text-xs font-bold text-slate-400 uppercase">Ngoại lệ</p>
+             <p class="text-xl font-black text-amber-600">{{ totals.exceptions }}</p>
+          </div>
+       </div>
     </div>
     
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <!-- Filter Section -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+       <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Từ ngày</label>
-              <input type="date" v-model="filter.fromDate" class="w-full border-gray-300 rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border" />
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Phòng ban</label>
+              <select v-model="filter.departmentId" class="w-full bg-slate-50 border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none border transition-all">
+                  <option :value="null">Tất cả phòng ban</option>
+                  <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
+              </select>
            </div>
            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Đến ngày</label>
-              <input type="date" v-model="filter.toDate" class="w-full border-gray-300 rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border" />
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Từ ngày</label>
+              <input type="date" v-model="filter.fromDate" class="w-full bg-slate-50 border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none border transition-all" />
            </div>
            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Danh sách NV (ID cách nhau dấu phẩy)</label>
-              <input type="text" v-model="filter.employeeIdsStr" placeholder="1,2,3" class="w-full border-gray-300 rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border" />
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Đến ngày</label>
+              <input type="date" v-model="filter.toDate" class="w-full bg-slate-50 border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none border transition-all" />
            </div>
-           <div class="flex items-end">
-              <button @click="fetchTimesheet" :disabled="loading" class="w-full px-4 py-2 bg-indigo-600 text-white rounded shadow hover:bg-indigo-700 disabled:bg-indigo-300 transition">
-                 <span v-if="loading">Đang tải...</span>
-                 <span v-else>Xem bảng công</span>
+           <div>
+              <button @click="fetchTimesheet" :disabled="loading" class="w-full px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-200 transition font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                 <span v-if="loading" class="material-symbols-outlined animate-spin text-[20px]">refresh</span>
+                 <span v-else class="material-symbols-outlined text-[20px]">visibility</span>
+                 {{ loading ? 'Đang tải...' : 'Xem bảng công' }}
               </button>
            </div>
        </div>
     </div>
     
-    <div v-if="timesheetData && timesheetData.length > 0" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <!-- Data Table -->
+    <div v-if="timesheetData && timesheetData.length > 0" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50">Mã NV</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Tổng công</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Công làm</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Nghỉ phép</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Lễ</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Vắng</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Đi muộn (Lần/Phút)</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Tăng ca (Phút)</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Lỗi/Ngoại lệ</th>
+                        <th class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-tighter sticky left-0 bg-slate-50 z-10">Mã NV</th>
+                        <th class="px-4 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-tighter">Tổng công</th>
+                        <th class="px-4 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-tighter text-emerald-600">Làm việc</th>
+                        <th class="px-4 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-tighter text-blue-600">Nghỉ phép</th>
+                        <th class="px-4 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-tighter text-rose-600">Vắng</th>
+                        <th class="px-4 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-tighter text-amber-600">Đi muộn</th>
+                        <th class="px-4 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-tighter text-orange-600">Tăng ca</th>
+                        <th class="px-4 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-tighter">Ngoại lệ</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                <tbody class="bg-white divide-y divide-slate-100">
                     <template v-for="(emp, i) in timesheetData" :key="i">
-                        <!-- Employee Summary Row -->
-                        <tr class="bg-indigo-50 font-medium cursor-pointer" @click="toggleDetails(i)">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-indigo-900 sticky left-0 bg-indigo-50 border-r border-indigo-100 flex items-center">
-                                <svg class="w-4 h-4 mr-1 transition-transform" :class="{'rotate-90': expanded[i]}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                                NV_{{ emp.employee_id }}
+                        <tr class="hover:bg-slate-50 cursor-pointer transition-colors group" :class="{'bg-indigo-50/30': expanded[i]}" @click="toggleDetails(i)">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900 sticky left-0 bg-white border-r border-slate-100 shadow-[2px_0_5px_rgba(0,0,0,0.02)] flex items-center shrink-0">
+                                <span class="material-symbols-outlined text-[18px] mr-2 transition-transform text-slate-400" :class="{'rotate-90 text-indigo-600': expanded[i]}">chevron_right</span>
+                                {{ emp.employee_code || `NV_${emp.employee_id}` }}
                             </td>
-                            <td class="px-4 py-4 whitespace-nowrap text-sm text-center text-gray-900">{{ emp.totals.total_days }}</td>
-                            <td class="px-4 py-4 whitespace-nowrap text-sm text-center text-gray-900">{{ emp.totals.present_days }}</td>
-                            <td class="px-4 py-4 whitespace-nowrap text-sm text-center text-gray-900">{{ emp.totals.leave_days }}</td>
-                            <td class="px-4 py-4 whitespace-nowrap text-sm text-center text-gray-900">{{ emp.totals.holiday_days }}</td>
-                            <td class="px-4 py-4 whitespace-nowrap text-sm text-center text-red-600">{{ emp.totals.absent_days }}</td>
-                            <td class="px-4 py-4 whitespace-nowrap text-sm text-center text-orange-600">{{ emp.totals.late_count }} / {{ emp.totals.late_minutes }}p</td>
-                            <td class="px-4 py-4 whitespace-nowrap text-sm text-center text-green-600">{{ emp.totals.ot_minutes }}</td>
+                            <td class="px-4 py-4 whitespace-nowrap text-sm text-center font-black text-slate-700">{{ emp.totals.total_days }}</td>
+                            <td class="px-4 py-4 whitespace-nowrap text-sm text-center font-bold text-emerald-600">{{ emp.totals.present_days }}</td>
+                            <td class="px-4 py-4 whitespace-nowrap text-sm text-center font-bold text-blue-600">{{ emp.totals.leave_days }}</td>
+                            <td class="px-4 py-4 whitespace-nowrap text-sm text-center font-bold text-rose-600">{{ emp.totals.absent_days }}</td>
+                            <td class="px-4 py-4 whitespace-nowrap text-sm text-center text-amber-600 font-medium">{{ emp.totals.late_count }} ({{ emp.totals.late_minutes }}p)</td>
+                            <td class="px-4 py-4 whitespace-nowrap text-sm text-center text-orange-600 font-medium">{{ emp.totals.ot_minutes }}p</td>
                             <td class="px-4 py-4 whitespace-nowrap text-sm text-center">
-                                <span v-if="emp.totals.exception_count > 0" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                    {{ emp.totals.exception_count }}
+                                <span v-if="emp.totals.exception_count > 0" class="px-2 py-0.5 text-[10px] font-black rounded-lg bg-rose-100 text-rose-700 uppercase">
+                                    {{ emp.totals.exception_count }} LỖI
                                 </span>
-                                <span v-else class="text-green-500">OK</span>
+                                <span v-else class="text-emerald-500 material-symbols-outlined text-[18px]">check_circle</span>
                             </td>
                         </tr>
-                        <!-- Employee Daily Details -->
-                        <tr v-if="expanded[i]" class="bg-gray-50 border-b-2 border-indigo-200">
-                            <td colspan="9" class="p-0">
-                                <div class="p-4">
-                                   <table class="min-w-full divide-y divide-gray-200 text-sm bg-white rounded shadow-sm border border-gray-200">
-                                       <thead class="bg-gray-100">
+                        <!-- Details Row -->
+                        <tr v-if="expanded[i]" class="bg-slate-50">
+                            <td colspan="8" class="p-4">
+                                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
+                                   <table class="min-w-full divide-y divide-slate-100">
+                                       <thead class="bg-slate-50/50">
                                            <tr>
-                                               <th class="px-4 py-2 text-left font-medium text-gray-500">Ngày</th>
-                                               <th class="px-4 py-2 text-left font-medium text-gray-500">Trạng thái</th>
-                                               <th class="px-4 py-2 text-left font-medium text-gray-500">Hệ số</th>
-                                               <th class="px-4 py-2 text-left font-medium text-gray-500">Giờ làm</th>
-                                               <th class="px-4 py-2 text-left font-medium text-gray-500">Đi muộn/Về sớm</th>
-                                               <th class="px-4 py-2 text-left font-medium text-gray-500">Cờ bất thường</th>
+                                               <th class="px-4 py-3 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Ngày</th>
+                                               <th class="px-4 py-3 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Trạng thái</th>
+                                               <th class="px-4 py-3 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest">Hệ số</th>
+                                               <th class="px-4 py-3 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest">Phút làm</th>
+                                               <th class="px-4 py-3 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Đi muộn/Sớm</th>
+                                               <th class="px-4 py-3 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest text-rose-500">Cờ cảnh báo</th>
                                            </tr>
                                        </thead>
-                                       <tbody class="divide-y divide-gray-100">
-                                            <tr v-for="(day, j) in emp.daily" :key="j" :class="{'bg-red-50': day.exception}">
-                                                <td class="px-4 py-2 text-gray-900 border-r border-gray-100">{{ day.work_date }}</td>
-                                                <td class="px-4 py-2">
-                                                    <span class="px-2 py-0.5 rounded text-xs font-medium" 
-                                                          :class="{
-                                                              'bg-green-100 text-green-800': day.status === 'P' || day.status === 'NS',
-                                                              'bg-red-100 text-red-800': day.status === 'AB',
-                                                              'bg-orange-100 text-orange-800': day.status === 'L' || day.status === 'HD' || day.status === 'EO',
-                                                              'bg-blue-100 text-blue-800': day.status === 'AL' || day.status === 'SL' || day.status === 'UNP',
-                                                              'bg-purple-100 text-purple-800': day.status === 'CT' || day.status === 'REMOTE' || day.status === 'H',
-                                                              'bg-gray-100 text-gray-800': day.status === 'UNASSIGNED',
-                                                              'bg-yellow-100 text-yellow-800': day.status === 'OT'
-                                                          }">
+                                       <tbody class="divide-y divide-slate-50">
+                                            <tr v-for="(day, j) in emp.daily" :key="j" :class="{'bg-rose-50/20': day.exception}">
+                                                <td class="px-4 py-2.5 text-xs font-bold text-slate-600">{{ formatDate(day.work_date) }}</td>
+                                                <td class="px-4 py-2.5">
+                                                    <span class="px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-tighter shadow-sm" 
+                                                          :class="getStatusClass(day.status)">
                                                         {{ day.status }}
                                                     </span>
                                                 </td>
-                                                <td class="px-4 py-2 text-gray-700">{{ day.working_coeff }}</td>
-                                                <td class="px-4 py-2 text-gray-700">{{ day.worked_minutes }} phút</td>
-                                                <td class="px-4 py-2 text-orange-600">
-                                                    <span v-if="day.late_minutes>0">M:{{day.late_minutes}}</span>
-                                                    <span v-if="day.early_out_minutes>0"> S:{{day.early_out_minutes}}</span>
+                                                <td class="px-4 py-2.5 text-xs text-center font-bold text-slate-400">{{ day.working_coeff }}</td>
+                                                <td class="px-4 py-2.5 text-xs text-center font-black text-slate-700">{{ day.worked_minutes }}'</td>
+                                                <td class="px-4 py-2.5 text-xs">
+                                                    <div class="flex gap-2 font-mono">
+                                                      <span v-if="day.late_minutes>0" class="text-amber-600 bg-amber-50 px-1 rounded font-bold">M:{{day.late_minutes}}'</span>
+                                                      <span v-if="day.early_out_minutes>0" class="text-rose-400 bg-rose-50 px-1 rounded font-bold">S:{{day.early_out_minutes}}'</span>
+                                                    </div>
                                                 </td>
-                                                <td class="px-4 py-2 text-red-600 font-mono text-xs">
-                                                    {{ day.flags.join(', ') }}
+                                                <td class="px-4 py-2.5">
+                                                   <div class="flex flex-wrap gap-1">
+                                                      <span v-for="flag in day.flags" :key="flag" class="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[8px] font-black rounded uppercase">{{ flag }}</span>
+                                                   </div>
                                                 </td>
                                             </tr>
                                        </tbody>
@@ -117,51 +168,106 @@
             </table>
         </div>
     </div>
-    <div v-else-if="!loading && hasFiltered" class="text-center py-10 bg-white rounded-lg shadow-sm border border-gray-200">
-        <p class="text-gray-500">Không có dữ liệu</p>
+
+    <!-- Fallbacks -->
+    <div v-else-if="!loading && hasFiltered" class="text-center py-20 bg-white rounded-3xl border border-slate-200 border-dashed animate-in fade-in duration-500">
+        <span class="material-symbols-outlined text-slate-200 text-6xl mb-4">search_off</span>
+        <p class="text-slate-500 font-bold">Không tìm thấy dữ liệu chấm công</p>
+        <p class="text-slate-400 text-sm mt-1">Thử thay đổi bộ lọc hoặc phòng ban cần xem.</p>
+    </div>
+
+    <div v-else-if="!loading" class="text-center py-20 bg-white rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden">
+        <div class="absolute top-0 right-0 p-10 opacity-5">
+           <span class="material-symbols-outlined text-9xl">table_chart</span>
+        </div>
+        <div class="relative z-10">
+          <div class="w-20 h-20 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+             <span class="material-symbols-outlined text-4xl">calendar_today</span>
+          </div>
+          <h2 class="text-xl font-bold text-slate-800">Dữ liệu bảng công tổng hợp</h2>
+          <p class="text-slate-500 text-sm max-w-sm mx-auto mt-2 leading-relaxed">Chọn phòng ban, khoảng thời gian và nhấn nút để bắt đầu xem chi tiết công của đội ngũ.</p>
+        </div>
     </div>
   </div>
 </template>
-<script setup>
-import { ref, reactive } from 'vue'
-import { apiRequest as requestApi } from '@/services/beApi.js'
 
+<script setup>
+import { ref, reactive, computed, onMounted } from 'vue'
+import { apiRequest } from '@/services/beApi.js'
 
 const filter = reactive({
     fromDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
     toDate: new Date().toISOString().split('T')[0],
-    employeeIdsStr: '1,2,3'
+    departmentId: null
 })
-const timesheetData = ref(null)
+const timesheetData = ref([])
+const departments = ref([])
 const loading = ref(false)
 const hasFiltered = ref(false)
 const expanded = ref({})
+
+const totals = computed(() => {
+   return timesheetData.value.reduce((acc, emp) => {
+      acc.present += (emp.totals.present_days || 0);
+      acc.leave += (emp.totals.leave_days || 0);
+      acc.absent += (emp.totals.absent_days || 0);
+      acc.exceptions += (emp.totals.exception_count || 0);
+      return acc;
+   }, { present: 0, leave: 0, absent: 0, exceptions: 0 });
+});
+
+const loadDepartments = async () => {
+  try {
+    const res = await apiRequest('/departments', { query: { page: 1, per_page: 500 } });
+    if (res?.success && res.data) {
+      departments.value = res.data.map(d => ({
+        id: Number(d.departmentId || d.department_id || d.id),
+        name: d.departmentName || d.department_name || d.name
+      }));
+    }
+  } catch (err) {
+    console.error('Failed to load departments', err);
+  }
+};
+
+onMounted(() => loadDepartments());
+
+const formatDate = (date) => new Date(date).toLocaleDateString('vi-VN');
+
+const getStatusClass = (status) => {
+    switch(status) {
+        case 'P': case 'NS': return 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+        case 'AB': return 'bg-rose-100 text-rose-800 border border-rose-200';
+        case 'L': case 'HD': case 'EO': return 'bg-amber-100 text-amber-800 border border-amber-200';
+        case 'AL': case 'SL': case 'UNP': return 'bg-blue-100 text-blue-800 border border-blue-200';
+        case 'CT': case 'REMOTE': case 'H': return 'bg-purple-100 text-purple-800 border border-purple-200';
+        case 'OT': return 'bg-orange-100 text-orange-800 border border-orange-200';
+        default: return 'bg-slate-100 text-slate-600 border border-slate-200';
+    }
+}
 
 const fetchTimesheet = async () => {
     loading.value = true
     hasFiltered.value = true
     
-    // Parse ids
-    const empIds = filter.employeeIdsStr.split(',').map(s=>parseInt(s.trim())).filter(n=>n>0);
-    
-    if(empIds.length === 0) {
-        alert();
-        loading.value = false;
-        return;
-    }
-    
     try {
-        const res = await requestApi('/timesheet/period-summary', 'POST', {
-            employee_ids: empIds,
-            from_date: filter.fromDate,
-            to_date: filter.toDate
+        const res = await apiRequest('/timesheet/period-summary', {
+            method: 'POST', 
+            body: {
+                department_id: filter.departmentId,
+                from_date: filter.fromDate,
+                to_date: filter.toDate
+            }
         })
         if (res.success) {
-            timesheetData.value = res.data;
+            timesheetData.value = res.data || [];
             expanded.value = {};
+        } else {
+            timesheetData.value = [];
         }
     } catch (e) {
-        alert();
+        console.error("Fetch timesheet error:", e);
+        timesheetData.value = [];
     } finally {
         loading.value = false
     }

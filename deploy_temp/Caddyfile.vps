@@ -1,0 +1,29 @@
+{
+    email maitanloc@gmail.com
+}
+
+# Hỗ trợ truy cập qua IP (Chỉ HTTP)
+:80 {
+    encode gzip
+    @api path /api/*
+    handle @api {
+        root * /var/www/html/public
+        php_fastcgi hrm-be:9000
+    }
+    handle {
+        reverse_proxy hrm-fe:80
+    }
+}
+
+# Cấu hình cho tên miên (HTTPS tự động)
+anhsinhvientpoly.click {
+    encode gzip
+    @api path /api/*
+    handle @api {
+        root * /var/www/html/public
+        php_fastcgi hrm-be:9000
+    }
+    handle {
+        reverse_proxy hrm-fe:80
+    }
+}

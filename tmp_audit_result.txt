@@ -1,0 +1,282 @@
+=== DEPARTMENTS ===
+department_id	department_code	department_name	parent_department_id	manager_id	description	status	created_at	updated_at
+1	HCNS	H?nh ch?nh Nh?n s?	NULL	9	Qu?n l? nh?n s? v? h?nh ch?nh	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+2	KT	K? to?n	NULL	NULL	Qu?n l? t?i ch?nh k? to?n	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+3	KD	Kinh doanh	NULL	3	Ph?t tri?n kinh doanh v? b?n h?ng	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+4	IT	C?ng ngh? th?ng tin	NULL	5	Ph?t tri?n ph?n m?m v? h? th?ng	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+5	MKT	Marketing	NULL	NULL	Qu?ng b? th??ng hi?u v? s?n ph?m	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+6	CSKH	Ch?m s?c kh?ch h?ng	NULL	NULL	H? tr? v? ch?m s?c kh?ch h?ng	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+7	KHO	Qu?n l? kho	NULL	NULL	Qu?n l? h?ng h?a v? v?t t?	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+8	SX	S?n xu?t	NULL	NULL	?i?u h?nh s?n xu?t	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+9	PHA	Ph?p ch?	NULL	NULL	T? v?n ph?p l? v? h?p ??ng	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+10	QLDA	Qu?n l? d? ?n	NULL	NULL	Qu?n l? c?c d? ?n	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+11	KMD	Kinh doanh Mi?n ??ng	3	3	Kinh doanh khu v?c mi?n ??ng	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+12	KMT	Kinh doanh Mi?n T?y	3	3	Kinh doanh khu v?c mi?n T?y	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+13	KN	Kinh doanh Mi?n B?c	3	3	Kinh doanh khu v?c mi?n B?c	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+14	HC1	H?nh ch?nh H? N?i	1	2	H?nh ch?nh v?n ph?ng H? N?i	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+15	HC2	H?nh ch?nh ?? N?ng	1	2	H?nh ch?nh v?n ph?ng ?? N?ng	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+16	DAISO	??o t?o v? ISO	1	2	??o t?o nh?n vi?n v? qu?n l? ISO	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+=== EMPLOYEES ===
+employee_id	employee_code	full_name	phone_number	company_email	status	hire_date
+1	NV0001	Nguy?n V?n An	0912345678	an.nguyen@company.com	?ANG_L?M_VI?C	2015-06-01
+2	NV0002	Tr?n Th? Mai	0923456789	mai.tran@company.com	?ANG_L?M_VI?C	2016-03-15
+3	NV0003	L? V?n C??ng	0934567891	cuong.le@company.com	?ANG_L?M_VI?C	2014-09-01
+4	NV0004	Ph?m Th? H??ng	0945678901	huong.pham@company.com	?ANG_L?M_VI?C	2015-11-01
+5	NV0005	Ho?ng V?n ??c	0956789012	duc.hoang@company.com	?ANG_L?M_VI?C	2013-04-01
+6	NV0006	??ng Th? Ng?c	0967890123	ngoc.dang@company.com	?ANG_L?M_VI?C	2016-07-01
+7	NV0007	B?i V?n Qu?n	0978901234	quan.bui@company.com	?ANG_L?M_VI?C	2012-10-01
+8	NV0008	V? Th? Lan	0989012345	lan.vu@company.com	?ANG_L?M_VI?C	2017-02-01
+9	NV0009	?? V?n H?i	0990123456	hai.do@company.com	?ANG_L?M_VI?C	2011-05-01
+10	NV0010	L? Th? Hoa	0901234567	hoa.ly@company.com	?ANG_L?M_VI?C	2018-08-01
+11	NV0011	Ng? V?n T?ng	0912345670	tung.ngo@company.com	?ANG_L?M_VI?C	2010-01-01
+12	NV0012	D??ng Th? H?ng	0923456780	hong.duong@company.com	?ANG_L?M_VI?C	2016-09-01
+13	NV0013	Tr?nh V?n Ph?c	0934567890	phuc.trinh@company.com	?ANG_L?M_VI?C	2014-04-01
+14	NV0014	?inh Th? Nhung	0945678900	nhung.dinh@company.com	?ANG_L?M_VI?C	2015-05-15
+15	NV0015	L??ng V?n Ki?n	0956789010	kien.luong@company.com	?ANG_L?M_VI?C	2009-08-10
+16	NV0016	Mai Th? Qu?nh	0967890120	quynh.mai@company.com	?ANG_L?M_VI?C	2017-03-20
+17	NV0017	H? V?n Ph?t	0978901230	phat.ha@company.com	?ANG_L?M_VI?C	2013-06-05
+18	NV0018	L?m Th? Ng?c	0989012340	ngoc.lam@company.com	?ANG_L?M_VI?C	2015-10-12
+19	NV0019	T? V?n T?i	0990123450	tai.to@company.com	?ANG_L?M_VI?C	2012-07-25
+20	NV0020	Nguy?n Ho?ng Nam	0901234568	nam.nh@company.com	?ANG_L?M_VI?C	2018-01-08
+=== ROLES ===
+role_id	role_code	role_name	description	is_system_role	created_at
+1	ADMIN	Qu?n tr? vi?n	To?n quy?n h? th?ng	1	2026-04-15 01:44:34
+2	HR	Nh?n s?	Qu?n l? nh?n s?, tuy?n d?ng, ??o t?o	1	2026-04-15 01:44:34
+3	MANAGER	Qu?n l?	Qu?n l? ph?ng ban, duy?t ??n	1	2026-04-15 01:44:34
+4	EMPLOYEE	Nh?n vi?n	Quy?n c? b?n	1	2026-04-15 01:44:34
+5	ACCOUNTANT	K? to?n	Qu?n l? l??ng, thanh to?n	1	2026-04-15 01:44:34
+=== EMPLOYEE_ROLES ===
+=== POSITIONS ===
+position_id	position_code	position_name	position_group	position_level	job_description	requirements	salary_range_min	salary_range_max	status	created_at	updated_at
+1	GD	Gi?m ??c	NULL	NULL	?i?u h?nh to?n b? c?ng ty	Kinh nghi?m 10 n?m qu?n l?	50000000.00	100000000.00	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+2	PGD	Ph? Gi?m ??c	NULL	NULL	H? tr? gi?m ??c ?i?u h?nh	Kinh nghi?m 8 n?m qu?n l?	40000000.00	80000000.00	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+3	TP	Tr??ng ph?ng	NULL	NULL	Qu?n l? ph?ng ban	Kinh nghi?m 5 n?m	25000000.00	50000000.00	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+4	PP	Ph? ph?ng	NULL	NULL	H? tr? tr??ng ph?ng	Kinh nghi?m 3 n?m	18000000.00	35000000.00	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+5	CV	Chuy?n vi?n	NULL	NULL	Th?c hi?n nghi?p v? chuy?n m?n	T?t nghi?p ??i h?c	12000000.00	25000000.00	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+6	NV	Nh?n vi?n	NULL	NULL	Th?c hi?n c?ng vi?c ???c giao	Kinh nghi?m 1 n?m	8000000.00	15000000.00	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+7	TV	Th?c t?p vi?n	NULL	NULL	H?c vi?c	Sinh vi?n n?m cu?i	3000000.00	5000000.00	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+8	KTV	Ki?m to?n vi?n	NULL	NULL	Ki?m tra s? s?ch k? to?n	Ch?ng ch? ki?m to?n	15000000.00	30000000.00	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+9	KTVC	K? to?n tr??ng	NULL	NULL	Qu?n l? b? ph?n k? to?n	Ch?ng ch? k? to?n tr??ng	25000000.00	45000000.00	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+10	KTTH	K? to?n t?ng h?p	NULL	NULL	T?ng h?p s? li?u k? to?n	Kinh nghi?m 3 n?m	15000000.00	25000000.00	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+11	NS	Nh?n s?	NULL	NULL	Tuy?n d?ng v? ??o t?o	Chuy?n ng?nh nh?n s?	12000000.00	22000000.00	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+12	HC	H?nh ch?nh	NULL	NULL	Qu?n l? v?n ph?ng	K? n?ng h?nh ch?nh	10000000.00	18000000.00	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+13	LD	L?p tr?nh vi?n	NULL	NULL	Ph?t tri?n ph?n m?m	Th?nh th?o ng?n ng? l?p tr?nh	15000000.00	30000000.00	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+14	TL	Th? kho	NULL	NULL	Qu?n l? xu?t nh?p kho	Kinh nghi?m qu?n l? kho	9000000.00	15000000.00	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+15	BV	B?o v?	NULL	NULL	??m b?o an ninh	S?c kh?e t?t	6000000.00	9000000.00	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+16	DEV_AI_1776227190516	AI Engineer Demo	NULL	NULL	NULL	NULL	NULL	NULL	1	2026-04-15 11:28:20	2026-04-15 11:28:20
+=== CONTRACTS ===
+contract_id	contract_code	employee_id	contract_type_id	position_id	department_id	basic_salary	status
+1	HD0001	1	1	3	1	25000000.00	C?_HI?U_L?C
+2	HD0002	2	2	5	2	18000000.00	C?_HI?U_L?C
+3	HD0003	3	1	3	3	30000000.00	C?_HI?U_L?C
+4	HD0004	4	2	6	4	15000000.00	C?_HI?U_L?C
+5	HD0005	5	3	2	1	40000000.00	C?_HI?U_L?C
+6	HD0006	6	4	6	5	8000000.00	C?_HI?U_L?C
+7	HD0007	7	1	4	6	22000000.00	C?_HI?U_L?C
+8	HD0008	8	2	6	7	12000000.00	C?_HI?U_L?C
+9	HD0009	9	1	1	1	60000000.00	C?_HI?U_L?C
+10	HD0010	10	4	6	8	7000000.00	C?_HI?U_L?C
+=== SHIFT_TYPES ===
+shift_type_id	shift_code	shift_name	start_time	end_time	break_start	break_end	working_hours	is_night_shift	allow_overtime	allow_wfh	coefficient	color_code	description	status	created_at
+1	HC	H?nh ch?nh	08:00:00	17:00:00	12:00:00	13:00:00	8.00	0	1	0	1.00	#4CAF50	Gi? h?nh ch?nh ti?u chu?n	1	2026-04-15 01:44:34
+2	CA1	Ca 1	06:00:00	14:00:00	NULL	NULL	8.00	0	1	0	1.00	#2196F3	Ca 1: 06h-14h	1	2026-04-15 01:44:34
+3	CA2	Ca 2	14:00:00	22:00:00	NULL	NULL	8.00	0	1	0	1.00	#03A9F4	Ca 2: 14h-22h	1	2026-04-15 01:44:34
+4	CA3	Ca 3	22:00:00	06:00:00	NULL	NULL	8.00	1	1	0	1.30	#3F51B5	Ca 3: 22h-06h, t?nh c?ng v?o ng?y b?t ??u ca	1	2026-04-15 01:44:34
+=== SHIFT_SCHEDULES ===
+schedule_id	schedule_code	schedule_name	department_id	effective_from	effective_to	is_active	created_at
+1	LICH-HC	L?ch h?nh ch?nh to?n c?ng ty	NULL	2024-01-01	2024-12-31	1	2026-04-15 01:44:34
+2	LICH-HCNS	L?ch ph?ng HCNS	1	2024-01-01	2024-12-31	1	2026-04-15 01:44:34
+3	LICH-KT	L?ch ph?ng K? to?n	2	2024-01-01	2024-12-31	1	2026-04-15 01:44:34
+4	LICH-KD	L?ch ph?ng Kinh doanh	3	2024-01-01	2024-12-31	1	2026-04-15 01:44:34
+5	LICH-IT	L?ch ph?ng IT	4	2024-01-01	2024-12-31	1	2026-04-15 01:44:34
+=== SHIFT_SCHEDULE_DETAILS ===
+detail_id	schedule_id	day_of_week	shift_type_id	is_holiday
+1	1	2	1	0
+2	1	3	1	0
+3	1	4	1	0
+4	1	5	1	0
+5	1	6	1	0
+6	1	7	2	0
+7	1	1	NULL	1
+=== SHIFT_ASSIGNMENTS ===
+assignment_id	employee_id	shift_type_id	effective_date	expiry_date	is_permanent	assigned_by	notes	status	created_at	updated_at
+1	1	1	2024-01-01	NULL	1	1	Ca h?nh ch?nh c? ??nh	HI?U_L?C	2026-04-15 01:44:34	2026-04-15 01:44:34
+2	2	1	2024-01-01	NULL	1	1	Ca h?nh ch?nh c? ??nh	HI?U_L?C	2026-04-15 01:44:34	2026-04-15 01:44:34
+3	3	1	2024-01-01	NULL	1	1	Ca h?nh ch?nh c? ??nh	HI?U_L?C	2026-04-15 01:44:34	2026-04-15 01:44:34
+4	4	1	2024-01-01	NULL	1	1	Ca h?nh ch?nh c? ??nh	HI?U_L?C	2026-04-15 01:44:34	2026-04-15 01:44:34
+5	5	1	2024-01-01	NULL	1	1	Ca h?nh ch?nh c? ??nh	HI?U_L?C	2026-04-15 01:44:34	2026-04-15 01:44:34
+6	6	1	2024-01-01	NULL	1	1	Ca h?nh ch?nh c? ??nh	HI?U_L?C	2026-04-15 01:44:35	2026-04-15 01:44:35
+7	7	1	2024-01-01	NULL	1	1	Ca h?nh ch?nh c? ??nh	HI?U_L?C	2026-04-15 01:44:35	2026-04-15 01:44:35
+8	8	1	2024-01-01	NULL	1	1	Ca h?nh ch?nh c? ??nh	HI?U_L?C	2026-04-15 01:44:35	2026-04-15 01:44:35
+9	9	1	2024-01-01	NULL	1	1	Ca h?nh ch?nh c? ??nh	HI?U_L?C	2026-04-15 01:44:35	2026-04-15 01:44:35
+10	10	4	2024-01-01	NULL	1	1	Ca ??m s?n xu?t	HI?U_L?C	2026-04-15 01:44:35	2026-04-15 01:44:35
+=== ATTENDANCES ===
+attendance_id	employee_id	attendance_date	shift_type_id	check_in_time	check_out_time	late_minutes	early_leave_minutes	overtime_hours	status
+1	1	2024-03-01	1	2024-03-01 07:55:00	2024-03-01 17:05:00	0	5	0.00	??_DUY?T
+2	2	2024-03-01	1	2024-03-01 07:58:00	2024-03-01 17:02:00	0	0	0.00	??_DUY?T
+3	3	2024-03-01	1	2024-03-01 08:15:00	2024-03-01 17:30:00	15	0	0.00	??_DUY?T
+4	4	2024-03-01	1	2024-03-01 07:50:00	2024-03-01 16:45:00	0	15	0.00	??_DUY?T
+5	5	2024-03-01	1	2024-03-01 08:30:00	2024-03-01 18:00:00	30	0	0.50	??_DUY?T
+6	6	2024-03-01	1	2024-03-01 07:59:00	2024-03-01 17:01:00	0	0	0.00	??_DUY?T
+7	7	2024-03-01	1	2024-03-01 08:00:00	2024-03-01 17:00:00	0	0	0.00	??_DUY?T
+8	8	2024-03-01	1	2024-03-01 08:05:00	2024-03-01 17:10:00	5	10	0.00	??_DUY?T
+9	9	2024-03-01	1	2024-03-01 08:30:00	2024-03-01 17:30:00	30	0	0.00	??_DUY?T
+10	10	2024-03-01	4	2024-02-29 21:55:00	2024-03-01 06:05:00	0	5	0.00	??_DUY?T
+11	9	2026-04-15	NULL	2026-04-15 01:54:53	2026-04-15 01:54:53	0	0	NULL	CH?_DUY?T
+=== LEAVE_TYPES ===
+leave_type_id	leave_type_code	leave_type_name	category	is_paid	is_social_insurance	payment_source	max_days_per_year	min_days_per_request	max_days_per_request	requires_document	document_required	can_carry_forward	carry_forward_limit	carry_forward_expiry_months	seniority_applicable	description	status	created_at	updated_at
+1	PHEP_NAM	Ngh? ph?p n?m	ANNUAL	1	0	COMPANY	12	0.50	30	0	NULL	1	5	3	1	Ngh? ph?p n?m c? b?n	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+2	OM_DAU	Ngh? ?m ?au	SICK	1	1	SOCIAL_INSURANCE	30	0.50	30	1	Gi?y kh?m b?nh	0	0	0	0	Ngh? ?m h??ng BHXH	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+3	KHONG_LUONG	Ngh? kh?ng l??ng	UNPAID	0	0	COMPANY	30	0.50	30	0	NULL	0	0	0	0	Ngh? kh?ng h??ng l??ng	1	2026-04-15 01:44:34	2026-04-15 01:44:34
+=== LEAVE_REQUESTS ===
+leave_request_id	request_id	leave_type_id	employee_id	from_date	to_date	from_session	to_session	number_of_days	leave_used_type	base_days_used	seniority_days_used	carried_over_days_used	paid_days	unpaid_days	substitute_employee_id	handover_notes	contact_phone	emergency_contact	doctor_note_url	attachment_url	insurance_claim_id	certificate_file	certificate_number	created_at	updated_at
+1	1	1	1	2024-03-10	2024-03-12	C?_NG?Y	C?_NG?Y	2.50	BASE	2.50	0.00	0.00	2.50	0.00	4	?? b?n giao c?ng vi?c cho Ph?m Th? H??ng	0912345678	Tr?n Th? B?nh - 0987654321	NULL	NULL	NULL	NULL	NULL	2026-04-15 01:44:34	2026-04-15 01:44:34
+2	2	1	2	2024-03-20	2024-03-20	C?_NG?Y	C?_NG?Y	1.00	BASE	1.00	0.00	0.00	1.00	0.00	5	?? b?n giao cho Ho?ng V?n ??c	0923456789	Nguy?n V?n H?ng - 0976543210	NULL	NULL	NULL	NULL	NULL	2026-04-15 01:44:34	2026-04-15 01:44:34
+3	3	1	3	2024-03-25	2024-03-25	S?NG	S?NG	0.50	BASE	0.50	0.00	0.00	0.50	0.00	4	?? b?n giao	0934567891	Ph?m Th? Lan - 0965432109	NULL	NULL	NULL	NULL	NULL	2026-04-15 01:44:34	2026-04-15 01:44:34
+4	4	1	6	2024-03-25	2024-03-26	C?_NG?Y	C?_NG?Y	1.50	BASE	1.50	0.00	0.00	1.50	0.00	5	?? b?n giao c?ng vi?c	0967890123	??ng V?n Th?nh - 0932109876	NULL	NULL	NULL	NULL	NULL	2026-04-15 01:44:35	2026-04-15 01:44:35
+5	5	1	7	2024-04-01	2024-04-03	C?_NG?Y	C?_NG?Y	3.00	BASE	3.00	0.00	0.00	3.00	0.00	8	?? b?n giao cho V? Th? Lan	0978901234	B?i Th? Thanh - 0921098765	NULL	NULL	NULL	NULL	NULL	2026-04-15 01:44:35	2026-04-15 01:44:35
+=== LEAVE_BALANCES ===
+balance_id	employee_id	leave_type_id	year	base_leave	seniority_bonus	total_days	carried_over_days	carried_over_source	used_days	pending_days	remaining_days	carry_over_expiry_date	notes	created_at	updated_at
+1	1	1	2024	12.00	2.00	14.00	3.00	2023	2.00	0.00	15.00	2024-03-31	Ph?p n?m 2024	2026-04-15 01:44:34	2026-04-15 01:44:34
+2	2	1	2024	12.00	1.00	13.00	2.00	2023	1.00	0.00	14.00	2024-03-31	?? d?ng 1 ng?y	2026-04-15 01:44:34	2026-04-15 01:44:34
+3	3	1	2024	12.00	2.00	14.00	0.00	NULL	0.00	0.00	14.00	NULL	Ch?a d?ng	2026-04-15 01:44:34	2026-04-15 01:44:34
+4	4	1	2024	12.00	1.00	13.00	0.00	NULL	0.00	2.00	11.00	NULL	?ang ch? duy?t 2 ng?y	2026-04-15 01:44:34	2026-04-15 01:44:34
+5	5	1	2024	12.00	3.00	15.00	5.00	2023	0.00	0.00	20.00	2024-03-31	C?n 20 ng?y	2026-04-15 01:44:34	2026-04-15 01:44:34
+6	6	1	2024	12.00	1.00	13.00	0.00	NULL	0.00	0.00	13.00	NULL	Ph?p n?m 2024	2026-04-15 01:44:35	2026-04-15 01:44:35
+7	7	1	2024	12.00	2.00	14.00	2.00	2023	0.00	0.00	16.00	2024-03-31	C?n 16 ng?y	2026-04-15 01:44:35	2026-04-15 01:44:35
+8	8	1	2024	12.00	0.00	12.00	1.00	2023	0.00	0.00	13.00	2024-03-31	C?n 13 ng?y	2026-04-15 01:44:35	2026-04-15 01:44:35
+9	9	1	2024	12.00	3.00	15.00	8.00	2023	0.00	0.00	23.00	2024-03-31	C?n 23 ng?y	2026-04-15 01:44:35	2026-04-15 01:44:35
+10	10	1	2024	12.00	0.00	12.00	0.00	NULL	0.00	0.00	12.00	NULL	Nh?n vi?n m?i	2026-04-15 01:44:35	2026-04-15 01:44:35
+=== NOTIFICATIONS ===
+notification_id	notification_type	title	content	sender_id	receiver_id	department_id	is_read	read_date	priority	reference_type	reference_id	action_url	expires_at	created_at
+1	LEAVE_EXPIRY	Ph?p g?p s?p h?t h?n	B?n c?n 3 ng?y ph?p g?p t? n?m 2023 s? h?t h?n v?o ng?y 31/03/2024	NULL	1	NULL	0	NULL	CAO	LEAVE_ADVANCEMENT	1	/leave/balances	2024-04-01 00:00:00	2026-04-15 01:44:34
+2	LEAVE_EXPIRY	Ph?p g?p s?p h?t h?n	B?n c?n 2 ng?y ph?p g?p t? n?m 2023 s? h?t h?n v?o ng?y 31/03/2024	NULL	2	NULL	0	NULL	CAO	LEAVE_ADVANCEMENT	2	/leave/balances	2024-04-01 00:00:00	2026-04-15 01:44:34
+3	APPROVAL_REMINDER	Nh?c duy?t ??n xin ngh? ph?p	B?n c? ??n xin ngh? ph?p NP-2024-003 ?ang ch? duy?t	NULL	3	NULL	0	NULL	CAO	LEAVE_REQUEST	3	/approval/3	2024-03-10 00:00:00	2026-04-15 01:44:34
+4	CLAIM_STATUS	Y?u c?u b?o hi?m ?? ???c duy?t	Y?u c?u BHXH-2024-001 c?a b?n ?? ???c duy?t	NULL	2	NULL	0	NULL	TRUNG_B?NH	INSURANCE_CLAIM	1	/insurance/1	NULL	2026-04-15 01:44:34
+5	LEAVE_EXPIRY	Ph?p g?p s?p h?t h?n	B?n c?n 5 ng?y ph?p g?p t? n?m 2023 s? h?t h?n v?o ng?y 31/03/2024	NULL	5	NULL	0	NULL	CAO	LEAVE_ADVANCEMENT	5	/leave/balances	2024-04-01 00:00:00	2026-04-15 01:44:35
+6	LEAVE_EXPIRY	Ph?p g?p s?p h?t h?n	B?n c?n 8 ng?y ph?p g?p t? n?m 2023 s? h?t h?n v?o ng?y 31/03/2024	NULL	9	NULL	0	NULL	CAO	LEAVE_ADVANCEMENT	9	/leave/balances	2024-04-01 00:00:00	2026-04-15 01:44:35
+7	APPROVAL_REMINDER	Nh?c duy?t ??n xin ngh? ph?p	B?n c? ??n xin ngh? ph?p NP-2024-004 ?ang ch? duy?t	NULL	5	NULL	0	NULL	CAO	LEAVE_REQUEST	4	/approval/4	2024-03-26 00:00:00	2026-04-15 01:44:35
+8	APPROVAL_REMINDER	Nh?c duy?t ??n xin ngh? ph?p	B?n c? ??n xin ngh? ph?p NP-2024-005 ?ang ch? duy?t	NULL	7	NULL	0	NULL	CAO	LEAVE_REQUEST	5	/approval/5	2024-04-02 00:00:00	2026-04-15 01:44:35
+9	SALARY	Th?ng b?o l??ng th?ng 3	L??ng th?ng 3/2024 s? ???c chi tr? v?o ng?y 05/04/2024	NULL	NULL	NULL	0	NULL	CAO	NULL	NULL	/salary	2024-04-05 00:00:00	2026-04-15 01:44:35
+=== SALARY_PERIODS ===
+period_id	period_code	period_name	period_type	year	month	start_date	end_date	payment_date	standard_working_days	status	closed_by	closed_date	notes	created_at	updated_at
+1	P-2024-01	K? l??ng th?ng 1/2024	MONTHLY	2024	1	2024-01-01	2024-01-31	2024-02-05	26	PAID	NULL	NULL	?? chi l??ng th?ng 1	2026-04-15 01:44:34	2026-04-15 01:44:34
+2	P-2024-02	K? l??ng th?ng 2/2024	MONTHLY	2024	2	2024-02-01	2024-02-29	2024-03-05	24	PAID	NULL	NULL	?? chi l??ng th?ng 2	2026-04-15 01:44:34	2026-04-15 01:44:34
+3	P-2024-03	K? l??ng th?ng 3/2024	MONTHLY	2024	3	2024-03-01	2024-03-31	NULL	26	OPEN	NULL	NULL	?ang t?nh l??ng	2026-04-15 01:44:34	2026-04-15 01:44:34
+=== SALARY_DETAILS ===
+salary_detail_id	period_id	employee_id	basic_salary	gross_salary	net_salary	total_allowances	total_deductions	overtime_pay	final_amount
+1	3	1	25000000.00	35000000.00	30000000.00	2800000.00	3500000.00	0.00	-2325000.00
+2	3	2	18000000.00	25000000.00	22000000.00	1500000.00	2500000.00	0.00	-2390000.00
+3	3	3	30000000.00	42000000.00	37000000.00	3500000.00	4200000.00	0.00	-2700000.00
+4	3	4	15000000.00	20000000.00	17500000.00	600000.00	2000000.00	0.00	-2975000.00
+5	3	5	40000000.00	55000000.00	48000000.00	7300000.00	5500000.00	0.00	-900000.00
+6	3	6	8000000.00	8000000.00	7500000.00	600000.00	800000.00	0.00	-1040000.00
+7	3	7	22000000.00	30000000.00	26000000.00	700000.00	3000000.00	0.00	-4310000.00
+=== HOLIDAYS ===
+holiday_id	holiday_name	holiday_date	holiday_type	is_recurring	year	paid_holiday	salary_multiplier	allowance_amount	description	created_at
+1	T?t D??ng l?ch	2024-01-01	NEW_YEAR	1	2024	1	3.00	300000.00	Ngh? l? theo quy ??nh nh? n??c	2026-04-15 01:44:34
+2	T?t ?m l?ch - M?ng 1	2024-02-10	LUNAR_NEW_YEAR	0	2024	1	3.00	500000.00	??i ng? t?t ?m l?ch	2026-04-15 01:44:34
+3	T?t ?m l?ch - M?ng 2	2024-02-11	LUNAR_NEW_YEAR	0	2024	1	3.00	500000.00	??i ng? t?t ?m l?ch	2026-04-15 01:44:34
+4	T?t ?m l?ch - M?ng 3	2024-02-12	LUNAR_NEW_YEAR	0	2024	1	3.00	500000.00	??i ng? t?t ?m l?ch	2026-04-15 01:44:34
+5	Gi? T? H?ng V??ng	2024-04-18	HUNG_KINGS	0	2024	1	3.00	300000.00	Ng?y l? qu?c gia	2026-04-15 01:44:34
+6	Ng?y Gi?i ph?ng mi?n Nam	2024-04-30	LIBERATION_DAY	1	2024	1	3.00	300000.00	L? 30/4	2026-04-15 01:44:34
+7	Qu?c t? Lao ??ng	2024-05-01	LABOR_DAY	1	2024	1	3.00	300000.00	L? 1/5	2026-04-15 01:44:34
+8	Qu?c kh?nh	2024-09-02	NATIONAL_DAY	1	2024	1	3.00	300000.00	L? Qu?c kh?nh	2026-04-15 01:44:34
+=== ALLOWANCES ===
+allowance_id	allowance_code	allowance_name	allowance_type	calculation_method	is_taxable	is_insurable	description	status	created_at
+1	PC-CV	Ph? c?p ch?c v?	FIXED	MONTHLY	1	1	Ph? c?p cho tr??ng ph?ng, ph? ph?ng	1	2026-04-15 01:44:34
+2	PC-AT	Ph? c?p ?n tr?a	FIXED	DAILY	0	0	Ti?n ?n tr?a h?ng ng?y	1	2026-04-15 01:44:34
+3	PC-XM	Ph? c?p x?ng xe	FIXED	MONTHLY	0	0	Ph? c?p ?i l?i	1	2026-04-15 01:44:34
+4	PC-DT	Ph? c?p ?i?n tho?i	FIXED	MONTHLY	1	0	Ph? c?p c??c ?i?n tho?i	1	2026-04-15 01:44:34
+5	PC-TN	Ph? c?p th?m ni?n	FIXED	MONTHLY	1	1	Ph? c?p theo s? n?m c?ng t?c	1	2026-04-15 01:44:34
+=== DEDUCTIONS ===
+deduction_id	deduction_code	deduction_name	deduction_type	is_mandatory	description	status	created_at
+1	BHXH	B?o hi?m x? h?i	PERCENTAGE_OF_SALARY	1	Tr?ch BHXH 8%	1	2026-04-15 01:44:34
+2	BHYT	B?o hi?m y t?	PERCENTAGE_OF_SALARY	1	Tr?ch BHYT 1.5%	1	2026-04-15 01:44:34
+3	BHTN	B?o hi?m th?t nghi?p	PERCENTAGE_OF_SALARY	1	Tr?ch BHTN 1%	1	2026-04-15 01:44:34
+4	TNCN	Thu? thu nh?p c? nh?n	PERCENTAGE_OF_SALARY	1	Thu? TNCN theo lu?t ??nh	1	2026-04-15 01:44:34
+5	TL	T?m ?ng l??ng	FIXED	0	Kh?u tr? t?m ?ng l??ng	1	2026-04-15 01:44:34
+=== NEWS ===
+news_id	news_code	category_id	title	summary	content	priority	is_important	is_pinned	published_date	expiry_date	published_by	department_id	position_id	attachment_url	image_url	view_count	status	created_at	updated_at	created_by	updated_by
+1	NEWS-2024-001	1	Th?ng b?o l?ch ngh? l? 30/4 v? 1/5	L?ch ngh? l? 30/4 v? 1/5 n?m 2024	N?i dung chi ti?t v? l?ch ngh? l?...	CAO	1	1	2024-04-01 08:00:00	2024-05-02 17:00:00	2	1	3	NULL	NULL	150	??_XU?T_B?N	2026-04-15 01:44:34	2026-04-15 01:44:34	NULL	NULL
+2	NEWS-2024-002	2	T? ch?c team building t?i V?ng T?u	Ch??ng tr?nh team building to?n c?ng ty	Chi ti?t ch??ng tr?nh team building...	TRUNG_B?NH	0	0	2024-03-15 10:00:00	2024-04-15 17:00:00	6	3	5	NULL	NULL	85	??_XU?T_B?N	2026-04-15 01:44:34	2026-04-15 01:44:34	NULL	NULL
+3	NEWS-2024-003	3	C?p nh?t ch?nh s?ch l?m vi?c t? xa	Ch?nh s?ch WFH m?i ?p d?ng t? th?ng 4/2024	N?i dung ch?nh s?ch...	CAO	1	1	2024-03-20 14:00:00	NULL	2	1	3	NULL	NULL	210	??_XU?T_B?N	2026-04-15 01:44:34	2026-04-15 01:44:34	NULL	NULL
+4	NEWS-2024-004	1	Th?ng b?o tuy?n d?ng th?c t?p sinh	C? h?i cho sinh vi?n th?c t?p t?i c?ng ty	Chi ti?t ch??ng tr?nh th?c t?p...	TRUNG_B?NH	0	0	2024-03-25 09:00:00	2024-04-30 17:00:00	2	1	3	NULL	NULL	45	??_XU?T_B?N	2026-04-15 01:44:35	2026-04-15 01:44:35	NULL	NULL
+5	NEWS-2024-005	2	Gi?i b?ng ?? n?i b? n?m 2024	??ng k? tham gia gi?i ??u	Th? l? v? l?ch thi ??u...	TH?P	0	0	2024-03-26 14:00:00	2024-05-20 17:00:00	6	3	5	NULL	NULL	78	??_XU?T_B?N	2026-04-15 01:44:35	2026-04-15 01:44:35	NULL	NULL
+6	NEWS-2024-006	3	C?p nh?t quy ??nh v? trang ph?c	Quy ??nh trang ph?c m?i ?p d?ng t? th?ng 5/2024	N?i dung chi ti?t...	TRUNG_B?NH	1	0	2024-03-27 10:30:00	NULL	2	1	3	NULL	NULL	92	??_XU?T_B?N	2026-04-15 01:44:35	2026-04-15 01:44:35	NULL	NULL
+=== REQUESTS TABLE ===
+Field	Type	Null	Key	Default	Extra
+request_id	int	NO	PRI	NULL	auto_increment
+request_code	varchar(50)	NO	UNI	NULL	
+request_type_id	int	NO	MUL	NULL	
+requester_id	int	NO	MUL	NULL	
+request_date	date	NO	MUL	NULL	
+from_date	datetime	YES		NULL	
+to_date	datetime	YES		NULL	
+duration	decimal(15,2)	YES		NULL	
+reason	text	YES		NULL	
+status	enum('NH?P','CH?_DUY?T','?ANG_X?_L?','??_DUY?T','T?_CH?I','??_H?Y','HO?N_TH?NH')	YES	MUL	NH?P	
+current_step_id	int	YES	MUL	NULL	
+is_urgent	tinyint(1)	YES		0	
+attachments	text	YES		NULL	
+notes	text	YES		NULL	
+completed_date	datetime	YES		NULL	
+created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+updated_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+created_by	int	YES	MUL	NULL	
+updated_by	int	YES	MUL	NULL	
+request_id	request_code	request_type_id	requester_id	request_date	from_date	to_date	duration	reason	status	current_step_id	is_urgent	attachments	notes	completed_date	created_at	updated_at	created_by	updated_by
+1	NP-2024-001	1	1	2024-03-01	2024-03-10 08:00:00	2024-03-12 17:00:00	2.50	Ngh? ph?p ?i du l?ch ?? L?t	??_DUY?T	3	0	NULL	?? ???c duy?t	NULL	2026-04-15 01:44:34	2026-04-15 01:44:34	NULL	NULL
+2	NP-2024-002	1	2	2024-03-02	2024-03-20 08:00:00	2024-03-20 17:00:00	1.00	Ngh? c??i em g?i	??_DUY?T	3	0	NULL	?? duy?t	NULL	2026-04-15 01:44:34	2026-04-15 01:44:34	NULL	NULL
+3	NP-2024-003	1	3	2024-03-03	2024-03-25 08:00:00	2024-03-25 12:00:00	0.50	Kh?m s?c kh?e ??nh k?	CH?_DUY?T	1	0	NULL	G?i ??n	NULL	2026-04-15 01:44:34	2026-04-15 01:44:34	NULL	NULL
+4	TC-2024-001	3	1	2024-03-01	2024-03-05 18:00:00	2024-03-05 21:00:00	3.00	L?m b?o c?o cu?i qu?	??_DUY?T	2	0	NULL	?? duy?t	NULL	2026-04-15 01:44:34	2026-04-15 01:44:34	NULL	NULL
+5	TUL-2024-001	5	1	2024-02-20	NULL	NULL	10000000.00	T?m ?ng ti?n ch?a b?nh cho m?	??_DUY?T	3	1	NULL	?? duy?t	NULL	2026-04-15 01:44:34	2026-04-15 01:44:34	NULL	NULL
+6	NP-2024-004	1	6	2024-03-10	2024-03-25 08:00:00	2024-03-26 17:00:00	1.50	Ngh? ?m	CH?_DUY?T	1	0	NULL	M?i g?i	NULL	2026-04-15 01:44:35	2026-04-15 01:44:35	NULL	NULL
+7	NP-2024-005	1	7	2024-03-11	2024-04-01 08:00:00	2024-04-03 17:00:00	3.00	Ngh? ph?p v? qu?	CH?_DUY?T	1	0	NULL	?? g?i	NULL	2026-04-15 01:44:35	2026-04-15 01:44:35	NULL	NULL
+8	TC-2024-002	3	4	2024-03-12	2024-03-15 18:00:00	2024-03-15 21:00:00	3.00	X? l? s? c? h? th?ng	??_DUY?T	2	1	NULL	Kh?n c?p	NULL	2026-04-15 01:44:35	2026-04-15 01:44:35	NULL	NULL
+9	CT-2024-001	4	3	2024-03-13	2024-03-20 08:00:00	2024-03-22 17:00:00	3.00	C?ng t?c t?i H? N?i g?p kh?ch h?ng	CH?_DUY?T	1	0	NULL	Ch? duy?t	NULL	2026-04-15 01:44:35	2026-04-15 01:44:35	NULL	NULL
+10	TUL-2024-002	5	5	2024-03-14	NULL	NULL	5000000.00	T?m ?ng ??ng h?c ph? cho con	CH?_DUY?T	1	0	NULL	M?i g?i	NULL	2026-04-15 01:44:35	2026-04-15 01:44:35	NULL	NULL
+=== EMPLOYEE ACCOUNTS ===
+employee_id	employee_code	full_name	company_email	has_password
+1	NV0001	Nguy?n V?n An	an.nguyen@company.com	0
+2	NV0002	Tr?n Th? Mai	mai.tran@company.com	0
+3	NV0003	L? V?n C??ng	cuong.le@company.com	0
+4	NV0004	Ph?m Th? H??ng	huong.pham@company.com	0
+5	NV0005	Ho?ng V?n ??c	duc.hoang@company.com	0
+6	NV0006	??ng Th? Ng?c	ngoc.dang@company.com	0
+7	NV0007	B?i V?n Qu?n	quan.bui@company.com	0
+8	NV0008	V? Th? Lan	lan.vu@company.com	0
+9	NV0009	?? V?n H?i	hai.do@company.com	1
+10	NV0010	L? Th? Hoa	hoa.ly@company.com	0
+11	NV0011	Ng? V?n T?ng	tung.ngo@company.com	0
+12	NV0012	D??ng Th? H?ng	hong.duong@company.com	0
+13	NV0013	Tr?nh V?n Ph?c	phuc.trinh@company.com	0
+14	NV0014	?inh Th? Nhung	nhung.dinh@company.com	0
+15	NV0015	L??ng V?n Ki?n	kien.luong@company.com	0
+16	NV0016	Mai Th? Qu?nh	quynh.mai@company.com	0
+17	NV0017	H? V?n Ph?t	phat.ha@company.com	0
+18	NV0018	L?m Th? Ng?c	ngoc.lam@company.com	0
+19	NV0019	T? V?n T?i	tai.to@company.com	0
+20	NV0020	Nguy?n Ho?ng Nam	nam.nh@company.com	0
+=== DESCRIBE employee_roles ===
+Field	Type	Null	Key	Default	Extra
+employee_role_id	int	NO	PRI	NULL	auto_increment
+employee_id	int	NO	MUL	NULL	
+role_id	int	NO	MUL	NULL	
+department_id	int	YES	MUL	NULL	
+effective_date	date	NO		NULL	
+expiry_date	date	YES		NULL	
+is_active	tinyint(1)	YES		1	
+created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+=== DESCRIBE departments ===
+Field	Type	Null	Key	Default	Extra
+department_id	int	NO	PRI	NULL	auto_increment
+department_code	varchar(20)	NO	UNI	NULL	
+department_name	varchar(100)	NO		NULL	
+parent_department_id	int	YES	MUL	NULL	
+manager_id	int	YES	MUL	NULL	
+description	text	YES		NULL	
+status	tinyint(1)	YES		1	
+created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED
+updated_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+=== DONE ===

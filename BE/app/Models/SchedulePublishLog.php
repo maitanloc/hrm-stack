@@ -25,8 +25,8 @@ class SchedulePublishLog extends Model
         $sql = "SELECT spl.*, publisher.full_name AS published_by_name
                 FROM schedule_publish_logs spl
                 LEFT JOIN employees publisher ON publisher.employee_id = spl.published_by
-                WHERE spl.from_date <= :work_date
-                  AND spl.to_date >= :work_date
+                WHERE spl.from_date <= :work_date_from
+                  AND spl.to_date >= :work_date_to
                   AND (
                     (spl.scope_type = 'EMPLOYEE' AND spl.scope_id = :employee_id)";
 
@@ -39,7 +39,8 @@ class SchedulePublishLog extends Model
                 LIMIT 1";
 
         $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':work_date', $workDate);
+        $stmt->bindValue(':work_date_from', $workDate);
+        $stmt->bindValue(':work_date_to', $workDate);
         $stmt->bindValue(':employee_id', $employeeId, PDO::PARAM_INT);
         if ($departmentId !== null && $departmentId > 0) {
             $stmt->bindValue(':department_id', $departmentId, PDO::PARAM_INT);

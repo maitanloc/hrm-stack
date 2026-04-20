@@ -264,8 +264,7 @@
         <NavSection label="Nghiệp vụ hằng ngày" :expanded="sidebarExpanded" :is-dark="isDark" />
         <div :class="sidebarExpanded ? 'w-full flex flex-col gap-1' : 'px-2 flex flex-col items-center gap-1'">
           <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/truongphong/chamcong')" icon="schedule" label="Chấm công" :is-dark="isDark" to="/truongphong/chamcong" @click="handleNavClick" />
-          <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/truongphong/phanca')" icon="edit_calendar" label="Phân ca làm việc" :is-dark="isDark" to="/truongphong/phanca" @click="handleNavClick" />
-          <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/truongphong/nghiphep')" icon="event_busy" label="Nghỉ phép" :is-dark="isDark" to="/truongphong/nghiphep" @click="handleNavClick" :badge="pendingLeaveCount" />
+          <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/truongphong/phanca')" icon="edit_calendar" label="Phân ca làm việc" :is-dark="isDark" to="/truongphong/phanca" @click="handleNavClick" />          <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/truongphong/nghiphep')" icon="event_busy" label="Nghỉ phép" :is-dark="isDark" to="/truongphong/nghiphep" @click="handleNavClick" :badge="pendingLeaveCount" />
           <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/truongphong/tuyendung')" icon="person_search" label="Tuyển dụng" :is-dark="isDark" to="/truongphong/tuyendung" @click="handleNavClick" />
           <SidebarItem :expanded="sidebarExpanded" :is-active="isActive('/truongphong/danhgiaungvien')" icon="rate_review" label="Đánh giá ứng viên" :is-dark="isDark" to="/truongphong/danhgiaungvien" @click="handleNavClick" />
         </div>

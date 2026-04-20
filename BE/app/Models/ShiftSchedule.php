@@ -44,13 +44,14 @@ class ShiftSchedule extends Model
                 LEFT JOIN shift_types st ON st.shift_type_id = ssd.shift_type_id
                 WHERE ss.department_id = :department_id
                   AND ss.is_active = 1
-                  AND ss.effective_from <= :work_date
-                  AND (ss.effective_to IS NULL OR ss.effective_to >= :work_date)
+                  AND ss.effective_from <= :work_date_from
+                  AND (ss.effective_to IS NULL OR ss.effective_to >= :work_date_to)
                 ORDER BY ss.effective_from DESC, ss.schedule_id DESC";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             'department_id' => $departmentId,
-            'work_date' => $workDate,
+            'work_date_from' => $workDate,
+            'work_date_to' => $workDate,
         ]);
 
         foreach ($stmt->fetchAll() ?: [] as $row) {

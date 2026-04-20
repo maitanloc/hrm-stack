@@ -29,7 +29,19 @@ class ShiftType extends Model
 
     public function listActive(): array
     {
-        $stmt = $this->db->query("SELECT * FROM shift_types WHERE status = 'ACTIVE' ORDER BY shift_type_id ASC");
+        // Handle ENUM variants for 'ACTIVE' / 'HIỆU_LỰC'
+        $statusCandidates = ['ACTIVE', 'HIỆU_LỰC', 'HIEU_LUC', 'HI?U L?C', '1', 1];
+        $placeholders = implode(', ', array_map(fn($i) => ":st_$i", range(0, count($statusCandidates) - 1)));
+        
+        $sql = "SELECT * FROM shift_types 
+                WHERE status IN ($placeholders) 
+                ORDER BY shift_type_id ASC";
+        
+        $stmt = $this->db->prepare($sql);
+        foreach ($statusCandidates as $i => $val) {
+            $stmt->bindValue(":st_$i", $val);
+        }
+        $stmt->execute();
         return $stmt->fetchAll() ?: [];
     }
 }

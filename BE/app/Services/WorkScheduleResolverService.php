@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Employee;
+use App\Models\SchedulePublishLog;
 use App\Models\ShiftAssignment;
 use App\Models\ShiftAssignmentOverride;
 use App\Models\ShiftSchedule;
@@ -15,11 +16,22 @@ class WorkScheduleResolverService
         private readonly ShiftAssignment $assignments = new ShiftAssignment(),
         private readonly ShiftSchedule $schedules = new ShiftSchedule(),
         private readonly Employee $employees = new Employee(),
+        private readonly SchedulePublishLog $schedulePublishLogs = new SchedulePublishLog(),
     ) {
     }
 
-    public function resolve(int $employeeId, string $workDate): ?array
+    public function resolve(int $employeeId, string $workDate, bool $onlyPublished = false): ?array
     {
+        $employment = $this->employees->findCurrentEmployment($employeeId);
+        $departmentId = (int) ($employment['department_id'] ?? 0);
+
+        if ($onlyPublished) {
+            $publishLog = $this->schedulePublishLogs->findLatestCoveringDate($employeeId, $departmentId, $workDate);
+            if ($publishLog === null) {
+                return null;
+            }
+        }
+
         $override = $this->overrides->findByEmployeeDate($employeeId, $workDate);
         if ($override !== null) {
             return $this->formatResolvedShift('OVERRIDE', $override, [

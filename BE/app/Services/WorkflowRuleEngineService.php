@@ -83,8 +83,9 @@ class WorkflowRuleEngineService
                 'rule_code' => 'SCH_PUBLISH_BLOCK_UNASSIGNED',
                 'severity' => 'BLOCKER',
                 'message' => sprintf(
-                    'Khong the publish lich khi con %d ngay chua duoc phan ca.',
-                    count($unassignedExamples)
+                    'Tuần chưa đủ điều kiện: Còn %d vị trí chưa được phân ca hoặc chưa có lý do nghỉ. (Vd: %s)',
+                    count($unassignedExamples),
+                    implode(', ', array_slice($unassignedExamples, 0, 3))
                 ),
                 'sample' => array_slice($unassignedExamples, 0, 10),
                 'count' => count($unassignedExamples),
@@ -97,8 +98,9 @@ class WorkflowRuleEngineService
                 'rule_code' => 'SCH_WARN_LEAVE_CONFLICT',
                 'severity' => 'WARNING',
                 'message' => sprintf(
-                    'Phat hien %d truong hop trung lich ca va don nghi da duyet.',
-                    count($leaveConflictExamples)
+                    'Xung đột lịch: %d trường hợp trùng lịch ca và đơn nghỉ. (Vd: %s)',
+                    count($leaveConflictExamples),
+                    implode(', ', array_slice($leaveConflictExamples, 0, 3))
                 ),
                 'sample' => array_slice($leaveConflictExamples, 0, 10),
                 'count' => count($leaveConflictExamples),
@@ -109,8 +111,9 @@ class WorkflowRuleEngineService
                 'rule_code' => 'SCH_WARN_OT_WITHOUT_SHIFT',
                 'severity' => 'WARNING',
                 'message' => sprintf(
-                    'Phat hien %d truong hop OT khong co ca nen.',
-                    count($otWithoutShiftExamples)
+                    'Thiếu lịch nền: %d trường hợp có OT nhưng chưa có ca nền. (Vd: %s)',
+                    count($otWithoutShiftExamples),
+                    implode(', ', array_slice($otWithoutShiftExamples, 0, 3))
                 ),
                 'sample' => array_slice($otWithoutShiftExamples, 0, 10),
                 'count' => count($otWithoutShiftExamples),

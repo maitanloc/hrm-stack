@@ -1,0 +1,24 @@
+{
+  "name": "hrm-stack",
+  "version": "1.0.0",
+  "description": "",
+  "main": "api-demo-script.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maitanloc/hrm-stack.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/maitanloc/hrm-stack/issues"
+  },
+  "homepage": "https://github.com/maitanloc/hrm-stack#readme",
+  "dependencies": {
+    "node-ssh": "^13.2.1"
+  }
+}

@@ -56,17 +56,32 @@ class Contract extends Model
 
         if ($status !== null && $status !== '') {
             $statusCode = strtoupper($status);
+            $cand_HIEU_LUC = array_unique(['CÓ_HIỆU_LỰC', 'CO_HIEU_LUC', 'C? HI?U L?C']);
+            $cand_HET_HAN = array_unique(['HẾT_HẠN', 'HET_HAN', 'H?T H?N']);
+            $cand_CHAM_DUT = array_unique(['ĐÃ_CHẤM_DỨT', 'DA_CHAM_DUT', '? CH?M D?T']);
+            $cand_CHO_HIEU_LUC = array_unique(['CHỜ_HIỆU_LỰC', 'CHO_HIEU_LUC', 'CH? HI?U L?C']);
+
+            $placeholders = function($prefix, $cands) use (&$params) {
+                $p = [];
+                foreach ($cands as $i => $val) {
+                    $key = $prefix . '_' . $i;
+                    $p[] = ':' . $key;
+                    $params[$key] = $val;
+                }
+                return '(' . implode(', ', $p) . ')';
+            };
+
             if ($statusCode === 'DANG_HIEU_LUC') {
-                $where[] = "c.status = 'CÓ_HIỆU_LỰC'
+                $where[] = "c.status IN " . $placeholders('st_hieuluc', $cand_HIEU_LUC) . "
                             AND (c.expiry_date IS NULL OR c.expiry_date > DATE_ADD(CURDATE(), INTERVAL 30 DAY))";
             } elseif ($statusCode === 'SAP_HET_HAN') {
-                $where[] = "(c.status = 'HẾT_HẠN'
-                            OR (c.status = 'CÓ_HIỆU_LỰC' AND c.expiry_date IS NOT NULL
+                $where[] = "(c.status IN " . $placeholders('st_hethan', $cand_HET_HAN) . "
+                            OR (c.status IN " . $placeholders('st_hieuluc_2', $cand_HIEU_LUC) . " AND c.expiry_date IS NOT NULL
                                 AND c.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)))";
             } elseif ($statusCode === 'DA_THANH_LY') {
-                $where[] = "c.status = 'ĐÃ_CHẤM_DỨT'";
+                $where[] = "c.status IN " . $placeholders('st_chamdut', $cand_CHAM_DUT);
             } elseif ($statusCode === 'CHO_HIEU_LUC') {
-                $where[] = "c.status = 'CHỜ_HIỆU_LỰC'";
+                $where[] = "c.status IN " . $placeholders('st_cho', $cand_CHO_HIEU_LUC);
             }
         }
 

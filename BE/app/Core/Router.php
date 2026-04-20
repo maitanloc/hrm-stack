@@ -98,7 +98,13 @@ class Router
             return $this->runMiddlewarePipeline($request, $pipeline, $handler);
         }
 
-        throw new HttpException('Route not found', 404, 'route_not_found');
+        // Return JSON instead of throwing exception that might lead to HTML 404
+        return [
+            'status' => 404,
+            'success' => false,
+            'error' => 'route_not_found',
+            'message' => 'API Route not found: ' . $request->method() . ' ' . $request->path(),
+        ];
     }
 
     private function runMiddlewarePipeline(Request $request, array $middlewares, callable $destination): array

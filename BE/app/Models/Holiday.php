@@ -66,14 +66,15 @@ class Holiday extends Model
                        END AS resolved_holiday_date
                 FROM holidays
                 WHERE (
-                    (is_recurring = 0 AND holiday_date = :work_date)
-                    OR (is_recurring = 1 AND DATE_FORMAT(holiday_date, '%m-%d') = DATE_FORMAT(:work_date, '%m-%d'))
+                    (is_recurring = 0 AND holiday_date = :work_date_exact)
+                    OR (is_recurring = 1 AND DATE_FORMAT(holiday_date, '%m-%d') = DATE_FORMAT(:work_date_recurring, '%m-%d'))
                 )
                 ORDER BY is_recurring ASC, holiday_id ASC
                 LIMIT 1";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
-            'work_date' => $workDate,
+            'work_date_exact' => $workDate,
+            'work_date_recurring' => $workDate,
             'work_year' => substr($workDate, 0, 4),
         ]);
         $row = $stmt->fetch();

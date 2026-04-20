@@ -10,6 +10,8 @@ class LeaveRequest extends Model
 {
     protected string $table = 'leave_requests';
     protected string $primaryKey = 'leave_request_id';
+    /** @var array<int, string>|null */
+    private ?array $sessionEnumCache = null;
     protected array $fillable = [
         'request_id',
         'leave_type_id',
@@ -35,6 +37,16 @@ class LeaveRequest extends Model
         'certificate_file',
         'certificate_number',
     ];
+
+    public function create(array $data): int
+    {
+        return parent::create($this->normalizePersistencePayload($data));
+    }
+
+    public function updateById(int $id, array $data): bool
+    {
+        return parent::updateById($id, $this->normalizePersistencePayload($data));
+    }
 
     public function paginateList(
         int $offset,
@@ -70,8 +82,14 @@ class LeaveRequest extends Model
             $params['date_to'] = $dateTo;
         }
         if ($requestStatus !== null && $requestStatus !== '') {
-            $where[] = 'r.status = :request_status';
-            $params['request_status'] = $requestStatus;
+            $statusCandidates = array_unique([$requestStatus, 'ĐÃ_DUYỆT', 'DA_DUYET', 'CHỜ_DUYỆT', 'CHO_DUYET', 'TỪ_CHỐI', 'TU_CHOI', 'ĐANG_XỬ_LÝ', 'DANG_XU_LY']);
+            $p = [];
+            foreach ($statusCandidates as $i => $val) {
+                $key = 'req_st_cand_' . $i;
+                $p[] = ':' . $key;
+                $params[$key] = $val;
+            }
+            $where[] = 'r.status IN (' . implode(', ', $p) . ')';
         }
 
         $whereSql = $where === [] ? '' : 'WHERE ' . implode(' AND ', $where);
@@ -129,5 +147,89 @@ class LeaveRequest extends Model
         $total = (int) ($countStmt->fetch()['total'] ?? 0);
 
         return ['items' => $items, 'total' => $total];
+    }
+
+    private function normalizePersistencePayload(array $data): array
+    {
+        foreach (['from_session', 'to_session'] as $column) {
+            if (array_key_exists($column, $data)) {
+                $data[$column] = $this->normalizeSession($data[$column]);
+            }
+        }
+
+        return $data;
+    }
+
+    private function normalizeSession(mixed $value): string
+    {
+        $enumValues = $this->sessionEnumValues();
+        $default = $enumValues[2] ?? $enumValues[0] ?? 'CẢ_NGÀY';
+        $token = $this->normalizeToken((string) $value);
+        $index = match ($token) {
+            'SANG', 'MORNING' => 0,
+            'CHIEU', 'AFTERNOON' => 1,
+            'CA_NGAY', 'FULL_DAY', 'ALL_DAY' => 2,
+            default => 2,
+        };
+
+        return $enumValues[$index] ?? $default;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function sessionEnumValues(): array
+    {
+        if ($this->sessionEnumCache !== null) {
+            return $this->sessionEnumCache;
+        }
+
+        $fallback = ['SÁNG', 'CHIỀU', 'CẢ_NGÀY'];
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM {$this->table} LIKE 'from_session'");
+            $column = $stmt ? ($stmt->fetch() ?: null) : null;
+            $type = (string) ($column['Type'] ?? $column['type'] ?? '');
+            if (
+                $type !== ''
+                && preg_match('/^enum\\((.*)\\)$/i', $type, $matches) === 1
+                && preg_match_all("/'((?:\\\\'|[^'])*)'/", $matches[1], $enumMatches) > 0
+            ) {
+                $values = array_map(
+                    static fn(string $item): string => str_replace("\\'", "'", $item),
+                    $enumMatches[1]
+                );
+                if ($values !== []) {
+                    $this->sessionEnumCache = array_values(array_unique($values));
+                    return $this->sessionEnumCache;
+                }
+            }
+        } catch (\Throwable) {
+        }
+
+        $this->sessionEnumCache = $fallback;
+        return $this->sessionEnumCache;
+    }
+
+    private function normalizeToken(string $value): string
+    {
+        $upper = mb_strtoupper(trim($value), 'UTF-8');
+        $ascii = strtr($upper, [
+            'À' => 'A', 'Á' => 'A', 'Ả' => 'A', 'Ã' => 'A', 'Ạ' => 'A',
+            'Ă' => 'A', 'Ằ' => 'A', 'Ắ' => 'A', 'Ẳ' => 'A', 'Ẵ' => 'A', 'Ặ' => 'A',
+            'Â' => 'A', 'Ầ' => 'A', 'Ấ' => 'A', 'Ẩ' => 'A', 'Ẫ' => 'A', 'Ậ' => 'A',
+            'Đ' => 'D',
+            'È' => 'E', 'É' => 'E', 'Ẻ' => 'E', 'Ẽ' => 'E', 'Ẹ' => 'E',
+            'Ê' => 'E', 'Ề' => 'E', 'Ế' => 'E', 'Ể' => 'E', 'Ễ' => 'E', 'Ệ' => 'E',
+            'Ì' => 'I', 'Í' => 'I', 'Ỉ' => 'I', 'Ĩ' => 'I', 'Ị' => 'I',
+            'Ò' => 'O', 'Ó' => 'O', 'Ỏ' => 'O', 'Õ' => 'O', 'Ọ' => 'O',
+            'Ô' => 'O', 'Ồ' => 'O', 'Ố' => 'O', 'Ổ' => 'O', 'Ỗ' => 'O', 'Ộ' => 'O',
+            'Ơ' => 'O', 'Ờ' => 'O', 'Ớ' => 'O', 'Ở' => 'O', 'Ỡ' => 'O', 'Ợ' => 'O',
+            'Ù' => 'U', 'Ú' => 'U', 'Ủ' => 'U', 'Ũ' => 'U', 'Ụ' => 'U',
+            'Ư' => 'U', 'Ừ' => 'U', 'Ứ' => 'U', 'Ử' => 'U', 'Ữ' => 'U', 'Ự' => 'U',
+            'Ỳ' => 'Y', 'Ý' => 'Y', 'Ỷ' => 'Y', 'Ỹ' => 'Y', 'Ỵ' => 'Y',
+        ]);
+
+        $token = preg_replace('/[^A-Z0-9]+/', '_', $ascii) ?? '';
+        return trim($token, '_');
     }
 }

@@ -131,7 +131,7 @@ const routes = [
                   {
                         path: 'phanca',
                         name: 'admin-phan-ca',
-                        component: () => import('../View/admin/QuanLy/QuanLyPhanCa.vue'),
+                        component: () => import('../views/attendance/ShiftSchedulingView.vue'),
                         meta: { index: 7.5 }
                   },
                   {
@@ -178,6 +178,7 @@ const routes = [
                   },
                   {
                         path: 'policy-center',
+                        alias: 'policy',
                         name: 'admin-policy-center',
                         component: () => import('../views/system/PolicyCenterView.vue'),
                         meta: { index: 14.1 }
@@ -196,18 +197,21 @@ const routes = [
                   },
                   {
                         path: 'timesheet-period',
+                        alias: 'timesheet',
                         name: 'admin-timesheet-period',
                         component: () => import('../views/attendance/TimesheetPeriodView.vue'),
                         meta: { index: 15.1 }
                   },
                   {
                         path: 'timesheet-exceptions',
+                        alias: 'exceptions',
                         name: 'admin-timesheet-exceptions',
                         component: () => import('../views/attendance/ExceptionDashboardView.vue'),
                         meta: { index: 15.2 }
                   },
                   {
                         path: 'timesheet-import',
+                        alias: 'import-logs',
                         name: 'admin-timesheet-import',
                         component: () => import('../views/attendance/ImportLogsView.vue'),
                         meta: { index: 15.3 }
@@ -484,7 +488,7 @@ const routes = [
                   {
                         path: 'phanca',
                         name: 'tp-phan-ca',
-                        component: () => import('../View/admin/QuanLy/QuanLyPhanCa.vue'),
+                        component: () => import('../views/attendance/ShiftSchedulingView.vue'),
                         meta: { index: 3.5 }
                   },
                   {
@@ -559,19 +563,35 @@ router.beforeEach((to) => {
       const token = getAccessToken()
       const role = getCurrentUserRole()
 
+      // 1. No token -> Force login unless already on a public page
       if (!token && !isPublic) {
             clearAuthSession()
             return '/login'
       }
 
+      // 2. Already logged in and trying to go to login page
       if (token && to.path === '/login') {
-            return roleHomeMap[role] || '/nhanvien'
+            const home = roleHomeMap[role]
+            if (home) return home
+            
+            // If role is invalid but we have a token, something is wrong.
+            // Clear session to break potential loops and stay on login.
+            clearAuthSession()
+            return true
       }
 
-      if (!isPublic) {
+      // 3. Logged in -> Check role permissions for non-public pages
+      if (token && !isPublic) {
             const acceptedRoles = requiredRoleByPath(to.path)
+            
+            // If the path requires specific roles and user doesn't have them
             if (acceptedRoles.length > 0 && !acceptedRoles.includes(role)) {
-                  return roleHomeMap[role] || '/login'
+                  const home = roleHomeMap[role]
+                  if (home && home !== to.path) return home
+                  
+                  // If even the home is unreachable or user has no valid role, force logout
+                  clearAuthSession()
+                  return '/login'
             }
       }
 

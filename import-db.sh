@@ -55,6 +55,11 @@ done
 echo "Create database if needed..."
 compose exec -T mysql mysql --default-character-set=utf8mb4 -uroot "-p${MYSQL_ROOT_PASSWORD}" -e "CREATE DATABASE IF NOT EXISTS \`${TARGET_DB}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
+echo "Ensure user permissions..."
+MYSQL_USER="$(awk -F= '/^MYSQL_USER=/{print $2}' .env.deploy | tr -d '\r')"
+MYSQL_PASSWORD="$(awk -F= '/^MYSQL_PASSWORD=/{print $2}' .env.deploy | tr -d '\r')"
+compose exec -T mysql mysql -uroot "-p${MYSQL_ROOT_PASSWORD}" -e "CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}'; GRANT ALL PRIVILEGES ON \`${TARGET_DB}\`.* TO '${MYSQL_USER}'@'%'; FLUSH PRIVILEGES;"
+
 BASE_EXISTS="$(compose exec -T mysql mysql -N -uroot "-p${MYSQL_ROOT_PASSWORD}" -D "${TARGET_DB}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${TARGET_DB}' AND table_name='nationalities';" | tr -d '\r' || echo 0)"
 if [ "${BASE_EXISTS}" = "0" ]; then
   echo "Import base schema/data..."
