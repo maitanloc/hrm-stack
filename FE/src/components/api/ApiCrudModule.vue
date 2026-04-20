@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <section class="module-page">
     <div class="module-card">
       <h1 class="module-title">{{ title }}</h1>
@@ -91,6 +91,7 @@
                 </td>
                 <td>
                   <div class="d-flex gap-2">
+                    <slot name="row-actions" :row="row"></slot>
                     <button class="btn btn-outline-primary btn-sm" @click.stop="crud.openEdit(row)">Sua</button>
                     <button class="btn btn-outline-secondary btn-sm" @click.stop="crud.selectRow(row)">Xem</button>
                     <button

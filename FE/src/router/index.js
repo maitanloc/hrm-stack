@@ -23,6 +23,11 @@ const routes = [
             component: () => import('../components/Login.vue')
       },
       {
+            path: '/kiosk/face-attendance',
+            name: 'kiosk-face-attendance',
+            component: () => import('../views/attendance/KioskFaceAttendance.vue')
+      },
+      {
             path: '/nhanvien',
             component: Layout_NhanVien,
             children: [
@@ -234,6 +239,12 @@ const routes = [
                         name: 'admin-api-hrm-employees',
                         component: () => import('../views/hrm/EmployeesView.vue'),
                         meta: { index: 41 }
+                  },
+                  {
+                        path: 'api-ui/hrm/employees/:id/face-enroll',
+                        name: 'admin-api-hrm-face-enroll',
+                        component: () => import('../views/hrm/FaceEnrollment.vue'),
+                        meta: { index: 41.5 }
                   },
                   {
                         path: 'api-ui/hrm/departments',
@@ -559,7 +570,7 @@ const requiredRoleByPath = (path) => {
 }
 
 router.beforeEach((to) => {
-      const isPublic = to.path === '/login' || to.path === '/landing'
+      const isPublic = to.path === '/login' || to.path === '/landing' || to.path === '/kiosk/face-attendance'
       const token = getAccessToken()
       const role = getCurrentUserRole()
 

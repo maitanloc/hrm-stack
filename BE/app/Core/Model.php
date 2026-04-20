@@ -44,7 +44,10 @@ abstract class Model
 
         $stmt = $this->db->prepare($sql);
         $this->bindPayload($stmt, $payload);
-        $stmt->execute();
+        if (!$stmt->execute()) {
+            $errorInfo = $stmt->errorInfo();
+            throw new \Exception("SQL Execution Error in " . get_class($this) . ": " . ($errorInfo[2] ?? 'Unknown error'));
+        }
         return (int) $this->db->lastInsertId();
     }
 
@@ -59,10 +62,9 @@ abstract class Model
         foreach (array_keys($payload) as $column) {
             $sets[] = sprintf('%s = :%s', $column, $column);
         }
-        $payload['_id'] = $id;
-
+        
         $sql = sprintf(
-            'UPDATE %s SET %s WHERE %s = :_id',
+            'UPDATE %s SET %s WHERE %s = :_id_internal',
             $this->table,
             implode(', ', $sets),
             $this->primaryKey
@@ -70,7 +72,13 @@ abstract class Model
 
         $stmt = $this->db->prepare($sql);
         $this->bindPayload($stmt, $payload);
-        return $stmt->execute();
+        $stmt->bindValue(':_id_internal', $id, PDO::PARAM_INT);
+
+        if (!$stmt->execute()) {
+            $errorInfo = $stmt->errorInfo();
+            throw new \Exception("SQL Update Error in " . get_class($this) . ": " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+        return true;
     }
 
     public function deleteById(int $id): bool

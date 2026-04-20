@@ -863,24 +863,37 @@ const editAnchor = (index) => {
   setGpsMessage(`Đang chỉnh sửa ${anchor.label || `mốc ${index + 1}`}.`, 'info');
 };
 
-const removeAnchor = (index) => {
+const removeAnchor = async (index) => {
   const anchors = [...parsedAnchors.value];
   if (!anchors[index]) return;
+  
+  const ok = await showConfirm('Xác nhận xóa mốc', `Bạn có chắc chắn muốn xóa mốc "${anchors[index].label || 'này'}" không?`);
+  if (!ok) return;
+
   anchors.splice(index, 1);
   writeAnchors(anchors);
   if (gpsEditingIndex.value === index) {
     resetGpsDraft();
   }
-  setGpsMessage('Đã xóa mốc geofence cũ khỏi danh sách.', 'success');
+  
+  // Auto-save to DB
+  await saveAllSettings({ silent: true });
+  setGpsMessage('Đã xóa mốc và lưu vào hệ thống.', 'success');
 };
 
-const clearAllAnchors = () => {
+const clearAllAnchors = async () => {
+  const ok = await showConfirm('Xóa tất cả mốc', 'Bạn có chắc chắn muốn xóa TOÀN BỘ danh sách mốc geofence không? Thao tác này sẽ lưu trực tiếp xuống Database.');
+  if (!ok) return;
+
   writeAnchors([]);
   resetGpsDraft();
-  setGpsMessage('Đã xóa toàn bộ mốc geofence cũ. Hãy thêm mốc mới rồi lưu cấu hình.', 'success');
+  
+  // Auto-save to DB
+  await saveAllSettings({ silent: true });
+  setGpsMessage('Đã xóa toàn bộ mốc và lưu vào hệ thống.', 'success');
 };
 
-const upsertAnchorDraft = () => {
+const upsertAnchorDraft = async () => {
   const normalized = normalizeAnchor({
     ...gpsDraft.value,
     lat: Number(gpsDraft.value.lat),
@@ -899,8 +912,11 @@ const upsertAnchorDraft = () => {
   } else {
     anchors.push(normalized);
     writeAnchors(anchors);
-    setGpsMessage(`Đã thêm ${normalized.label} vào geofence công ty.`, 'success');
+    setGpsMessage(`Đã thêm ${normalized.label} vào danh sách.`, 'success');
   }
+
+  // Auto-save to DB
+  await saveAllSettings({ silent: true });
 
   gpsLookupQuery.value = normalized.address || `${normalized.lat}, ${normalized.lng}`;
   resetGpsDraft();
@@ -1075,45 +1091,70 @@ const loadSettings = async () => {
       address: String(data.company_address || ''),
       language: String(data.system_language || 'vi'),
       timezone: String(data.system_timezone || 'Asia/Ho_Chi_Minh'),
-      require2FA: Boolean(data.security_require_2fa),
+      require2FA: Boolean(data.security_require_2fa === true || data.security_require_2fa === '1'),
       sessionTimeout: String(data.security_session_timeout || '60'),
-      attendanceCompanyGeoLockEnabled: Boolean(data.attendance_company_geo_lock_enabled ?? true),
-      attendanceCompanyAnchorPointsJson: String(data.attendance_company_anchor_points_json || ''),
+      attendanceCompanyGeoLockEnabled: Boolean(data.attendance_company_geo_lock_enabled === true || data.attendance_company_geo_lock_enabled === '1'),
+      attendanceCompanyAnchorPointsJson: String(data.attendance_company_anchor_points_json || '[]'),
       attendanceGreenRadiusM: String(data.attendance_green_radius_m || '120'),
       attendanceYellowRadiusM: String(data.attendance_yellow_radius_m || '250'),
     };
-  } catch {
-    await showAlert('Không tải được cấu hình', 'Hệ thống chưa đọc được cấu hình thật từ backend. Bạn vẫn có thể chỉnh sửa rồi lưu lại lần nữa.');
+  } catch (err) {
+    console.error('loadSettings Error:', err);
+    await showAlert('Không tải được cấu hình', 'Hệ thống chưa đọc được cấu hình thật từ backend. Có thể do lỗi kết nối hoặc phân quyền.');
   }
 };
 
 const saveAllSettings = async () => {
   try {
     JSON.parse(settings.value.attendanceCompanyAnchorPointsJson || '[]');
-  } catch {
+  } catch (err) {
     await showAlert('JSON chưa hợp lệ', 'Danh sách mốc công ty đang sai định dạng JSON. Hãy kiểm tra lại trước khi lưu.');
     activeTab.value = 'gps';
     return;
   }
 
-  await apiRequest('/settings/general', {
-    method: 'PUT',
-    body: {
-      company_name: settings.value.companyName,
-      company_tax_code: settings.value.taxCode,
-      company_address: settings.value.address,
-      system_language: settings.value.language,
-      system_timezone: settings.value.timezone,
-      security_require_2fa: settings.value.require2FA,
-      security_session_timeout: settings.value.sessionTimeout,
-      attendance_company_geo_lock_enabled: settings.value.attendanceCompanyGeoLockEnabled,
-      attendance_company_anchor_points_json: settings.value.attendanceCompanyAnchorPointsJson,
-      attendance_green_radius_m: settings.value.attendanceGreenRadiusM,
-      attendance_yellow_radius_m: settings.value.attendanceYellowRadiusM,
-    },
-  });
+  try {
+    const payload = await apiRequest('/settings/general', {
+      method: 'PUT',
+      body: {
+        company_name: settings.value.companyName,
+        company_tax_code: settings.value.taxCode,
+        company_address: settings.value.address,
+        system_language: settings.value.language,
+        system_timezone: settings.value.timezone,
+        security_require_2fa: settings.value.require2FA,
+        security_session_timeout: settings.value.sessionTimeout,
+        attendance_company_geo_lock_enabled: settings.value.attendanceCompanyGeoLockEnabled,
+        attendance_company_anchor_points_json: settings.value.attendanceCompanyAnchorPointsJson,
+        attendance_green_radius_m: settings.value.attendanceGreenRadiusM,
+        attendance_yellow_radius_m: settings.value.attendanceYellowRadiusM,
+      },
+    });
 
-  await showAlert('Phê chuẩn Cấu hình', 'Cấu hình hệ thống và geofence GPS đã được lưu thành công.');
+    if (payload?.data) {
+      const data = payload.data;
+      settings.value = {
+        companyName: String(data.company_name || 'HRM Portal'),
+        taxCode: String(data.company_tax_code || ''),
+        address: String(data.company_address || ''),
+        language: String(data.system_language || 'vi'),
+        timezone: String(data.system_timezone || 'Asia/Ho_Chi_Minh'),
+        require2FA: Boolean(data.security_require_2fa === true || data.security_require_2fa === '1'),
+        sessionTimeout: String(data.security_session_timeout || '60'),
+        attendanceCompanyGeoLockEnabled: Boolean(data.attendance_company_geo_lock_enabled === true || data.attendance_company_geo_lock_enabled === '1'),
+        attendanceCompanyAnchorPointsJson: String(data.attendance_company_anchor_points_json || '[]'),
+        attendanceGreenRadiusM: String(data.attendance_green_radius_m || '120'),
+        attendanceYellowRadiusM: String(data.attendance_yellow_radius_m || '250'),
+      };
+    } else {
+      await loadSettings();
+    }
+    
+    await showAlert('Phê chuẩn Cấu hình', 'Cấu hình hệ thống và geofence GPS đã được lưu thành công.');
+  } catch (err) {
+    console.error('saveAllSettings Error:', err);
+    await showAlert('Lỗi lưu cấu hình', 'Không thể lưu dữ liệu xuống database. Hãy kiểm tra log backend hoặc thử lại sau.');
+  }
 };
 
 onMounted(() => {

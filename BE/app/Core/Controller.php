@@ -5,23 +5,28 @@ namespace App\Core;
 
 abstract class Controller
 {
-    protected function ok(mixed $data = null, string $message = 'OK', array $meta = []): array
+    protected function ok(mixed $data = null, string $message = 'Success', array $meta = []): array
     {
         $response = [
             'status' => 200,
+            'success' => true,
             'message' => $message,
             'data' => $data,
         ];
+        
         if ($meta !== []) {
             $response['meta'] = $meta;
         }
+
         return $response;
     }
 
-    protected function created(mixed $data = null, string $message = 'Created'): array
+    protected function error(string $message = 'Error', int $status = 400, string $errorCode = 'error', mixed $data = null): array
     {
         return [
-            'status' => 201,
+            'status' => $status,
+            'success' => false,
+            'error' => $errorCode,
             'message' => $message,
             'data' => $data,
         ];
@@ -31,6 +36,7 @@ abstract class Controller
     {
         return [
             'status' => 204,
+            'success' => true,
             'message' => $message,
             'data' => null,
         ];

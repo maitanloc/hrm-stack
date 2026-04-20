@@ -102,6 +102,9 @@
               </td>
               <td class="px-4 py-3 text-right whitespace-nowrap bg-transparent">
                 <div class="flex items-center justify-end gap-1 px-1">
+                  <button @click="openFaceEnrollment(emp)" class="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sys-text-secondary)] hover:text-[var(--sys-success-text)] hover:bg-[var(--sys-success-soft)] transition-all" title="Xác thực khuôn mặt">
+                    <span class="material-symbols-outlined text-[18px]">face_6</span>
+                  </button>
                   <button @click="editEmployee(emp)" class="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sys-text-secondary)] hover:text-[var(--sys-brand-solid)] hover:bg-[var(--sys-brand-soft)] transition-all" title="Chỉnh sửa">
                     <span class="material-symbols-outlined text-[18px]">edit_square</span>
                   </button>
@@ -237,6 +240,15 @@
         </div>
       </Transition>
     </Teleport>
+
+    <!-- Face Enrollment Modal -->
+    <FaceEnrollmentModal 
+      :show="showFaceModal"
+      :employee-id="selectedEmployee?.id"
+      :employee-name="selectedEmployee?.fullName"
+      @close="showFaceModal = false"
+      @success="onFaceSuccess"
+    />
   </div>
 </template>
 
@@ -248,6 +260,7 @@
 import { ref, computed, onMounted } from 'vue';
 import Dropdown from '@/components/Dropdown.vue';
 import CalendarCustom from '@/components/CalendarCustom.vue';
+import FaceEnrollmentModal from '@/components/hrm/FaceEnrollmentModal.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import { apiRequest } from '@/services/beApi.js';
 
@@ -481,6 +494,20 @@ const confirmResign = async (emp) => {
       await showAlert('Cập nhật thất bại', error?.message || 'Không thể cập nhật trạng thái nhân sự.');
     }
   }
+};
+
+const showFaceModal = ref(false);
+const selectedEmployee = ref(null);
+
+const openFaceEnrollment = (emp) => {
+  selectedEmployee.value = emp;
+  showFaceModal.value = true;
+};
+
+const onFaceSuccess = async () => {
+  const name = selectedEmployee.value?.fullName || 'nhân viên';
+  showAlert('Đăng ký thành công', `Khuôn mặt của ${name} đã được cập nhật.`);
+  loadData(); // Chạy ngầm
 };
 </script>
 

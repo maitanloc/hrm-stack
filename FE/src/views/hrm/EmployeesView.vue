@@ -1,8 +1,8 @@
-﻿<template>
+<template>
   <ApiCrudModule
-    title="HRM Core - Nhan vien"
-    subtitle="Danh sach, chi tiet, tao moi va cap nhat ho so nhan vien"
-    entity-name="nhan vien"
+    title="HRM Core - Nhân viên"
+    subtitle="Quản lý hồ sơ, thông tin và bảo mật khuôn mặt"
+    entity-name="nhân viên"
     :crud="crud"
     :columns="columns"
     :form-fields="formFields"
@@ -13,6 +13,7 @@
 
 <script setup>
 import { onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import ApiCrudModule from '@/components/api/ApiCrudModule.vue';
 import { useCrudModule } from '@/composables/useCrudModule.js';
 import { useLookupOptions } from '@/composables/useLookupOptions.js';

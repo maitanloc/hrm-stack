@@ -49,6 +49,12 @@ final class TextEncoding
             return $value;
         }
 
+        // Skip strings that look like JSON arrays or objects to prevent corruption
+        $trimmed = trim($value);
+        if (($trimmed !== '' && $trimmed[0] === '[') || ($trimmed !== '' && $trimmed[0] === '{')) {
+            return $value;
+        }
+
         $text = $value;
 
         // If string contains clear Vietnamese markers and NO known mojibake noise, keep it.

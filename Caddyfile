@@ -22,7 +22,7 @@
 }
 
 http://157.66.46.75 {
-    redir https://anhsinhvienfpoly.click{uri}
+    redir https://anhsinhvienfpoly.click{uri} 308
 }
 
 :80 {

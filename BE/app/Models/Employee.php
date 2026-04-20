@@ -139,6 +139,28 @@ class Employee extends Model
         return $row === false ? null : $row;
     }
 
+    public function findByCode(string $code): ?array
+    {
+        $sql = "SELECT e.*,
+                       d.department_id,
+                       d.department_name,
+                       p.position_id,
+                       p.position_name
+                FROM employees e
+                LEFT JOIN employment_histories eh
+                  ON eh.employee_id = e.employee_id AND eh.is_current = 1
+                LEFT JOIN departments d
+                  ON d.department_id = eh.department_id
+                LEFT JOIN positions p
+                  ON p.position_id = eh.position_id
+                WHERE e.employee_code = :code
+                LIMIT 1";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['code' => $code]);
+        $row = $stmt->fetch();
+        return $row === false ? null : $row;
+    }
+
     public function existsByEmployeeCode(string $employeeCode): bool
     {
         $stmt = $this->db->prepare('SELECT 1 FROM employees WHERE employee_code = :employee_code LIMIT 1');

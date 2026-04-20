@@ -37,6 +37,9 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_ISSUER: ${JWT_ISSUER}
       JWT_TTL: ${JWT_TTL}
+      KIOSK_AI_ENGINE_URL: ${KIOSK_AI_ENGINE_URL}
+      KIOSK_AI_IDENTIFY_THRESHOLD: ${KIOSK_AI_IDENTIFY_THRESHOLD}
+      KIOSK_SECRET: ${KIOSK_SECRET}
     volumes:
       - ./BE:/srv/app
     depends_on:
@@ -65,6 +68,7 @@ services:
     depends_on:
       - hrm-be
       - hrm-fe
+      - ai-service
     ports:
       - "80:80"
       - "443:443"
@@ -77,6 +81,19 @@ services:
     networks:
       - hrm_net
 
+  ai-service:
+    build:
+      context: ./AI_Service
+      dockerfile: Dockerfile
+    container_name: ai-service
+    environment:
+      - BE_API_URL=http://hrm-proxy
+    volumes:
+      - insightface_models:/root/.insightface
+    restart: unless-stopped
+    networks:
+      - hrm_net
+
 networks:
   hrm_net:
     driver: bridge
@@ -85,3 +102,4 @@ volumes:
   mysql_data:
   caddy_data:
   caddy_config:
+  insightface_models:

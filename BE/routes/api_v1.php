@@ -23,6 +23,8 @@ use App\Controllers\Api\V1\RequestTypeController;
 use App\Controllers\Api\V1\SettingController;
 use App\Controllers\Api\V1\WorkflowGovernanceController;
 use App\Controllers\Api\V1\WorkforceController;
+use App\Controllers\Api\V1\KioskController;
+use App\Controllers\Api\V1\FaceEnrollmentController;
 use App\Middlewares\AuthMiddleware;
 use App\Middlewares\HierarchyEmployeeBodyMiddleware;
 use App\Middlewares\HierarchyEmployeeParamMiddleware;
@@ -56,10 +58,27 @@ $router->group('/api/v1', function ($router): void {
     $router->get('/', [HealthController::class, 'index']);
     $router->get('/health', [HealthController::class, 'index']);
     $router->get('/debug-config', [DebugConfigController::class, 'index']);
+    $router->get('/debug/last-attendances', function() {
+        $db = \App\Core\Database::connection();
+        $stmt = $db->query("SELECT a.*, e.employee_code, e.full_name 
+                            FROM attendances a 
+                            JOIN employees e ON e.employee_id = a.employee_id 
+                            ORDER BY a.attendance_id DESC LIMIT 10");
+        return ['status' => 200, 'data' => $stmt->fetchAll()];
+    });
+    $router->get('/debug-routes-check', function() {
+        return ['status' => 200, 'message' => 'API Route file updated at ' . date('Y-m-d H:i:s')];
+    });
     $router->post('/debug-config/repair-db', [DebugConfigController::class, 'repairDatabase']);
     $router->post('/auth/login', [AuthController::class, 'login']);
     $router->post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
     $router->post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+
+    // Kiosk Attendance
+    $router->post('/kiosk/face-attendance', [KioskController::class, 'faceAttendance']);
+    $router->get('/public/face/embeddings', [KioskController::class, 'syncEmbeddings']);
+
+    
     $router->get('/public/positions', [PositionController::class, 'publicCatalog']);
     $router->post('/public/recruitment/applications', [RecruitmentController::class, 'publicCandidateApply']);
     $router->get('/recruitment-candidates/{id}/cv', [RecruitmentController::class, 'candidateDownloadCv']);
@@ -272,6 +291,13 @@ $router->group('/api/v1', function ($router): void {
             [PermissionMiddleware::class, 'EMP_VIEW', 'access'],
             [HierarchyScopeMiddleware::class, 'employee_id', true],
         ]);
+
+        // Face Enrollment (Protected Admin Action) - Moved up for priority
+        $router->post('/employees/{id}/enroll-face', [FaceEnrollmentController::class, 'enroll'], [
+            [PermissionMiddleware::class, 'EMP_EDIT', 'edit'],
+            [HierarchyEmployeeParamMiddleware::class, 'id', true],
+        ]);
+
         $router->get('/employees/{id}', [EmployeeController::class, 'show'], [
             [PermissionMiddleware::class, 'EMP_VIEW', 'access'],
             [HierarchyEmployeeParamMiddleware::class, 'id', true],
@@ -318,6 +344,8 @@ $router->group('/api/v1', function ($router): void {
             [PermissionMiddleware::class, 'EMP_DELETE', 'delete'],
             [HierarchyEmployeeParamMiddleware::class, 'id', true],
         ]);
+
+        // Removed from here
 
         $router->get('/departments', [DepartmentController::class, 'index'], [
             [PermissionMiddleware::class, 'DEPARTMENT_VIEW', 'access'],

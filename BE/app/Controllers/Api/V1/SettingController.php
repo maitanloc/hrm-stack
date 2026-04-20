@@ -77,12 +77,25 @@ class SettingController extends Controller
 
         foreach ($payload as $key => $value) {
             $configType = 'TEXT';
+            $module = 'SYSTEM';
             $storedValue = is_bool($value) ? ($value ? '1' : '0') : (string) $value;
 
+            // Handle metadata based on key
             if (in_array($key, ['security_require_2fa', 'attendance_company_geo_lock_enabled'], true)) {
                 $configType = 'BOOLEAN';
             } elseif (in_array($key, ['security_session_timeout', 'attendance_green_radius_m', 'attendance_yellow_radius_m'], true)) {
                 $configType = 'NUMBER';
+            } elseif ($key === 'attendance_company_anchor_points_json') {
+                $configType = 'JSON';
+                // Ensure it's valid JSON for anchor points
+                if ($storedValue === '' || $storedValue === 'null') {
+                    $storedValue = '[]';
+                }
+            }
+
+            // Sync with existing modules found in DB
+            if (str_starts_with($key, 'attendance_')) {
+                $module = 'ATTENDANCE';
             }
 
             $this->systemConfigs->upsert(
@@ -90,7 +103,7 @@ class SettingController extends Controller
                 $storedValue,
                 $configType,
                 null,
-                'SYSTEM'
+                $module
             );
         }
 

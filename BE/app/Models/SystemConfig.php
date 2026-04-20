@@ -50,6 +50,15 @@ class SystemConfig extends Model
         return $mapped;
     }
 
+    public function get(string $key, $default = null): ?string
+    {
+        $sql = "SELECT config_value FROM system_configs WHERE config_key = :key LIMIT 1";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['key' => $key]);
+        $res = $stmt->fetch();
+        return $res ? (string) $res['config_value'] : (string) $default;
+    }
+
     public function upsert(string $key, ?string $value, string $type = 'TEXT', ?string $description = null, ?string $module = null): void
     {
         $sql = "INSERT INTO system_configs (config_key, config_value, config_type, description, module)

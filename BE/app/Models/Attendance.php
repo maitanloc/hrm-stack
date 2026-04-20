@@ -195,6 +195,8 @@ class Attendance extends Model
         $target = 'MACHINE';
         if (str_contains($token, 'MOBILE') || str_contains($token, 'GPS') || str_contains($token, 'PHONE')) {
             $target = 'MOBILE';
+        } elseif (str_contains($token, 'FACE') || str_contains($token, 'KIOSK')) {
+            $target = 'FACE_KIOSK';
         } elseif (str_contains($token, 'MANUAL') || str_contains($token, 'NHAP') || str_contains($token, 'THU_CONG') || str_contains($token, 'ADMIN')) {
             $target = 'MANUAL';
         }
@@ -203,6 +205,7 @@ class Attendance extends Model
             'MACHINE' => 0,
             'MOBILE' => 1,
             'MANUAL' => 2,
+            'FACE_KIOSK' => 3,
         ];
 
         $targetIndex = $indexMap[$target] ?? 0;
@@ -325,7 +328,7 @@ class Attendance extends Model
             return $this->{$cacheName};
         }
 
-        $fallback = ['MÁY_QUÉT', 'MOBILE', 'MANUAL'];
+        $fallback = ['MÁY_QUÉT', 'MOBILE', 'MANUAL', 'FACE_KIOSK'];
 
         try {
             $stmt = $this->db->query("SHOW COLUMNS FROM {$this->table} LIKE '{$column}'");

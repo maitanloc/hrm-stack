@@ -19,7 +19,9 @@ class Validator
                 continue;
             }
 
-            if ($value === null || $value === '') {
+            // If not required and value is missing from data, we can skip it.
+            // But if it is PRESENT in data (even as empty string), we should include it in output.
+            if (!array_key_exists($field, $data)) {
                 continue;
             }
 
