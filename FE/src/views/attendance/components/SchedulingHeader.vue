@@ -1,24 +1,34 @@
 <template>
-  <header class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-transparent">
-    <div class="space-y-1">
+  <header class="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
+    <!-- Title Section -->
+    <div class="space-y-2">
       <div class="flex items-center gap-3">
-        <h1 class="text-xl font-bold tracking-tight text-[var(--sys-text-primary)] uppercase">Phân ca làm việc</h1>
-        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--sys-brand-soft)] border border-[var(--sys-brand-border)]">
-          <span class="material-symbols-rounded text-[14px] text-[var(--sys-brand-solid)]">calendar_today</span>
-          <span class="text-[10px] font-black uppercase tracking-widest text-[var(--sys-brand-solid)]">
-            {{ periodLabel }}
-          </span>
+        <div class="w-12 h-12 rounded-2xl bg-[var(--sys-brand-solid)] flex items-center justify-center shadow-lg shadow-[var(--sys-brand-solid)]/20">
+          <span class="material-symbols-rounded text-white text-[28px]">event_note</span>
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight text-[var(--sys-text-primary)]">Phân ca làm việc</h1>
+          <div class="flex items-center gap-2 mt-0.5">
+            <span class="text-[13px] text-[var(--sys-text-secondary)]">Quản lý lịch biểu đơn vị</span>
+            <div class="w-1 h-1 rounded-full bg-[var(--sys-text-disabled)] opacity-30"></div>
+            <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[var(--sys-brand-soft)] border border-[var(--sys-brand-border)]">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-[var(--sys-brand-solid)]">
+                Kỳ: {{ periodLabel }}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
-      <p class="text-[13px] text-[var(--sys-text-secondary)]">Thiết lập, điều chỉnh và công bố lịch làm việc cho đơn vị.</p>
     </div>
 
-    <div class="flex flex-wrap items-center gap-2 bg-[var(--sys-bg-surface)] p-1.5 rounded-2xl border border-[var(--sys-border-subtle)] shadow-sm">
-      <div class="flex items-center px-3 gap-2 h-9">
-        <span class="material-symbols-rounded text-[18px] text-[var(--sys-brand-solid)]">apartment</span>
+    <!-- Filters Section -->
+    <div class="flex flex-wrap items-center gap-3 bg-[var(--sys-bg-surface)] p-2 rounded-[24px] border border-[var(--sys-border-subtle)] shadow-sm">
+      <!-- Department Selector -->
+      <div class="flex items-center pl-4 pr-2 gap-3 h-11 bg-[var(--sys-bg-page)] rounded-2xl border border-transparent focus-within:border-[var(--sys-brand-border)] focus-within:bg-white transition-all">
+        <span class="material-symbols-rounded text-[20px] text-[var(--sys-brand-solid)]">apartment</span>
         <select 
           v-model="store.selectedDepartmentId" 
-          class="bg-transparent border-none text-[13px] font-bold text-[var(--sys-text-primary)] focus:ring-0 outline-none cursor-pointer p-0"
+          class="bg-transparent border-none text-[13px] font-bold text-[var(--sys-text-primary)] focus:ring-0 outline-none cursor-pointer p-0 pr-8"
           @change="onFilterChange"
         >
           <option :value="null">Tất cả bộ phận</option>
@@ -28,37 +38,39 @@
         </select>
       </div>
       
-      <div class="h-4 w-px bg-[var(--sys-border-subtle)]"></div>
-      
-      <div class="flex items-center px-3 gap-3 h-9">
+      <!-- Date Range Picker Mockup -->
+      <div class="flex items-center px-4 gap-4 h-11 bg-[var(--sys-bg-page)] rounded-2xl border border-transparent focus-within:border-[var(--sys-brand-border)] focus-within:bg-white transition-all">
         <div class="flex items-center gap-2">
-          <span class="text-[11px] font-black text-[var(--sys-text-secondary)] uppercase tracking-tighter opacity-50">Từ</span>
+          <span class="text-[10px] font-bold text-[var(--sys-text-secondary)] uppercase tracking-tighter opacity-40">Từ</span>
           <input 
             type="date" 
             v-model="store.selectedDateRange.from" 
-            class="bg-transparent border-none text-[13px] font-bold text-[var(--sys-text-primary)] focus:ring-0 outline-none w-[110px] p-0"
+            class="bg-transparent border-none text-[13px] font-bold text-[var(--sys-text-primary)] focus:ring-0 outline-none w-[115px] p-0 cursor-pointer"
             @change="onFilterChange"
           />
         </div>
-        <span class="text-[var(--sys-text-disabled)] font-black">/</span>
+        <div class="w-px h-4 bg-[var(--sys-border-subtle)]"></div>
         <div class="flex items-center gap-2">
-          <span class="text-[11px] font-black text-[var(--sys-text-secondary)] uppercase tracking-tighter opacity-50">Đến</span>
+          <span class="text-[10px] font-bold text-[var(--sys-text-secondary)] uppercase tracking-tighter opacity-40">Đến</span>
           <input 
             type="date" 
             v-model="store.selectedDateRange.to" 
-            class="bg-transparent border-none text-[13px] font-bold text-[var(--sys-text-primary)] focus:ring-0 outline-none w-[110px] p-0"
+            class="bg-transparent border-none text-[13px] font-bold text-[var(--sys-text-primary)] focus:ring-0 outline-none w-[115px] p-0 cursor-pointer"
             @change="onFilterChange"
           />
         </div>
       </div>
 
+      <!-- Sync Button -->
       <button 
         @click="onFilterChange"
-        class="flex items-center gap-2 px-5 h-9 rounded-xl bg-[var(--sys-brand-solid)] text-white text-[11px] font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-[var(--sys-brand-solid)]/20 disabled:opacity-50"
+        class="group flex items-center justify-center gap-2 px-6 h-11 rounded-2xl bg-[var(--sys-brand-solid)] text-white text-[12px] font-bold hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-[var(--sys-brand-solid)]/20 disabled:opacity-50"
         :disabled="store.loading"
       >
-        <span class="material-symbols-rounded text-[18px]" :class="{ 'animate-spin': store.loading }">sync</span>
-        {{ store.loading ? '...' : 'Tải lịch' }}
+        <span class="material-symbols-rounded text-[20px]" :class="{ 'animate-spin': store.loading }">
+          {{ store.loading ? 'sync' : 'refresh' }}
+        </span>
+        <span>{{ store.loading ? 'Đang tải...' : 'Tải dữ liệu' }}</span>
       </button>
     </div>
   </header>
@@ -73,10 +85,12 @@ const store = useScheduleStore();
 const departments = ref([]);
 
 const periodLabel = computed(() => {
-  if (!store.selectedDateRange.from || !store.selectedDateRange.to) return 'Chưa chọn kỳ';
+  if (!store.selectedDateRange.from || !store.selectedDateRange.to) return 'Chưa chọn';
   const start = new Date(store.selectedDateRange.from);
   const end = new Date(store.selectedDateRange.to);
-  return `${start.getDate()}/${start.getMonth() + 1} - ${end.getDate()}/${end.getMonth() + 1}`;
+  const startStr = `${start.getDate()}/${start.getMonth() + 1}`;
+  const endStr = `${end.getDate()}/${end.getMonth() + 1}/${end.getFullYear()}`;
+  return `${startStr} - ${endStr}`;
 });
 
 const onFilterChange = () => {
