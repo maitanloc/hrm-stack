@@ -103,7 +103,6 @@
         <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
           <CalendarCustom v-model="filterDate" placeholder="Chọn ngày" class="flex-1" />
           <Dropdown v-model="filterDept" :options="deptOptions" class="min-w-[180px] h-11" />
-          <Dropdown v-model="filterStatus" :options="statusOptions" class="min-w-[180px] h-11" />
         </div>
       </div>
 
@@ -118,7 +117,6 @@
               <th class="px-4 py-3 text-[12px] font-semibold text-[var(--sys-text-secondary)] border-b border-[var(--sys-border-subtle)] uppercase tracking-wider text-right">Muộn</th>
               <th class="px-4 py-3 text-[12px] font-semibold text-[var(--sys-text-secondary)] border-b border-[var(--sys-border-subtle)] uppercase tracking-wider text-right">Sớm</th>
               <th class="px-4 py-3 text-[12px] font-semibold text-[var(--sys-text-secondary)] border-b border-[var(--sys-border-subtle)] uppercase tracking-wider text-right">OT</th>
-              <th class="px-4 py-3 text-[12px] font-semibold text-[var(--sys-text-secondary)] border-b border-[var(--sys-border-subtle)] uppercase tracking-wider text-center">Trạng thái</th>
               <th class="px-4 py-3 text-[12px] font-semibold text-[var(--sys-text-secondary)] border-b border-[var(--sys-border-subtle)] uppercase tracking-wider text-right">Thao tác</th>
             </tr>
           </thead>
@@ -155,15 +153,6 @@
               <td class="px-4 py-3 text-right whitespace-nowrap bg-transparent">
                 <span :class="['text-[13px] font-bold', record.ot > 0 ? 'text-[var(--sys-brand-solid)]' : 'text-[var(--sys-text-disabled)] opacity-50']">
                   {{ record.ot > 0 ? record.ot + ' h' : '-' }}
-                </span>
-              </td>
-              <td class="px-4 py-3 text-center whitespace-nowrap bg-transparent">
-                <span :class="[
-                  'px-2 py-0.5 rounded-md text-[11px] font-semibold border transition-all inline-flex items-center gap-1.5 uppercase tracking-wide',
-                  getStatusBadgeClass(record.statusText)
-                ]">
-                  <span class="w-1.5 h-1.5 rounded-full" :class="getStatusDotClass(record.statusText)"></span>
-                  {{ record.statusText }}
                 </span>
               </td>
               <td class="px-4 py-3 text-right whitespace-nowrap bg-transparent">
@@ -263,12 +252,6 @@ const filterDept = ref('ALL');
 const filterStatus = ref('ALL');
 
 const deptOptions = ref([{ label: 'Tất cả phòng ban', value: 'ALL' }]);
-const statusOptions = [
-  { label: 'Mọi trạng thái', value: 'ALL' },
-  { label: 'Đủ công', value: 'ON_TIME' },
-  { label: 'Đi muộn', value: 'LATE' },
-  { label: 'Vắng mặt', value: 'ABSENT' },
-];
 
 const timeRecords = ref([]);
 const topEarlyUsers = ref([]);
@@ -517,24 +500,6 @@ onUnmounted(() => {
 watch([filterDate, filterDept, filterStatus], () => {
   void loadData();
 });
-
-const getStatusBadgeClass = (status) => {
-  switch (status) {
-    case 'ĐỦ CÔNG': return 'bg-[var(--sys-success-soft)] text-[var(--sys-success-text)] border-[var(--sys-success-border)]';
-    case 'ĐI MUỘN': return 'bg-[var(--sys-warning-soft)] text-[var(--sys-warning-text)] border-[var(--sys-warning-border)]';
-    case 'VẮNG MẶT': return 'bg-[var(--sys-danger-soft)] text-[var(--sys-danger-text)] border-[var(--sys-danger-border)]';
-    default: return 'bg-[var(--sys-bg-hover)] text-[var(--sys-text-disabled)] border-[var(--sys-border-subtle)] opacity-50';
-  }
-};
-
-const getStatusDotClass = (status) => {
-  switch (status) {
-    case 'ĐỦ CÔNG': return 'bg-[var(--sys-success-solid)]';
-    case 'ĐI MUỘN': return 'bg-[var(--sys-warning-solid)]';
-    case 'VẮNG MẶT': return 'bg-[var(--sys-danger-solid)]';
-    default: return 'bg-[var(--sys-icon-default)] opacity-40';
-  }
-};
 </script>
 
 <style scoped>
