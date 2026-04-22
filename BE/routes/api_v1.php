@@ -10,8 +10,8 @@ use App\Controllers\Api\V1\ContractChangeLogController;
 use App\Controllers\Api\V1\ContractController;
 use App\Controllers\Api\V1\DepartmentController;
 use App\Controllers\Api\V1\EmployeeController;
+use App\Controllers\Api\V1\FaceController;
 use App\Controllers\Api\V1\HealthController;
-use App\Controllers\Api\V1\DebugConfigController;
 use App\Controllers\Api\V1\InternalServiceController;
 use App\Controllers\Api\V1\LeaveController;
 use App\Controllers\Api\V1\NotificationController;
@@ -21,10 +21,7 @@ use App\Controllers\Api\V1\RecruitmentController;
 use App\Controllers\Api\V1\RequestController;
 use App\Controllers\Api\V1\RequestTypeController;
 use App\Controllers\Api\V1\SettingController;
-use App\Controllers\Api\V1\WorkflowGovernanceController;
 use App\Controllers\Api\V1\WorkforceController;
-use App\Controllers\Api\V1\KioskController;
-use App\Controllers\Api\V1\FaceEnrollmentController;
 use App\Middlewares\AuthMiddleware;
 use App\Middlewares\HierarchyEmployeeBodyMiddleware;
 use App\Middlewares\HierarchyEmployeeParamMiddleware;
@@ -45,42 +42,15 @@ $router->get('/', function (): array {
 });
 
 $router->group('/api/v1', function ($router): void {
-    $router->get('/test-db', function() {
-        try {
-            $db = \App\Core\Database::connection();
-            $stmt = $db->query("SELECT COUNT(*) as total FROM employees");
-            $res = $stmt->fetch();
-            return ['status' => 200, 'message' => 'Database OK', 'data' => ['employee_count' => $res['total']]];
-        } catch (\Exception $e) {
-            return ['status' => 500, 'message' => 'Database Error: ' . $e->getMessage(), 'error' => 'db_error'];
-        }
-    });
-    $router->get('/', [HealthController::class, 'index']);
     $router->get('/health', [HealthController::class, 'index']);
-    $router->get('/debug-config', [DebugConfigController::class, 'index']);
-    $router->get('/debug/last-attendances', function() {
-        $db = \App\Core\Database::connection();
-        $stmt = $db->query("SELECT a.*, e.employee_code, e.full_name 
-                            FROM attendances a 
-                            JOIN employees e ON e.employee_id = a.employee_id 
-                            ORDER BY a.attendance_id DESC LIMIT 10");
-        return ['status' => 200, 'data' => $stmt->fetchAll()];
-    });
-    $router->get('/debug-routes-check', function() {
-        return ['status' => 200, 'message' => 'API Route file updated at ' . date('Y-m-d H:i:s')];
-    });
-    $router->post('/debug-config/repair-db', [DebugConfigController::class, 'repairDatabase']);
     $router->post('/auth/login', [AuthController::class, 'login']);
     $router->post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
     $router->post('/auth/reset-password', [AuthController::class, 'resetPassword']);
-
-    // Kiosk Attendance
-    $router->post('/kiosk/face-attendance', [KioskController::class, 'faceAttendance']);
-    $router->get('/public/face/embeddings', [KioskController::class, 'syncEmbeddings']);
-
-    
     $router->get('/public/positions', [PositionController::class, 'publicCatalog']);
     $router->post('/public/recruitment/applications', [RecruitmentController::class, 'publicCandidateApply']);
+    $router->post('/public/face/recognize', [FaceController::class, 'recognizeAndCheckIn']);
+    $router->get('/public/face/embeddings', [FaceController::class, 'embeddings']);
+    $router->get('/public/settings/general', [FaceController::class, 'publicGeneralSettings']);
     $router->get('/recruitment-candidates/{id}/cv', [RecruitmentController::class, 'candidateDownloadCv']);
     $router->post('/internal/recruitment-ai-jobs/process', [RecruitmentController::class, 'internalProcessAiScoringJobs']);
 
@@ -170,10 +140,9 @@ $router->group('/api/v1', function ($router): void {
         $router->post('/team-schedule/publish', [WorkforceController::class, 'publishSchedule'], [
             [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'edit'],
         ]);
-        $router->get('/team-schedule/publish-logs', [WorkforceController::class, 'publishLogs'], [
-            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        $router->post('/face/register', [FaceController::class, 'register'], [
+            // Cả NV và Admin đều có thể quét đăng ký mặt
         ]);
-
         $router->post('/team-schedule/copy-week', [WorkforceController::class, 'copyScheduleWeek'], [
             [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'edit'],
         ]);
@@ -181,24 +150,6 @@ $router->group('/api/v1', function ($router): void {
             [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
         ]);
         $router->get('/team-schedule/warnings', [WorkforceController::class, 'teamScheduleWarnings'], [
-            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
-        ]);
-        $router->get('/workflow-governance/overview', [WorkflowGovernanceController::class, 'overview'], [
-            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
-        ]);
-        $router->get('/workflow-governance/catalog', [WorkflowGovernanceController::class, 'catalog'], [
-            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
-        ]);
-        $router->get('/workflow-governance/transitions', [WorkflowGovernanceController::class, 'transitions'], [
-            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
-        ]);
-        $router->post('/workflow-governance/validate-transition', [WorkflowGovernanceController::class, 'validateTransition'], [
-            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'edit'],
-        ]);
-        $router->post('/workflow-governance/validate-schedule-publish', [WorkflowGovernanceController::class, 'validateSchedulePublish'], [
-            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'edit'],
-        ]);
-        $router->get('/workflow-governance/audit-logs', [WorkflowGovernanceController::class, 'auditLogs'], [
             [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
         ]);
         $router->get('/attendance-results', [WorkforceController::class, 'attendanceResultIndex'], [
@@ -291,13 +242,6 @@ $router->group('/api/v1', function ($router): void {
             [PermissionMiddleware::class, 'EMP_VIEW', 'access'],
             [HierarchyScopeMiddleware::class, 'employee_id', true],
         ]);
-
-        // Face Enrollment (Protected Admin Action) - Moved up for priority
-        $router->post('/employees/{id}/enroll-face', [FaceEnrollmentController::class, 'enroll'], [
-            [PermissionMiddleware::class, 'EMP_EDIT', 'edit'],
-            [HierarchyEmployeeParamMiddleware::class, 'id', true],
-        ]);
-
         $router->get('/employees/{id}', [EmployeeController::class, 'show'], [
             [PermissionMiddleware::class, 'EMP_VIEW', 'access'],
             [HierarchyEmployeeParamMiddleware::class, 'id', true],
@@ -340,12 +284,22 @@ $router->group('/api/v1', function ($router): void {
             [PermissionMiddleware::class, 'EMP_VIEW', 'access'],
             [HierarchyEmployeeParamMiddleware::class, 'id', true],
         ]);
+        $router->get('/employees/{id}/dependents', [EmployeeController::class, 'dependentIndex'], [
+            [PermissionMiddleware::class, 'EMP_VIEW', 'access'],
+            [HierarchyEmployeeParamMiddleware::class, 'id', true],
+        ]);
+        $router->post('/employees/{id}/dependents', [EmployeeController::class, 'dependentStore'], [
+            [PermissionMiddleware::class, 'EMP_EDIT', 'edit'],
+            [HierarchyEmployeeParamMiddleware::class, 'id', true],
+        ]);
+        $router->delete('/employees/{id}/dependents/{dependentId}', [EmployeeController::class, 'dependentDelete'], [
+            [PermissionMiddleware::class, 'EMP_EDIT', 'edit'],
+            [HierarchyEmployeeParamMiddleware::class, 'id', true],
+        ]);
         $router->delete('/employees/{id}', [EmployeeController::class, 'destroy'], [
             [PermissionMiddleware::class, 'EMP_DELETE', 'delete'],
             [HierarchyEmployeeParamMiddleware::class, 'id', true],
         ]);
-
-        // Removed from here
 
         $router->get('/departments', [DepartmentController::class, 'index'], [
             [PermissionMiddleware::class, 'DEPARTMENT_VIEW', 'access'],
@@ -474,22 +428,15 @@ $router->group('/api/v1', function ($router): void {
             [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'delete'],
         ]);
 
-        $router->get('/timesheet/daily', [App\Controllers\Api\V1\TimesheetController::class, 'dailyEntry'], [
+        $router->get('/attendance/today-status', [AttendanceController::class, 'getTodayStatus'], [
             [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
         ]);
-        $router->post('/timesheet/period-summary', [App\Controllers\Api\V1\TimesheetController::class, 'periodSummary'], [
+        $router->get('/attendance/events', [AttendanceController::class, 'getEvents'], [
             [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
         ]);
-        $router->post('/timesheet/exceptions', [App\Controllers\Api\V1\TimesheetController::class, 'exceptions'], [
-            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        $router->post('/attendance/adjust', [AttendanceController::class, 'adjust'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'edit'],
         ]);
-        $router->post('/timesheet/import', [App\Controllers\Api\V1\TimesheetController::class, 'import'], [
-            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
-        ]);
-        $router->post('/timesheet/payroll-export', [App\Controllers\Api\V1\TimesheetController::class, 'payrollExport'], [
-            [PermissionMiddleware::class, 'SALARY_CALCULATE', 'access'],
-        ]);
-
 
         $router->post('/attendance/bootstrap', [AttendanceRiskController::class, 'bootstrapDevice'], [
             [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
@@ -574,6 +521,12 @@ $router->group('/api/v1', function ($router): void {
         $router->post('/salary-periods', [PayrollController::class, 'periodStore'], [
             [PermissionMiddleware::class, 'SALARY_CALCULATE', 'create'],
         ]);
+        $router->post('/salary-periods/{id}/calculate', [PayrollController::class, 'calculateByAttendance'], [
+            [PermissionMiddleware::class, 'SALARY_CALCULATE', 'create'],
+        ]);
+        $router->post('/salary-periods/{id}/calculate-and-store', [PayrollController::class, 'calculateAndStoreBatch'], [
+            [PermissionMiddleware::class, 'SALARY_CALCULATE', 'create'],
+        ]);
         $router->put('/salary-periods/{id}', [PayrollController::class, 'periodUpdate'], [
             [PermissionMiddleware::class, 'SALARY_APPROVE', 'edit'],
         ]);
@@ -583,12 +536,18 @@ $router->group('/api/v1', function ($router): void {
         $router->post('/salary-periods/{id}/close', [PayrollController::class, 'periodClose'], [
             [PermissionMiddleware::class, 'SALARY_APPROVE', 'approve'],
         ]);
+        $router->delete('/salary-periods/{id}', [PayrollController::class, 'periodDestroy'], [
+            [PermissionMiddleware::class, 'SALARY_APPROVE', 'delete'],
+        ]);
 
         $router->get('/salary-details', [PayrollController::class, 'detailIndex'], [
             [PermissionMiddleware::class, 'SALARY_VIEW', 'access'],
             [HierarchyScopeMiddleware::class, 'employee_id', true],
         ]);
         $router->get('/salary-details/{id}', [PayrollController::class, 'detailShow'], [
+            [PermissionMiddleware::class, 'SALARY_VIEW', 'access'],
+        ]);
+        $router->post('/salary-details/calculate-preview', [PayrollController::class, 'calculatePreview'], [
             [PermissionMiddleware::class, 'SALARY_VIEW', 'access'],
         ]);
         $router->post('/salary-details', [PayrollController::class, 'detailStore'], [
@@ -600,6 +559,9 @@ $router->group('/api/v1', function ($router): void {
         ]);
         $router->patch('/salary-details/{id}', [PayrollController::class, 'detailUpdate'], [
             [PermissionMiddleware::class, 'SALARY_CALCULATE', 'edit'],
+        ]);
+        $router->delete('/salary-details/{id}', [PayrollController::class, 'detailDestroy'], [
+            [PermissionMiddleware::class, 'SALARY_CALCULATE', 'delete'],
         ]);
 
         $router->get('/salary-breakdowns', [PayrollController::class, 'breakdownIndex'], [
@@ -620,6 +582,8 @@ $router->group('/api/v1', function ($router): void {
         $router->delete('/salary-breakdowns/{id}', [PayrollController::class, 'breakdownDelete'], [
             [PermissionMiddleware::class, 'SALARY_CALCULATE', 'delete'],
         ]);
+
+        $router->get('/my-insurance-info', [PayrollController::class, 'myInsuranceInfo']);
 
         $router->get('/payroll-adjustments', [PayrollController::class, 'adjustmentIndex'], [
             [PermissionMiddleware::class, 'SALARY_VIEW', 'access'],

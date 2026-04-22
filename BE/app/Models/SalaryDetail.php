@@ -75,6 +75,9 @@ class SalaryDetail extends Model
                        sp.period_code,
                        sp.period_name,
                        sp.status AS period_status,
+                       sp.standard_working_days,
+                       sp.month AS period_month,
+                       sp.year AS period_year,
                        DATE_FORMAT(sp.start_date, '%Y-%m') AS period_month_key,
                        (
                            SELECT COALESCE(SUM(pa.amount), 0)

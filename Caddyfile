@@ -16,7 +16,7 @@
         }
 
         handle {
-            reverse_proxy hrm-fe:80
+            reverse_proxy hrm-fe:5173
         }
     }
 }

@@ -8,7 +8,7 @@ class Paginator
     public static function resolve(Request $request): array
     {
         $page = max(1, (int) $request->query('page', 1));
-        $perPage = max(1, min(100, (int) $request->query('per_page', 20)));
+        $perPage = max(1, min(3000, (int) $request->query('per_page', 20)));
         $offset = ($page - 1) * $perPage;
 
         return [

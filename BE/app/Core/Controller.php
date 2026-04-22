@@ -21,6 +21,16 @@ abstract class Controller
         return $response;
     }
 
+    protected function created(mixed $data = null, string $message = 'Created'): array
+    {
+        return [
+            'status' => 201,
+            'success' => true,
+            'message' => $message,
+            'data' => $data,
+        ];
+    }
+
     protected function error(string $message = 'Error', int $status = 400, string $errorCode = 'error', mixed $data = null): array
     {
         return [

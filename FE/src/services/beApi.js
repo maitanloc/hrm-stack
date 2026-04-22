@@ -94,6 +94,7 @@ export const apiRequest = async (path, options = {}) => {
   const bypassGetCache = options.noGetCache === true;
   const now = Date.now();
 
+  // Kiểm tra Cache cho phương thức GET
   if (method === 'GET' && !bypassGetCache) {
     const cached = getResponseCache.get(cacheKey);
     if (cached && cached.expiresAt > now) {
@@ -109,7 +110,18 @@ export const apiRequest = async (path, options = {}) => {
   }
 
   const execute = async () => {
-    const response = await fetch(url, init);
+    let requestUrl = url;
+    const fetchOptions = { ...init };
+
+    // Logic quan trọng: Xử lý khi yêu cầu không dùng Cache (noGetCache: true)
+    if (bypassGetCache) {
+      const urlObj = new URL(url);
+      urlObj.searchParams.set('_t', String(Date.now()));
+      requestUrl = urlObj.toString();
+      fetchOptions.cache = 'no-store';
+    }
+
+    const response = await fetch(requestUrl, fetchOptions);
     const payload = await parseResponseBody(response);
     const statusCode = Number(payload?.status || response.status || 0);
 

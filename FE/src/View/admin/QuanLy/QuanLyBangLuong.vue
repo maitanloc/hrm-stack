@@ -48,16 +48,35 @@
       <!-- Toolbar -->
       <div class="px-4 py-3 border-b border-[var(--sys-border-subtle)] flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-[var(--sys-bg-page)]/50">
         <div class="flex items-center gap-1 bg-white p-1 rounded-md border border-[var(--sys-border-subtle)] shadow-sm overflow-x-auto max-w-full">
-          <button
+          <div
             v-for="period in visiblePeriods"
             :key="period.id"
-            class="px-4 py-1.5 rounded-md text-[13px] font-semibold whitespace-nowrap transition-all"
+            class="flex items-center rounded-md transition-all group/period"
             :class="selectedPeriodId === period.id
               ? 'bg-[var(--sys-brand-solid)] text-white shadow-sm'
               : 'text-[var(--sys-text-secondary)] hover:bg-[var(--sys-bg-hover)]'"
-            @click="selectPeriod(period.id)"
           >
-            {{ period.label }}
+            <button
+              class="px-4 py-1.5 text-[13px] font-semibold whitespace-nowrap"
+              @click="selectPeriod(period.id)"
+            >
+              {{ period.label }}
+            </button>
+            <button
+              v-if="selectedPeriodId === period.id && !isPeriodClosed && employees.length === 0"
+              @click.stop="openDeletePeriodModal(period)"
+              class="w-6 h-6 mr-1 ml-[-4px] rounded-full flex flex-col items-center justify-center hover:bg-white/20 transition-all opacity-70 hover:opacity-100"
+              title="Xóa kỳ lương trống"
+            >
+              <span class="material-symbols-outlined text-[16px] leading-[1]">close</span>
+            </button>
+          </div>
+          <button 
+            @click="createNewPeriod"
+            class="w-8 h-8 shrink-0 flex items-center justify-center rounded-md text-[var(--sys-brand-solid)] hover:bg-[var(--sys-brand-soft)] transition-all ml-1 border border-dashed border-[var(--sys-brand-border)]"
+            title="Thêm kỳ lương mới"
+          >
+            <span class="material-symbols-outlined text-[20px]">add</span>
           </button>
         </div>
 
@@ -71,6 +90,24 @@
               class="w-full h-10 pl-10 pr-4 bg-white border border-[var(--sys-border-strong)] rounded-md text-sm text-[var(--sys-text-primary)] focus:outline-none focus:border-[var(--sys-brand-solid)] focus:ring-1 focus:ring-[var(--sys-brand-solid)] transition-all placeholder:text-[var(--sys-text-disabled)]"
             >
           </div>
+          <button
+            class="shrink-0 h-10 px-4 bg-[var(--sys-brand-soft)] text-[var(--sys-brand-solid)] rounded-md text-sm font-semibold hover:bg-[var(--sys-brand-solid)] hover:text-white transition-all border border-[var(--sys-brand-border)] flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            :disabled="!selectedPeriod || isPeriodClosed || isCalcLoading"
+            @click="performBulkCalculation"
+            title="Tự động tính và tạo phiếu lương cho tất cả nhân viên chưa có trong kỳ này"
+          >
+            <span class="material-symbols-outlined text-[20px]" :class="{'animate-spin': isCalcLoading}">auto_mode</span>
+            Tính nhanh toàn bộ
+          </button>
+          <button 
+            @click="handleDeleteCurrentPeriod" 
+            :disabled="isLoading || isPeriodClosed"
+            class="h-10 px-4 bg-red-50 text-red-600 border border-red-200 rounded-md flex items-center justify-center gap-2 hover:bg-red-600 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-sm"
+            title="Xóa nhanh toàn bộ kỳ lương và kết quả tính toán"
+          >
+            <span class="material-symbols-outlined text-[20px]">delete_forever</span>
+            Xóa kỳ này
+          </button>
           <button
             class="shrink-0 h-10 px-4 bg-[var(--sys-success-soft)] text-[var(--sys-success-text)] rounded-md text-sm font-semibold hover:bg-[var(--sys-success-solid)] hover:text-white transition-all border border-[var(--sys-success-border)] flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             :disabled="!selectedPeriod || isPeriodClosed"
@@ -124,10 +161,10 @@
                   <button @click="openViewModal(item)" class="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sys-text-secondary)] hover:bg-[var(--sys-brand-soft)] hover:text-[var(--sys-brand-solid)] transition-all" title="Xem chi tiết">
                     <span class="material-symbols-outlined text-[18px]">visibility</span>
                   </button>
-                  <button @click="openEditModal(item, index)" class="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sys-text-secondary)] hover:bg-[var(--sys-brand-soft)] hover:text-[var(--sys-brand-solid)] transition-all" title="Hiệu chỉnh">
+                  <button v-if="!isPeriodClosed" @click="openEditModal(item, index)" class="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sys-text-secondary)] hover:bg-[var(--sys-brand-soft)] hover:text-[var(--sys-brand-solid)] transition-all" title="Hiệu chỉnh">
                     <span class="material-symbols-outlined text-[18px]">edit_square</span>
                   </button>
-                  <button @click="openDeleteModal(item, index)" class="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sys-text-secondary)] hover:bg-[var(--sys-danger-soft)] hover:text-[var(--sys-danger-solid)] transition-all" title="Xóa">
+                  <button v-if="!isPeriodClosed" @click="openDeleteModal(item, index)" class="w-8 h-8 flex items-center justify-center rounded-md text-[var(--sys-text-secondary)] hover:bg-[var(--sys-danger-soft)] hover:text-[var(--sys-danger-solid)] transition-all" title="Xóa">
                     <span class="material-symbols-outlined text-[18px]">delete</span>
                   </button>
                 </div>
@@ -188,42 +225,154 @@
             <!-- Modal Body -->
             <div class="flex-1 overflow-y-auto p-6 custom-scrollbar bg-transparent">
               <div class="space-y-6 bg-transparent border-none">
+
+                <!-- Row 1: Employee Combobox + Period -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-transparent border-none">
-                  <div class="space-y-1.5 bg-transparent border-none">
+
+                  <!-- Employee Searchable Combobox -->
+                  <div class="space-y-1.5 bg-transparent border-none relative" ref="empComboRef">
                     <label class="text-[13px] font-medium text-[var(--sys-text-primary)] block">Hồ sơ thụ hưởng *</label>
-                    <input v-model="formData.name" :disabled="modalMode === 'view'" class="w-full h-10 px-3 bg-[var(--sys-bg-page)] border border-[var(--sys-border-strong)] rounded-md text-sm text-[var(--sys-text-primary)] focus:border-[var(--sys-brand-solid)] outline-none transition-all">
+                    <div class="relative flex items-center gap-2">
+                      <div class="relative flex-1">
+                        <span v-if="modalMode === 'add'" class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-[var(--sys-brand-solid)] pointer-events-none">person_search</span>
+                        <span v-else class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-[var(--sys-brand-solid)] pointer-events-none">badge</span>
+                        <input
+                          v-model="empSearchText"
+                          :disabled="modalMode !== 'add'"
+                          @input="onEmpInput"
+                          @focus="showEmpDropdown = true"
+                          @keydown.esc="showEmpDropdown = false"
+                          placeholder="Tìm theo tên hoặc mã nhân viên..."
+                          autocomplete="off"
+                          class="w-full h-10 pl-9 pr-9 bg-[var(--sys-bg-page)] border border-[var(--sys-border-strong)] rounded-md text-sm text-[var(--sys-text-primary)] focus:border-[var(--sys-brand-solid)] focus:ring-1 focus:ring-[var(--sys-brand-solid)] outline-none transition-all disabled:opacity-80 disabled:bg-[var(--sys-bg-page)] disabled:cursor-not-allowed"
+                        />
+                        <span v-if="isCalcLoading" class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-[18px] text-[var(--sys-brand-solid)] animate-spin">refresh</span>
+                        <span v-else-if="empSearchText && modalMode === 'add'" @click="clearEmpSelection" class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-[18px] text-[var(--sys-text-secondary)] cursor-pointer hover:text-[var(--sys-danger-solid)]">close</span>
+                      </div>
+                      
+                      <!-- Load Button for Edit Mode (Icon only) -->
+                      <button 
+                        v-if="modalMode === 'edit'"
+                        type="button"
+                        @click="handleRecalculate"
+                        :disabled="isCalcLoading"
+                        class="w-10 h-10 flex items-center justify-center bg-[var(--sys-brand-soft)] text-[var(--sys-brand-solid)] border border-[var(--sys-brand-border)] rounded-md hover:bg-[var(--sys-brand-solid)] hover:text-white transition-all shrink-0 shadow-sm"
+                        title="Tính toán lại lương dựa trên dữ liệu chấm công mới nhất"
+                      >
+                        <span class="material-symbols-outlined text-[20px]" :class="{'animate-spin': isCalcLoading}">sync</span>
+                      </button>
+                    </div>
+                    <!-- Dropdown list -->
+                    <div
+                      v-if="showEmpDropdown && filteredEmpOptions.length > 0"
+                      class="absolute z-[20000] left-0 right-0 top-[68px] bg-white border border-[var(--sys-border-strong)] rounded-md shadow-xl max-h-52 overflow-y-auto custom-scrollbar"
+                    >
+                      <button
+                        v-for="emp in filteredEmpOptions"
+                        :key="emp.employee_id"
+                        type="button"
+                        @mousedown.prevent="selectEmployee(emp)"
+                        class="w-full text-left px-4 py-2.5 hover:bg-[var(--sys-brand-soft)] transition-colors flex items-center gap-3 border-b border-[var(--sys-border-subtle)] last:border-0"
+                      >
+                        <div class="w-8 h-8 rounded-full bg-[var(--sys-brand-solid)] flex items-center justify-center text-white text-[12px] font-bold shrink-0">
+                          {{ (emp.full_name || '?')[0].toUpperCase() }}
+                        </div>
+                        <div class="flex flex-col">
+                          <span class="text-[13px] font-semibold text-[var(--sys-text-primary)]">{{ emp.full_name }}</span>
+                          <span class="text-[11px] text-[var(--sys-text-secondary)]">{{ emp.employee_code }} · {{ emp.department_name || 'Chưa gán phòng ban' }}</span>
+                        </div>
+                      </button>
+                    </div>
+                    <p v-if="showEmpDropdown && empSearchText && filteredEmpOptions.length === 0" class="absolute z-[20000] left-0 right-0 top-[68px] bg-white border border-[var(--sys-border-strong)] rounded-md shadow-xl px-4 py-3 text-[13px] text-[var(--sys-text-secondary)] text-center">
+                      Không tìm thấy nhân viên nào
+                    </p>
                   </div>
+
+                  <!-- Period (read-only display) -->
                   <div class="space-y-1.5 bg-transparent border-none">
                     <label class="text-[13px] font-medium text-[var(--sys-text-primary)] block">Chu kỳ quyết toán</label>
-                    <input v-model="formData.period" :disabled="modalMode === 'view'" class="w-full h-10 px-3 bg-[var(--sys-bg-page)] border border-[var(--sys-border-strong)] rounded-md text-sm text-[var(--sys-text-primary)] focus:border-[var(--sys-brand-solid)] outline-none transition-all">
+                    <input v-model="formData.period" :disabled="modalMode === 'view'" class="w-full h-10 px-3 bg-[var(--sys-bg-page)] border border-[var(--sys-border-strong)] rounded-md text-sm text-[var(--sys-text-primary)] focus:border-[var(--sys-brand-solid)] outline-none transition-all" />
                   </div>
                 </div>
 
+                <!-- Auto-calc info banner -->
+                <div v-if="calcPreview" class="flex items-center gap-3 bg-[var(--sys-success-soft)] border border-[var(--sys-success-border)] rounded-lg px-4 py-2.5 text-[12px] text-[var(--sys-success-text)] font-medium">
+                  <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                  <span>Đã tính lương tự động: <b>{{ calcPreview.tong_cong }} ngày công</b> · OT: <b>{{ formatCurrency(calcPreview.tien_ot) }}</b> · Phạt muộn/sớm: <b>-{{ formatCurrency(calcPreview.tien_tru_muon_som) }}</b></span>
+                </div>
+
+                <!-- Row 2: Gross + Total Income -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-transparent border-none">
                   <div class="space-y-1.5 bg-transparent border-none">
                     <label class="text-[13px] font-medium text-[var(--sys-text-primary)] block">Lương định biên (Gross)</label>
-                    <input v-model="formData.baseSalary" type="number" :disabled="modalMode === 'view'" class="w-full h-10 px-3 bg-[var(--sys-bg-page)] border border-[var(--sys-border-strong)] rounded-md text-sm text-[var(--sys-text-primary)] focus:border-[var(--sys-brand-solid)] outline-none transition-all text-right">
+                    <input 
+                      :value="formatNumber(formData.baseSalary)" 
+                      @input="e => formData.baseSalary = parseNumber(e.target.value)"
+                      type="text" 
+                      :disabled="modalMode === 'view'" 
+                      class="w-full h-10 px-3 bg-[var(--sys-bg-page)] border border-[var(--sys-border-strong)] rounded-md text-sm text-[var(--sys-text-primary)] focus:border-[var(--sys-brand-solid)] outline-none transition-all text-right font-semibold" 
+                    />
                   </div>
                   <div class="space-y-1.5 bg-transparent border-none">
                     <label class="text-[13px] font-medium text-[var(--sys-text-primary)] block">Tổng thu nhập gộp</label>
-                    <input v-model="formData.totalIncome" type="number" :disabled="modalMode === 'view'" class="w-full h-10 px-3 bg-[var(--sys-bg-page)] border border-[var(--sys-border-strong)] rounded-md text-sm text-[var(--sys-text-primary)] focus:border-[var(--sys-brand-solid)] outline-none transition-all text-right">
+                    <input 
+                      :value="formatNumber(formData.totalIncome)" 
+                      @input="e => formData.totalIncome = parseNumber(e.target.value)"
+                      type="text" 
+                      :disabled="modalMode === 'view'" 
+                      class="w-full h-10 px-3 bg-[var(--sys-bg-page)] border border-[var(--sys-border-strong)] rounded-md text-sm text-[var(--sys-text-primary)] focus:border-[var(--sys-brand-solid)] outline-none transition-all text-right font-semibold" 
+                    />
                   </div>
                 </div>
 
-                <div class="space-y-1.5 bg-transparent border-none">
-                  <label class="text-[13px] font-medium text-[var(--sys-text-primary)] block">Các khoản trích trừ (Thuế, BH...)</label>
-                  <input v-model="formData.deduction" type="number" :disabled="modalMode === 'view'" class="w-full h-10 px-3 bg-[var(--sys-bg-page)] border border-[var(--sys-border-strong)] rounded-md text-sm text-[var(--sys-danger-text)] focus:border-[var(--sys-danger-solid)] outline-none transition-all text-right">
+                <!-- Row 3: Detailed Deductions -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-transparent border-none">
+                  <div class="space-y-1.5 bg-transparent border-none">
+                    <label class="text-[13px] font-medium text-[var(--sys-text-primary)] block">Tiền Bảo hiểm (10.5%)</label>
+                    <input 
+                      :value="formatNumber(toNumber(formData.social_insurance_employee) + toNumber(formData.health_insurance_employee) + toNumber(formData.unemployment_insurance_employee))" 
+                      readonly 
+                      type="text" 
+                      class="w-full h-10 px-3 bg-[var(--sys-bg-page)] border border-[var(--sys-border-strong)] rounded-md text-sm text-[var(--sys-danger-text)] font-semibold text-right outline-none opacity-80" 
+                    />
+                  </div>
+                  <div class="space-y-1.5 bg-transparent border-none">
+                    <label class="text-[13px] font-medium text-[var(--sys-text-primary)] block">Tiền Vi phạm / Nghỉ</label>
+                    <input 
+                      :value="formatNumber(formData.penalty)" 
+                      @input="e => formData.penalty = parseNumber(e.target.value)"
+                      type="text" 
+                      :disabled="modalMode === 'view'"
+                      class="w-full h-10 px-3 bg-[var(--sys-bg-page)] border border-[var(--sys-border-strong)] rounded-md text-sm text-[var(--sys-danger-text)] font-semibold text-right focus:border-[var(--sys-danger-solid)] outline-none transition-all" 
+                    />
+                  </div>
+                  <div class="space-y-1.5 bg-transparent border-none">
+                    <label class="text-[13px] font-medium text-[var(--sys-text-primary)] block">Tổng khấu trừ</label>
+                    <input 
+                      :value="formatNumber(toNumber(formData.social_insurance_employee) + toNumber(formData.health_insurance_employee) + toNumber(formData.unemployment_insurance_employee) + toNumber(formData.penalty))" 
+                      readonly
+                      type="text" 
+                      class="w-full h-10 px-3 bg-[var(--sys-brand-soft)] border border-[var(--sys-danger-solid)] rounded-md text-sm text-[var(--sys-danger-text)] font-bold text-right outline-none" 
+                    />
+                  </div>
                 </div>
 
+                <!-- Net Salary card -->
                 <div class="p-6 bg-[var(--sys-brand-soft)] rounded-lg border border-[var(--sys-brand-border)] flex items-center justify-between">
                   <div class="bg-transparent text-left">
                     <p class="text-[12px] font-semibold text-[var(--sys-brand-solid)] mb-1 uppercase tracking-wide">Thực nhận (NET Salary)</p>
-                    <p class="text-3xl font-bold text-[var(--sys-brand-solid)] m-0 leading-none">{{ formatCurrency(formData.netSalary || (formData.totalIncome - formData.deduction)) }}</p>
+                    <p v-if="isCalcLoading" class="text-xl font-bold text-[var(--sys-brand-solid)] m-0 leading-none flex items-center gap-2">
+                      <span class="material-symbols-outlined text-[20px] animate-spin">refresh</span> Đang tính...
+                    </p>
+                    <p v-else class="text-3xl font-bold text-[var(--sys-brand-solid)] m-0 leading-none">
+                      {{ formatCurrency(toNumber(formData.totalIncome) - (toNumber(formData.social_insurance_employee) + toNumber(formData.health_insurance_employee) + toNumber(formData.unemployment_insurance_employee) + toNumber(formData.penalty))) }}
+                    </p>
                   </div>
                   <div class="w-12 h-12 rounded-md bg-white flex items-center justify-center border border-[var(--sys-brand-border)] shadow-sm">
                     <span class="material-symbols-outlined text-[32px] text-[var(--sys-brand-solid)]">payments</span>
                   </div>
                 </div>
+
               </div>
             </div>
 
@@ -242,11 +391,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 import { useConfirm } from '@/composables/useConfirm';
 import { BE_API_BASE, getAccessToken } from '@/services/runtimeConfig.js';
+import { apiRequest } from '@/services/beApi.js';
 import { handleUnauthorized } from '@/services/session.js';
-import { fixMojibake, parseJsonResponseSafely } from '@/utils/textEncodingFixed.js';
+import { getEmployees } from '@/services/employeeStore.js';
 
 const { showAlert, showConfirm } = useConfirm();
 
@@ -268,38 +420,17 @@ const toNumber = (value, fallback = 0) => {
 };
 
 const normalizeText = (value) => String(value ?? '').trim().toLowerCase();
-const displayText = (value) => fixMojibake(String(value ?? '')).replace(/\s+/g, ' ').trim();
+const displayText = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
 
 const formatCurrency = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(toNumber(val));
+const formatNumber = (val) => new Intl.NumberFormat('vi-VN').format(toNumber(val));
 
-const authHeaders = () => {
-  const token = getAccessToken();
-  if (!token) throw new Error('Thiếu access token');
-  return {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  };
+const parseNumber = (val) => {
+  if (typeof val === 'number') return val;
+  return toNumber(String(val).replace(/[^0-9]/g, ''));
 };
 
-const apiRequest = async (path, { method = 'GET', body } = {}) => {
-  const response = await fetch(`${BE_API_BASE}${path}`, {
-    method,
-    headers: authHeaders(),
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (response.status === 401) {
-    handleUnauthorized();
-    throw new Error('Phiên đăng nhập đã hết hạn');
-  }
-  const payload = await parseJsonResponseSafely(response);
-  if (!response.ok || payload?.success === false) {
-    throw new Error(payload?.message || `Request failed (${response.status})`);
-  }
-  return {
-    data: Array.isArray(payload?.data) ? payload.data : payload?.data,
-    meta: payload?.meta || {},
-  };
-};
+
 
 const formatPeriodLabel = (period) => {
   const month = toNumber(period.month ?? period.month_number ?? null, null);
@@ -367,10 +498,10 @@ const employees = computed(() => {
       const net = toNumber(item.net_salary ?? item.netSalary, gross - deductions);
       const statusRaw = String(item.transfer_status ?? item.transferStatus ?? '').toUpperCase();
       const status = statusRaw === 'TRANSFERRED' ? 'Đã thanh toán' : 'Chờ thanh toán';
-      const employeeCode = displayText(item.employee_code ?? item.employeeCode ?? emp.employee_code ?? emp.employeeCode);
-      const employeeName = displayText(item.full_name ?? item.fullName ?? emp.full_name ?? emp.fullName);
-      const departmentName = displayText(item.department_name ?? item.departmentName ?? emp.department_name ?? emp.departmentName);
-      const positionName = displayText(item.position_name ?? item.positionName ?? emp.position_name ?? emp.positionName);
+      const employeeCode = displayText(emp.employee_code ?? emp.employeeCode ?? item.employee_code ?? item.employeeCode);
+      const employeeName = displayText(emp.full_name ?? emp.fullName ?? item.full_name ?? item.fullName);
+      const departmentName = displayText(emp.department_name ?? emp.departmentName ?? item.department_name ?? item.departmentName);
+      const positionName = displayText(emp.position_name ?? emp.positionName ?? item.position_name ?? item.positionName);
       const displayRole = departmentName || positionName || 'Chưa gán phòng ban';
       return {
         id: salaryId,
@@ -386,6 +517,10 @@ const employees = computed(() => {
         netSalary: net,
         status,
         period: formatPeriodLabel(period),
+        social_insurance_employee: toNumber(item.social_insurance_employee ?? item.socialInsuranceEmployee),
+        health_insurance_employee: toNumber(item.health_insurance_employee ?? item.healthInsuranceEmployee),
+        unemployment_insurance_employee: toNumber(item.unemployment_insurance_employee ?? item.unemploymentInsuranceEmployee),
+        penalty: toNumber(item.penalty),
       };
     });
 });
@@ -432,32 +567,123 @@ watch(totalPages, (nextTotal) => {
 
 const selectPeriod = (periodId) => {
   selectedPeriodId.value = Number(periodId);
+  loadData(); // Tải lại dữ liệu cho kỳ được chọn
+};
+
+const createNewPeriod = async () => {
+  if (sortedPeriods.value.length === 0) {
+    const now = new Date();
+    await createPeriod(now.getMonth() + 1, now.getFullYear());
+    return;
+  }
+
+  // sortedPeriods is descending by (year, month)
+  const latest = sortedPeriods.value[0];
+  let nextMonth = toNumber(latest.month) + 1;
+  let nextYear = toNumber(latest.year);
+
+  if (nextMonth > 12) {
+    nextMonth = 1;
+    nextYear += 1;
+  }
+
+  await createPeriod(nextMonth, nextYear);
+};
+
+const createPeriod = async (month, year) => {
+  const periodCode = `PAY-${year}-${String(month).padStart(2, '0')}`;
+  const periodName = `Lương tháng ${String(month).padStart(2, '0')}/${year}`;
+  const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  
+  let payYear = year;
+  let payMonth = month + 1;
+  if (payMonth > 12) {
+    payMonth = 1;
+    payYear += 1;
+  }
+  const paymentDate = `${payYear}-${String(payMonth).padStart(2, '0')}-05`;
+
+  try {
+    isLoading.value = true;
+    const res = await apiRequest('/salary-periods', {
+      method: 'POST',
+      body: {
+        period_code: periodCode,
+        period_name: periodName,
+        period_type: 'MONTHLY',
+        year: year,
+        month: month,
+        start_date: startDate,
+        end_date: endDate,
+        payment_date: paymentDate,
+        standard_working_days: 26,
+        status: 'OPEN',
+        notes: `Kỳ lương mới được tạo tự động cho tháng ${month}/${year}`
+      }
+    });
+
+    const periodId = res?.data?.period_id || res?.data?.id;
+    /*
+    if (periodId) {
+      // Tự động tính toán lương cho tất cả nhân viên ngay khi tạo kì
+      await apiRequest(`/salary-periods/${periodId}/calculate-and-store`, { method: 'POST' });
+    }
+    */
+    
+    await showAlert('Thành công', `Đã tạo kỳ lương ${periodName} thành công.`);
+    selectedPeriodId.value = periodId || null;
+    await loadData();
+  } catch (error) {
+    await showAlert('Lỗi', error.message || 'Không thể tạo kỳ lương mới.');
+  } finally {
+    isLoading.value = false;
+  }
 };
 
 const loadData = async () => {
   isLoading.value = true;
   try {
-    const [salaryPayload, employeePayload, periodPayload] = await Promise.all([
-      apiRequest('/salary-details?page=1&per_page=3000'),
-      apiRequest('/employees?page=1&per_page=2000'),
-      apiRequest('/salary-periods?page=1&per_page=500'),
+    // 1. Tải danh sách kỳ lương và nhân viên trước
+    const [employeePayload, periodPayload] = await Promise.all([
+      apiRequest('/employees?page=1&per_page=2000', { noGetCache: true }),
+      apiRequest('/salary-periods?page=1&per_page=500', { noGetCache: true }),
     ]);
-    salaryDetailsRaw.value = Array.isArray(salaryPayload.data) ? salaryPayload.data : [];
-    employeesRaw.value = Array.isArray(employeePayload.data) ? employeePayload.data : [];
-    periodsRaw.value = Array.isArray(periodPayload.data) ? periodPayload.data : [];
 
-    if (!selectedPeriodId.value && periodsRaw.value.length > 0) {
-      selectedPeriodId.value = Number(periodsRaw.value[0].period_id || periodsRaw.value[0].periodId || periodsRaw.value[0].id || 0);
-    } else if (
-      selectedPeriodId.value
-      && !periodsRaw.value.some((period) => Number(period.period_id || period.periodId || period.id) === Number(selectedPeriodId.value))
-    ) {
-      selectedPeriodId.value = periodsRaw.value.length > 0
-        ? Number(periodsRaw.value[0].period_id || periodsRaw.value[0].periodId || periodsRaw.value[0].id || 0)
-        : null;
+    employeesRaw.value = Array.isArray(employeePayload.data) ? employeePayload.data : (Array.isArray(employeePayload) ? employeePayload : []);
+    periodsRaw.value = Array.isArray(periodPayload.data) ? periodPayload.data : (Array.isArray(periodPayload) ? periodPayload : []);
+
+    // 2. Xác định kỳ lương cần hiển thị
+    if (periodsRaw.value.length > 0) {
+      const getLatestId = () => {
+        const sorted = [...periodsRaw.value].sort((a, b) => {
+          const ay = Number(a.year || 0);
+          const by = Number(b.year || 0);
+          if (ay !== by) return by - ay;
+          return Number(b.month || 0) - Number(a.month || 0);
+        });
+        return Number(sorted[0].period_id || sorted[0].periodId || sorted[0].id || 0);
+      };
+
+      if (!selectedPeriodId.value || !periodsRaw.value.some((p) => Number(p.period_id || p.periodId || p.id) === Number(selectedPeriodId.value))) {
+        selectedPeriodId.value = getLatestId();
+      }
+    } else {
+      selectedPeriodId.value = null;
     }
+
+    // 3. Tải phiếu lương cho kỳ đã chọn (nếu có)
+    if (selectedPeriodId.value) {
+      const salaryPayload = await apiRequest(`/salary-details?page=1&per_page=3000&period_id=${selectedPeriodId.value}`, { noGetCache: true });
+      salaryDetailsRaw.value = Array.isArray(salaryPayload.data) ? salaryPayload.data : (Array.isArray(salaryPayload) ? salaryPayload : []);
+    } else {
+      salaryDetailsRaw.value = [];
+    }
+
   } catch (error) {
-    await showAlert('Không tải được bảng lương', error?.message || 'Không thể tải dữ liệu bảng lương.');
+    console.error('Lỗi khi tải dữ liệu:', error);
+    await showAlert('Lỗi', error?.message || 'Không thể tải dữ liệu bảng lương.');
   } finally {
     isLoading.value = false;
   }
@@ -490,6 +716,135 @@ const isAddEditModalOpen = ref(false);
 const modalMode = ref('add');
 const formData = ref({});
 
+// ---- Employee combobox state ----
+const empSearchText = ref('');
+const showEmpDropdown = ref(false);
+const isCalcLoading = ref(false);
+const calcPreview = ref(null);
+const empComboRef = ref(null);
+
+const filteredEmpOptions = computed(() => {
+  const q = normalizeText(empSearchText.value);
+  if (!q) return employeesRaw.value.slice(0, 30);
+  return employeesRaw.value
+    .filter(emp => {
+      const name = normalizeText(emp.full_name || emp.fullName || '');
+      const code = normalizeText(emp.employee_code || emp.employeeCode || '');
+      const dept = normalizeText(emp.department_name || '');
+      return name.includes(q) || code.includes(q) || dept.includes(q);
+    })
+    .slice(0, 30);
+});
+
+const onEmpInput = () => {
+  showEmpDropdown.value = true;
+  calcPreview.value = null;
+};
+
+const clearEmpSelection = () => {
+  empSearchText.value = '';
+  calcPreview.value = null;
+  formData.value = { ...formData.value, employee_id: 0, name: '', baseSalary: 0, totalIncome: 0, deduction: 0, netSalary: 0 };
+  showEmpDropdown.value = false;
+};
+
+const closeEmpDropdownOnOutsideClick = (e) => {
+  if (empComboRef.value && !empComboRef.value.contains(e.target)) {
+    showEmpDropdown.value = false;
+  }
+};
+
+onMounted(() => document.addEventListener('mousedown', closeEmpDropdownOnOutsideClick));
+onUnmounted(() => document.removeEventListener('mousedown', closeEmpDropdownOnOutsideClick));
+
+const performSalaryCalculation = async (empId) => {
+  if (!empId) return;
+
+  // Find period date range for calculation
+  const period = selectedPeriod.value || periodsRaw.value[0];
+  if (!period) return;
+
+  const dateFrom = period.start_date || period.startDate || '';
+  const dateTo = period.end_date || period.endDate || '';
+  if (!dateFrom || !dateTo) return;
+
+  // Call preview API
+  isCalcLoading.value = true;
+  calcPreview.value = null; // Clear previous preview
+  try {
+    const res = await apiRequest('/salary-details/calculate-preview', {
+      method: 'POST',
+      body: {
+        employee_id: empId,
+        date_from: dateFrom,
+        date_to: dateTo,
+        // Để trống luong_thang để backend tự tra cứu từ hợp đồng
+        luong_thang: 0,
+        cong_chuan: toNumber(period.standard_working_days, 26),
+      },
+    });
+    
+    // apiRequest từ beApi.js trả về payload trực tiếp
+    const result = res.data || {};
+    calcPreview.value = result;
+
+    const luongCong = toNumber(result.luong_cong);
+    const tienOt = toNumber(result.tien_ot);
+    const tienBhxh = toNumber(result.tien_bhxh); // Trợ cấp BHXH (ốm đau) nếu có
+    const tienTruMuonSom = toNumber(result.tien_tru_muon_som);
+    const tienTruKhongPhep = toNumber(result.tien_tru_khong_phep);
+    
+    // Thu nhập gộp = Lương công + OT + Thưởng/Trợ cấp (BHXH chi trả)
+    const gross = luongCong + tienOt + tienBhxh;
+    
+    // Khấu trừ bảo hiểm từ nhân viên (mới cập nhật từ BE)
+    const bhxh_emp = toNumber(result.social_insurance_employee);
+    const bhyt_emp = toNumber(result.health_insurance_employee);
+    const bhtn_emp = toNumber(result.unemployment_insurance_employee);
+    
+    const penaltyTotal = tienTruMuonSom + tienTruKhongPhep;
+    const totalDeductions = bhxh_emp + bhyt_emp + bhtn_emp + penaltyTotal;
+    const net = toNumber(result.luong_thuc_nhan, gross - totalDeductions);
+
+    formData.value = {
+      ...formData.value,
+      baseSalary: toNumber(result.luong_thang || result.baseSalary || 0),
+      totalIncome: gross,
+      deduction: totalDeductions,
+      netSalary: net,
+      // Thêm các trường chi tiết
+      social_insurance_employee: bhxh_emp,
+      health_insurance_employee: bhyt_emp,
+      unemployment_insurance_employee: bhtn_emp,
+      penalty: penaltyTotal
+    };
+  } catch (err) {
+    console.error('Calculation Error:', err);
+    // Nếu lỗi, thử lấy lương từ thông tin nhân viên (nếu có)
+    const emp = employeesRaw.value.find(e => Number(e.employee_id || e.id) === empId);
+    const basicSalary = toNumber(emp?.basic_salary || emp?.basicSalary, 0);
+    formData.value = { ...formData.value, baseSalary: basicSalary, totalIncome: basicSalary, deduction: 0, netSalary: basicSalary };
+  } finally {
+    isCalcLoading.value = false;
+  }
+};
+
+const selectEmployee = async (emp) => {
+  showEmpDropdown.value = false;
+  const empId = Number(emp.employee_id || emp.employeeId || emp.id || 0);
+  empSearchText.value = `${emp.full_name || emp.fullName} (${emp.employee_code || emp.employeeCode})`;
+  formData.value.employee_id = empId;
+  formData.value.name = emp.full_name || emp.fullName || '';
+  
+  await performSalaryCalculation(empId);
+};
+
+const handleRecalculate = async () => {
+  if (formData.value.employee_id) {
+    await performSalaryCalculation(formData.value.employee_id);
+  }
+};
+
 const modalTitle = computed(() => {
   if (modalMode.value === 'add') return 'Tạo hồ sơ quyết toán mới';
   if (modalMode.value === 'edit') return 'Điều chỉnh thông tin tài chính';
@@ -497,13 +852,14 @@ const modalTitle = computed(() => {
 });
 
 const openAddModal = () => {
-  const defaultEmployee = employeesRaw.value[0] || {};
   const defaultPeriod = selectedPeriod.value || periodsRaw.value[0] || {};
   modalMode.value = 'add';
+  empSearchText.value = '';
+  calcPreview.value = null;
   formData.value = {
-    employee_id: Number(defaultEmployee.employee_id || defaultEmployee.employeeId || defaultEmployee.id || 0),
+    employee_id: 0,
     period_id: Number(defaultPeriod.period_id || defaultPeriod.periodId || defaultPeriod.id || 0),
-    name: defaultEmployee.full_name || defaultEmployee.fullName || 'Nhân viên mới',
+    name: '',
     period: formatPeriodLabel(defaultPeriod),
     baseSalary: 0,
     totalIncome: 0,
@@ -516,12 +872,16 @@ const openAddModal = () => {
 
 const openEditModal = (item) => {
   modalMode.value = 'edit';
+  empSearchText.value = item.name || '';
+  calcPreview.value = null;
   formData.value = { ...item };
   isAddEditModalOpen.value = true;
 };
 
 const openViewModal = (item) => {
   modalMode.value = 'view';
+  empSearchText.value = item.name || '';
+  calcPreview.value = null;
   formData.value = { ...item };
   isAddEditModalOpen.value = true;
 };
@@ -551,13 +911,63 @@ const resolvePeriodId = () => {
   return Number(found?.period_id || found?.periodId || found?.id || 0);
 };
 
+// Tính toán toàn bộ nhân viên cho kỳ hiện tại
+const performBulkCalculation = async () => {
+  if (!selectedPeriodId.value) return;
+  const periodId = selectedPeriodId.value;
+  isCalcLoading.value = true;
+  try {
+    const res = await apiRequest(`/salary-periods/${periodId}/calculate-and-store`, {
+      method: 'POST'
+    });
+    
+    await showAlert('Thành công', res.message || `Đã tự động tính và tạo phiếu lương thành công.`);
+    await loadData(); // Tải lại danh sách
+  } catch (error) {
+    await showAlert('Lỗi', error.message || 'Không thể thực hiện tính toán hàng loạt.');
+  } finally {
+    isCalcLoading.value = false;
+  }
+};
+
+const handleDeleteCurrentPeriod = async () => {
+  if (!selectedPeriodId.value) return;
+  const periodId = selectedPeriodId.value;
+  const period = selectedPeriod.value;
+  const label = period ? formatPeriodLabel(period) : 'kỳ lương này';
+
+  const confirmed = await showConfirm(
+    'Xác nhận xóa',
+    `Bạn có chắc chắn muốn xóa ${label}? Hành động này sẽ xóa toàn bộ phiếu lương bên trong và không thể hoàn tác.`
+  );
+
+  if (confirmed) {
+    isLoading.value = true;
+    try {
+      await apiRequest(`/salary-periods/${periodId}`, { 
+        method: 'DELETE'
+      });
+      await showAlert('Thành công', `Đã xóa ${label} thành công.`);
+      selectedPeriodId.value = null; // Quay về mặc định
+      await loadData();
+    } catch (error) {
+      await showAlert('Lỗi', error.message || 'Không thể xóa kỳ lương.');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+};
+
 const saveData = async () => {
   const employeeId = resolveEmployeeId();
   const periodId = resolvePeriodId();
   const baseSalary = toNumber(formData.value.baseSalary);
   const totalIncome = toNumber(formData.value.totalIncome);
-  const deduction = toNumber(formData.value.deduction);
-  const net = toNumber(formData.value.netSalary, totalIncome - deduction);
+  
+  const totalIns = toNumber(formData.value.social_insurance_employee) + toNumber(formData.value.health_insurance_employee) + toNumber(formData.value.unemployment_insurance_employee);
+  const penalty = toNumber(formData.value.penalty);
+  const deduction = totalIns + penalty;
+  const net = totalIncome - deduction;
 
   if (!employeeId || !periodId) {
     await showAlert('Thiếu thông tin', 'Cần chọn nhân sự và kỳ lương hợp lệ trước khi lưu.');
@@ -572,14 +982,45 @@ const saveData = async () => {
     total_allowances: Math.max(totalIncome - baseSalary, 0),
     total_deductions: Math.max(deduction, 0),
     net_salary: net,
+    social_insurance_employee: toNumber(formData.value.social_insurance_employee),
+    health_insurance_employee: toNumber(formData.value.health_insurance_employee),
+    unemployment_insurance_employee: toNumber(formData.value.unemployment_insurance_employee),
+    penalty: penalty,
     transfer_status: formData.value.status === 'Đã thanh toán' ? 'TRANSFERRED' : 'PENDING',
   };
 
   try {
+    // Đảm bảo các con số không âm trước khi gửi lên backend
+    const finalPayload = {
+      ...payload,
+      net_salary: Math.max(0, payload.net_salary || 0),
+      total_deductions: Math.max(0, payload.total_deductions || 0)
+    };
+
     if (modalMode.value === 'add') {
-      await apiRequest('/salary-details', { method: 'POST', body: payload });
+      try {
+        await apiRequest('/salary-details', { method: 'POST', body: finalPayload });
+      } catch (postErr) {
+        // Nếu lỗi Duplicate (1062) từ MySQL, ta thử tìm bản ghi cũ để PATCH
+        if (postErr.message.includes('1062') || postErr.message.includes('Duplicate')) {
+          // Tìm ID của bản ghi đang bị trùng trong database
+          const existing = salaryDetailsRaw.value.find(s => 
+            Number(s.employee_id || s.employeeId) === employeeId && 
+            Number(s.period_id || s.periodId) === periodId
+          );
+          if (existing) {
+            const sid = Number(existing.salary_detail_id || existing.id);
+            await apiRequest(`/salary-details/${sid}`, { method: 'PATCH', body: finalPayload });
+          } else {
+            // Nếu không tìm thấy trong cache, ta báo lỗi cũ
+            throw postErr;
+          }
+        } else {
+          throw postErr;
+        }
+      }
     } else {
-      await apiRequest(`/salary-details/${formData.value.id}`, { method: 'PATCH', body: payload });
+      await apiRequest(`/salary-details/${formData.value.id}`, { method: 'PATCH', body: finalPayload });
     }
     await loadData();
     closeModal();
@@ -590,16 +1031,60 @@ const saveData = async () => {
 };
 
 const openDeleteModal = async (item) => {
-  const ok = await showConfirm('Thông báo', `Backend hiện chưa hỗ trợ xóa cứng bản ghi bảng lương cho ${item.name}. Bạn có muốn chuyển trạng thái về "Chờ thanh toán" không?`);
+  // Kiểm tra ID hợp lệ
+  const targetId = Number(item.id || item.salaryId || 0);
+  
+  if (targetId <= 0) {
+    // Trường hợp bản ghi "ma" - hiện trên UI nhưng không có trong DB
+    const ok = await showConfirm('Dọn dẹp danh sách', 'Bản ghi này chưa được lưu chính thức vào máy chủ. Bạn có muốn xóa nó khỏi danh sách hiển thị không?');
+    if (ok) {
+      // Chỉ cần reload lại data để xóa các bản ghi tạm
+      await loadData();
+    }
+    return;
+  }
+
+  const ok = await showConfirm('Xác nhận xóa phiếu lương', `Bạn có chắc chắn muốn xóa phiếu lương của nhân viên ${item.name} trong kỳ này không? Dữ liệu sau khi xóa sẽ không thể khôi phục.`);
   if (!ok) return;
   try {
-    await apiRequest(`/salary-details/${item.id}`, {
-      method: 'PATCH',
-      body: { transfer_status: 'PENDING' },
+    isLoading.value = true;
+    await apiRequest(`/salary-details/${targetId}`, {
+      method: 'DELETE',
     });
     await loadData();
+    await showAlert('Thành công', 'Đã xóa phiếu lương thành công.');
   } catch (error) {
-    await showAlert('Không thể cập nhật', error?.message || 'Không thể cập nhật bản ghi lương.');
+    if (error.status === 404) {
+      // Nếu server báo không tìm thấy, có nghĩa là đã bị xóa hoặc chưa từng tồn tại
+      await loadData();
+      await showAlert('Thông báo', 'Bản ghi đã được dọn dẹp khỏi hệ thống.');
+    } else if (error.status === 422 || error.message.includes('chốt')) {
+      await showAlert('Không thể xóa', 'Không thể xóa phiếu lương của kỳ lương đã chốt hoặc đã thanh toán.');
+    } else {
+      await showAlert('Lỗi', error?.message || 'Lỗi khi xóa phiếu lương.');
+    }
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const openDeletePeriodModal = async (period) => {
+  const ok = await showConfirm('Xác nhận xóa hệ thống kỳ lương', `Bạn chắc chắn muốn xóa hệ thống ${period.label}? Dữ liệu sau khi xóa sẽ không thể khôi phục.`);
+  if (!ok) return;
+  try {
+    isLoading.value = true;
+    await apiRequest(`/salary-periods/${period.id}`, { method: 'DELETE' });
+    selectedPeriodId.value = null; // Reset selection so it selects the latest correctly
+    await loadData();
+    await showAlert('Thành công', 'Đã xóa kỳ lương thành công.');
+  } catch (error) {
+    if (error.status === 422 || error.message.includes('phiếu lương')) {
+      await showAlert('Không thể xóa', 'Không thể xóa kỳ lương đã có dữ liệu phiếu lương nhân sự.');
+    } else {
+      await showAlert('Lỗi', error?.message || 'Không thể xóa kỳ lương.');
+    }
+  } finally {
+    isLoading.value = false;
   }
 };
 
@@ -618,35 +1103,95 @@ const closeSelectedPeriod = async () => {
   }
 };
 
-const exportReport = () => {
+const exportReport = async () => {
   const rows = filteredEmployees.value;
   if (rows.length === 0) {
     void showAlert('Không có dữ liệu', 'Không có dữ liệu để xuất báo cáo.');
     return;
   }
+
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('Bảng Lương');
+
+  const periodLabelStr = selectedPeriod.value ? formatPeriodLabel(selectedPeriod.value) : `Tháng ${currentMonth}/${currentYear}`;
+  const totalEmployees = rows.length;
+  const totalIncomeSum = rows.reduce((acc, row) => acc + toNumber(row.totalIncome), 0);
+  const totalDeductionSum = rows.reduce((acc, row) => acc + toNumber(row.deduction), 0);
+  const totalNetSum = rows.reduce((acc, row) => acc + toNumber(row.netSalary), 0);
+
+  // Add Summary Header
+  sheet.addRow([`BÁO CÁO TỔNG QUAN BẢNG LƯƠNG - ${periodLabelStr.toUpperCase()}`]);
+  sheet.mergeCells('A1:H1');
+  sheet.getCell('A1').font = { size: 16, bold: true, color: { argb: 'FF0B5CFF' } };
+  sheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
+  sheet.getRow(1).height = 30;
+
+  sheet.addRow([]); // Row 2
+  
+  sheet.addRow(['Kỳ thanh toán:', periodLabelStr]);      // Row 3
+  sheet.addRow(['Số lượng nhân sự:', totalEmployees]);   // Row 4
+  sheet.addRow(['Tổng quỹ lương (Gộp):', totalIncomeSum]);// Row 5
+  sheet.addRow(['Tổng phần trích nộp:', totalDeductionSum]);// Row 6
+  sheet.addRow(['Tổng khoản thực lĩnh:', totalNetSum]);  // Row 7
+  
+  // Format summary section
+  [3, 4, 5, 6, 7].forEach(rowIndex => {
+    sheet.getCell(`A${rowIndex}`).font = { bold: true };
+    if (rowIndex >= 5) {
+      sheet.getCell(`B${rowIndex}`).numFmt = '#,##0';
+      sheet.getCell(`B${rowIndex}`).font = { bold: true, color: { argb: 'FF16A34A' } }; // Subtly highlight totals in green
+    }
+  });
+
+  sheet.addRow([]); // Row 8
+
+  // Table Data
   const header = ['Mã NV', 'Họ tên', 'Phòng ban', 'Lương cơ bản', 'Thu nhập gộp', 'Khấu trừ', 'Thực lĩnh', 'Trạng thái'];
-  const body = rows.map((row) => [
-    row.empId,
-    row.name,
-    row.role,
-    String(toNumber(row.baseSalary)),
-    String(toNumber(row.totalIncome)),
-    String(toNumber(row.deduction)),
-    String(toNumber(row.netSalary)),
-    row.status,
-  ]);
-  const csv = [header, ...body]
-    .map((line) => line.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-    .join('\n');
-  const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+  const headerRow = sheet.addRow(header); // Row 9
+
+  rows.forEach((row) => {
+    sheet.addRow([
+      row.empId || '',
+      row.name || '',
+      row.role || '',
+      toNumber(row.baseSalary),
+      toNumber(row.totalIncome),
+      toNumber(row.deduction),
+      toNumber(row.netSalary),
+      row.status || '',
+    ]);
+  });
+
+  // Style Table Header (Row 9)
+  headerRow.eachCell((cell) => {
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B5CFF' } };
+    cell.font = { color: { argb: 'FFFFFFFF' }, bold: true };
+    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+  });
+
+  // Style Data Rows & Format Numbers
+  sheet.eachRow((row, rowNumber) => {
+    if (rowNumber > 9) {
+      row.eachCell((cell, colNumber) => {
+        if (colNumber >= 4 && colNumber <= 7) {
+          cell.numFmt = '#,##0';
+        }
+        cell.border = { top: { style: 'thin', color: { argb: 'FFEEEEEE' } }, left: { style: 'thin', color: { argb: 'FFEEEEEE' } }, bottom: { style: 'thin', color: { argb: 'FFEEEEEE' } }, right: { style: 'thin', color: { argb: 'FFEEEEEE' } } };
+      });
+    }
+  });
+
+  // Adjust Column Widths
+  sheet.columns = [
+    { width: 12 }, { width: 25 }, { width: 20 },
+    { width: 18 }, { width: 18 }, { width: 18 }, { width: 18 },
+    { width: 20 }
+  ];
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const periodLabel = selectedPeriod.value ? formatPeriodLabel(selectedPeriod.value).replace(/\s+/g, '_') : `thang_${currentMonth}_${currentYear}`;
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = `bang-luong-${periodLabel}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(link.href);
+  saveAs(blob, `Bang_Luong_${periodLabel}.xlsx`);
 };
 </script>
 

@@ -1,6 +1,7 @@
 services:
   mysql:
-    image: mysql:8.4
+    # Sử dụng image đã load từ file .tar của bạn
+    image: hrm-db-hoanchinh:v1
     container_name: hrm-mysql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     environment:
@@ -15,15 +16,14 @@ services:
     networks:
       - hrm_net
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u$$MYSQL_USER", "-p$$MYSQL_PASSWORD"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u$$MYSQL_USER", "-p$$MYSQL_PASSWORD" ]
       interval: 10s
       timeout: 5s
       retries: 5
 
   hrm-be:
-    build:
-      context: .
-      dockerfile: Dockerfile.be
+    # Sử dụng image đã load từ file .tar của bạn
+    image: hrm-be-hoanchinh:v1
     container_name: hrm-be
     environment:
       APP_ENV: production
@@ -50,12 +50,15 @@ services:
       - hrm_net
 
   hrm-fe:
-    build:
-      context: .
-      dockerfile: Dockerfile.fe
-      args:
-        VITE_BE_API_BASE: /api/v1
+    image: node:20-alpine
     container_name: hrm-fe
+    working_dir: /app
+    volumes:
+      - ./FE:/app
+      - /app/node_modules
+    command: sh -c "npm install && npx vite --host"
+    environment:
+      - VITE_BE_API_BASE=/api/v1
     depends_on:
       - hrm-be
     restart: unless-stopped
