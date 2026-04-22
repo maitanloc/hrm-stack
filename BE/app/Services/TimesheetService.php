@@ -100,7 +100,12 @@ class TimesheetService
                 // Late check-in
                 if ($checkIn !== null && $shiftStartTs !== null) {
                     $rawLate = (int) floor((strtotime((string) $checkIn) - $shiftStartTs) / 60);
-                    if ($rawLate > $gracePeriodMinutes) {
+                    if ($this->shouldUseRawLateMinutes($attendance)) {
+                        if ($rawLate > 0) {
+                            $lateMinutes = $rawLate;
+                            $flags[] = 'LATE_CHECKIN';
+                        }
+                    } elseif ($rawLate > $gracePeriodMinutes) {
                         $lateMinutes = $rawLate;
                         $flags[] = 'LATE_CHECKIN';
                     }
@@ -516,6 +521,16 @@ class TimesheetService
             $policy[$row['config_key']] = $row['config_value'];
         }
         return $policy;
+    }
+
+    private function shouldUseRawLateMinutes(?array $attendance): bool
+    {
+        if ($attendance === null) {
+            return false;
+        }
+
+        $method = mb_strtoupper(trim((string) ($attendance['check_in_method'] ?? '')), 'UTF-8');
+        return str_contains($method, 'FACE') || str_contains($method, 'KIOSK');
     }
 
     private function findEmployee(int $employeeId): array

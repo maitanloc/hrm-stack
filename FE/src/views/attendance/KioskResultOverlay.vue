@@ -38,6 +38,31 @@
           </div>
         </div>
 
+        <div v-if="hasCalcDetails" class="calc-panel">
+          <div v-if="data.calc?.shift_label" class="calc-line">
+            <span class="material-symbols-outlined">badge</span>
+            <span>{{ data.calc.shift_label }}</span>
+          </div>
+          <div v-if="data.calc?.shift_time_label" class="calc-line">
+            <span class="material-symbols-outlined">schedule</span>
+            <span>{{ data.calc.shift_time_label }}</span>
+          </div>
+          <div class="calc-chips">
+            <span v-if="Number(data.calc?.late_minutes || 0) > 0" class="calc-chip chip-warning">
+              Đi trễ {{ data.calc.late_minutes }} phút
+            </span>
+            <span v-if="Number(data.calc?.early_checkout_minutes || 0) > 0" class="calc-chip chip-warning">
+              Về sớm {{ data.calc.early_checkout_minutes }} phút
+            </span>
+            <span v-if="Number(data.calc?.retry_after_seconds || 0) > 0" class="calc-chip chip-neutral">
+              Quét lại sau {{ formatRetryAfter(data.calc.retry_after_seconds) }}
+            </span>
+            <span v-if="data.calc?.geofence_status" class="calc-chip chip-neutral">
+              GPS {{ data.calc.geofence_status }}
+            </span>
+          </div>
+        </div>
+
         <div class="auto-close-hint">Tự động đóng sau {{ countdown }}s...</div>
       </div>
     </div>
@@ -45,7 +70,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 
 const props = defineProps({
   visible: Boolean,
@@ -73,6 +98,28 @@ let countdownTimer = null;
 const getInitials = (name) => {
   if (!name) return '??';
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(-2);
+};
+
+const hasCalcDetails = computed(() => {
+  const calc = props.data?.calc || {};
+  return Boolean(
+    calc.shift_label
+    || calc.shift_time_label
+    || Number(calc.late_minutes || 0) > 0
+    || Number(calc.early_checkout_minutes || 0) > 0
+    || Number(calc.retry_after_seconds || 0) > 0
+    || calc.geofence_status
+  );
+});
+
+const formatRetryAfter = (seconds) => {
+  const total = Math.max(0, Number(seconds || 0));
+  const minutes = Math.floor(total / 60);
+  const remain = total % 60;
+  if (minutes > 0) {
+    return `${minutes}p ${String(remain).padStart(2, '0')}s`;
+  }
+  return `${remain}s`;
 };
 
 const clearTimers = () => {
@@ -224,6 +271,60 @@ onUnmounted(() => {
   gap: 20px;
   flex-wrap: wrap;
   justify-content: center;
+}
+
+.calc-panel {
+  width: 100%;
+  max-width: 420px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 20px;
+  padding: 14px 16px;
+  backdrop-filter: blur(10px);
+}
+
+.calc-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  opacity: 0.95;
+}
+
+.calc-line + .calc-line {
+  margin-top: 8px;
+}
+
+.calc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.calc-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.chip-warning {
+  background: rgba(251, 191, 36, 0.18);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+}
+
+.chip-neutral {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .meta-item {

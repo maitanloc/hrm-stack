@@ -11,8 +11,10 @@ use App\Controllers\Api\V1\ContractController;
 use App\Controllers\Api\V1\DepartmentController;
 use App\Controllers\Api\V1\EmployeeController;
 use App\Controllers\Api\V1\FaceController;
+use App\Controllers\Api\V1\FaceEnrollmentController;
 use App\Controllers\Api\V1\HealthController;
 use App\Controllers\Api\V1\InternalServiceController;
+use App\Controllers\Api\V1\KioskController;
 use App\Controllers\Api\V1\LeaveController;
 use App\Controllers\Api\V1\NotificationController;
 use App\Controllers\Api\V1\PayrollController;
@@ -51,6 +53,7 @@ $router->group('/api/v1', function ($router): void {
     $router->post('/public/face/recognize', [FaceController::class, 'recognizeAndCheckIn']);
     $router->get('/public/face/embeddings', [FaceController::class, 'embeddings']);
     $router->get('/public/settings/general', [FaceController::class, 'publicGeneralSettings']);
+    $router->post('/kiosk/face-attendance', [KioskController::class, 'faceAttendance']);
     $router->get('/recruitment-candidates/{id}/cv', [RecruitmentController::class, 'candidateDownloadCv']);
     $router->post('/internal/recruitment-ai-jobs/process', [RecruitmentController::class, 'internalProcessAiScoringJobs']);
 
@@ -248,6 +251,10 @@ $router->group('/api/v1', function ($router): void {
         ]);
         $router->get('/employees/{id}/profile', [EmployeeController::class, 'profileShow'], [
             [PermissionMiddleware::class, 'EMP_VIEW', 'access'],
+            [HierarchyEmployeeParamMiddleware::class, 'id', true],
+        ]);
+        $router->post('/employees/{id}/enroll-face', [FaceEnrollmentController::class, 'enroll'], [
+            [PermissionMiddleware::class, 'EMP_EDIT', 'edit'],
             [HierarchyEmployeeParamMiddleware::class, 'id', true],
         ]);
         $router->post('/employees', [EmployeeController::class, 'store'], [

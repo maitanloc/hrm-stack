@@ -54,7 +54,12 @@ class AttendanceResultService
 
             if ($checkIn !== null && $shiftStart !== null) {
                 $rawLateMinutes = max(0, (int) floor((strtotime((string) $checkIn) - strtotime($workDate . ' ' . (string) $shiftStart)) / 60));
-                if ($rawLateMinutes > $gracePeriodMinutes) {
+                if ($this->shouldUseRawLateMinutes($attendance)) {
+                    if ($rawLateMinutes > 0) {
+                        $lateMinutes = $rawLateMinutes;
+                        $status = 'L';
+                    }
+                } elseif ($rawLateMinutes > $gracePeriodMinutes) {
                     $lateMinutes = $rawLateMinutes;
                     $status = 'L';
                 }
@@ -198,5 +203,11 @@ class AttendanceResultService
             str_contains($haystack, 'KHÔNG LƯƠNG') => 'UNP',
             default => 'AL',
         };
+    }
+
+    private function shouldUseRawLateMinutes(array $attendance): bool
+    {
+        $method = mb_strtoupper(trim((string) ($attendance['check_in_method'] ?? '')), 'UTF-8');
+        return str_contains($method, 'FACE') || str_contains($method, 'KIOSK');
     }
 }

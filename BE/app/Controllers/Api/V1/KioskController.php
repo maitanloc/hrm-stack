@@ -16,6 +16,9 @@ use App\Services\PlanningContextService;
 
 class KioskController extends Controller
 {
+    private const FACE_REPEAT_BLOCK_SECONDS = 900;
+    private const FACE_CHECKOUT_MIN_SECONDS = 1800;
+
     private Employee $employees;
     private Attendance $attendances;
     private FaceIdentificationService $faceService;
@@ -64,7 +67,7 @@ class KioskController extends Controller
 
         if (!$idResult['success'] || empty($idResult['employee_code'])) {
             $this->logEvent(null, $today, null, 'UNKNOWN', $now, $payload, 'FACE_NOT_MATCHED', 'BLOCK', null, null, $ipAddress, $userAgent, $idResult['error'] ?? 'Face not recognized');
-            throw new HttpException($idResult['error'] ?? 'Không thể nhận diện khuôn mặt.', 403, 'face_not_recognized');
+            throw new HttpException('Không nhận diện được khuôn mặt. Vui lòng thử lại.', 403, 'face_not_recognized');
         }
 
         $employee = $this->employees->findByCode($idResult['employee_code']);
@@ -88,7 +91,14 @@ class KioskController extends Controller
         
         if (!$shift) {
             $this->logEvent($employeeId, $today, null, 'UNKNOWN', $now, $payload, 'NO_SHIFT', 'BLOCK', null, null, $ipAddress, $userAgent, 'No valid shift for today');
-            return $this->errorResponse('Bạn không có lịch làm việc trong ngày hôm nay.', 'NO_SHIFT', 'blocked', $empInfo);
+            return $this->errorResponse(
+                'Không tìm thấy ca làm việc hợp lệ cho hôm nay.',
+                'NO_SHIFT',
+                'warning',
+                $empInfo,
+                null,
+                422
+            );
         }
         $shiftId = (int) ($shift['shift_type_id'] ?? 0);
         $shiftStart = $shift['start_time'] ?? '00:00:00';
@@ -118,6 +128,60 @@ class KioskController extends Controller
 
         // 5. State Machine & Cooldown Rules
         $existing = $this->attendances->findByEmployeeDate($employeeId, $today);
+        $recentSuccess = $this->findLatestSuccessfulFaceEvent($employeeId);
+        if ($recentSuccess !== null) {
+            $recentTs = strtotime((string) ($recentSuccess['event_time'] ?? ''));
+            if ($recentTs !== false) {
+                $diffSeconds = $nowTs - $recentTs;
+                if ($diffSeconds >= 0 && $diffSeconds < self::FACE_REPEAT_BLOCK_SECONDS) {
+                    $retryAfterSeconds = self::FACE_REPEAT_BLOCK_SECONDS - $diffSeconds;
+                    $waitMessage = $this->buildRepeatScanMessage($retryAfterSeconds);
+                    $this->logEvent(
+                        $employeeId,
+                        $today,
+                        $shiftId,
+                        'duplicate_check',
+                        $now,
+                        $payload,
+                        'REPEAT_SCAN_BLOCKED',
+                        'BLOCK',
+                        $geofenceStatus,
+                        $geofenceDistance,
+                        $ipAddress,
+                        $userAgent,
+                        sprintf(
+                            'Repeat face scan blocked after %d seconds from %s',
+                            $diffSeconds,
+                            (string) ($recentSuccess['event_type'] ?? 'unknown')
+                        )
+                    );
+
+                    return $this->errorResponse(
+                        $waitMessage,
+                        'REPEAT_SCAN_BLOCKED',
+                        'info',
+                        $empInfo,
+                        $geofenceStatus,
+                        409,
+                        [
+                            'repeat_scan_blocked' => true,
+                            'retry_after_seconds' => $retryAfterSeconds,
+                            'last_success_event' => [
+                                'event_type' => (string) ($recentSuccess['event_type'] ?? 'unknown'),
+                                'event_time' => (string) ($recentSuccess['event_time'] ?? ''),
+                            ],
+                            'shift_info' => [
+                                'shift_code' => $shift['shift_code'] ?? null,
+                                'shift_name' => $shift['shift_name'] ?? null,
+                                'start_time' => $shift['start_time'] ?? null,
+                                'end_time' => $shift['end_time'] ?? null,
+                            ],
+                        ]
+                    );
+                }
+            }
+        }
+
         $eventType = 'check_in';
         $resultCode = 'CHECKIN_SUCCESS';
         $lateMinutes = 0;
@@ -126,12 +190,11 @@ class KioskController extends Controller
         if (!$existing) {
             // NOT_CHECKED_IN -> CHECKED_IN
             $eventType = 'check_in';
-            // Calculate late
+            // Calculate late directly from the assigned shift start time.
             $startTs = strtotime("$today $shiftStart");
             if ($nowTs > $startTs) {
-                $rawLate = (int) floor(($nowTs - $startTs) / 60);
-                if ($rawLate > 5) { // 5 mins grace period
-                    $lateMinutes = $rawLate;
+                $lateMinutes = max(0, (int) floor(($nowTs - $startTs) / 60));
+                if ($lateMinutes > 0) {
                     $resultCode = 'CHECKIN_LATE';
                 }
             }
@@ -142,18 +205,23 @@ class KioskController extends Controller
 
             $diffSeconds = $nowTs - $lastTimeTs;
 
-            // Duplicate Hard Block: 2 minutes
-            if ($diffSeconds < 120) {
-                $this->logEvent($employeeId, $today, $shiftId, 'duplicate_check', $now, $payload, 'DUPLICATE_RECENT', 'BLOCK', $geofenceStatus, $geofenceDistance, $ipAddress, $userAgent, 'Scanned within 2 minutes');
-                return $this->errorResponse('Bạn vừa chấm công xong. Vui lòng không quét liên tục.', 'DUPLICATE_RECENT', 'blocked', $empInfo, $geofenceStatus);
-            }
-
             if (!empty($existing['check_in_time']) && empty($existing['check_out_time'])) {
                 // CHECKED_IN -> CHECKED_OUT
                 // Not Ready for Checkout soft block: 30 minutes
-                if ($diffSeconds < 1800) {
+                if ($diffSeconds < self::FACE_CHECKOUT_MIN_SECONDS) {
                     $this->logEvent($employeeId, $today, $shiftId, 'check_out_attempt', $now, $payload, 'NOT_READY_FOR_CHECKOUT', 'BLOCK', $geofenceStatus, $geofenceDistance, $ipAddress, $userAgent, "Scanned too early for checkout ($diffSeconds sec)");
-                    return $this->errorResponse('Vui lòng đợi ít nhất 30 phút kể từ lúc Check-in để có thể Check-out.', 'NOT_READY_FOR_CHECKOUT', 'blocked', $empInfo, $geofenceStatus);
+                    return $this->errorResponse(
+                        'Bạn đã check-in rồi. Vui lòng đợi đủ 30 phút trước khi check-out.',
+                        'NOT_READY_FOR_CHECKOUT',
+                        'info',
+                        $empInfo,
+                        $geofenceStatus,
+                        409,
+                        [
+                            'retry_after_seconds' => self::FACE_CHECKOUT_MIN_SECONDS - max(0, $diffSeconds),
+                            'repeat_scan_blocked' => false,
+                        ]
+                    );
                 }
 
                 $eventType = 'check_out';
@@ -174,7 +242,23 @@ class KioskController extends Controller
             } else if (!empty($existing['check_in_time']) && !empty($existing['check_out_time'])) {
                 // COMPLETED
                 $this->logEvent($employeeId, $today, $shiftId, 'completed_check', $now, $payload, 'ATTENDANCE_COMPLETED', 'INFO', $geofenceStatus, $geofenceDistance, $ipAddress, $userAgent, 'Already checked in and out');
-                return $this->errorResponse('Bạn đã hoàn thành chấm công ca này.', 'ATTENDANCE_COMPLETED', 'info', $empInfo, $geofenceStatus);
+                return $this->errorResponse(
+                    'Bạn đã hoàn thành chấm công cho ca này rồi.',
+                    'ATTENDANCE_COMPLETED',
+                    'info',
+                    $empInfo,
+                    $geofenceStatus,
+                    409,
+                    [
+                        'repeat_scan_blocked' => false,
+                        'shift_info' => [
+                            'shift_code' => $shift['shift_code'] ?? null,
+                            'shift_name' => $shift['shift_name'] ?? null,
+                            'start_time' => $shift['start_time'] ?? null,
+                            'end_time' => $shift['end_time'] ?? null,
+                        ],
+                    ]
+                );
             } else {
                 $eventType = 'check_in';
             }
@@ -182,7 +266,7 @@ class KioskController extends Controller
 
         // 6. Persist Attendance
         try {
-            $attendanceId = $this->persistAttendance($existing, $employeeId, $eventType, $today, $now, $payload);
+            $attendanceId = $this->persistAttendance($existing, $employeeId, $eventType, $today, $now, $payload, $shiftId, $lateMinutes, $earlyMinutes);
             
             // Log Event
             $this->logEvent($employeeId, $today, $shiftId, $eventType, $now, $payload, $resultCode, $warningCode ?? 'SUCCESS', $geofenceStatus, $geofenceDistance, $ipAddress, $userAgent, 'Quick Face Web Attendance');
@@ -207,10 +291,13 @@ class KioskController extends Controller
                     'end_time' => $shift['end_time'] ?? null,
                 ],
                 'late_minutes' => $lateMinutes,
+                'is_late' => $lateMinutes > 0,
                 'early_checkout_minutes' => $earlyMinutes,
+                'repeat_scan_blocked' => false,
+                'retry_after_seconds' => 0,
                 'geofence_status' => $geofenceStatus,
                 'message_code' => $warningCode,
-                'message' => $this->getMessageForCode($resultCode, $warningCode),
+                'message' => $this->getMessageForCode($resultCode, $warningCode, $lateMinutes, $earlyMinutes),
             ], 'Thành công');
 
         } catch (\Exception $e) {
@@ -240,7 +327,7 @@ class KioskController extends Controller
         return $this->ok($payload, 'Embeddings synced');
     }
 
-    private function persistAttendance(?array $existing, int $employeeId, string $eventType, string $date, string $time, array $payload): int
+    private function persistAttendance(?array $existing, int $employeeId, string $eventType, string $date, string $time, array $payload, int $shiftId, int $lateMinutes, int $earlyMinutes): int
     {
         $method = 'FACE_KIOSK';
 
@@ -248,10 +335,12 @@ class KioskController extends Controller
             return $this->attendances->create([
                 'employee_id' => $employeeId,
                 'attendance_date' => $date,
+                'shift_type_id' => $shiftId > 0 ? $shiftId : null,
                 'check_in_time' => $time,
                 'check_in_method' => $method,
                 'check_in_latitude' => $payload['lat'],
                 'check_in_longitude' => $payload['lng'],
+                'late_minutes' => $lateMinutes,
                 'status' => 'ĐÃ_DUYỆT',
                 'work_type' => 'VĂN_PHÒNG',
                 'notes' => 'Quick Face Web'
@@ -260,6 +349,7 @@ class KioskController extends Controller
 
         $id = (int) $existing['attendance_id'];
         $update = [
+            'shift_type_id' => $shiftId > 0 ? $shiftId : ($existing['shift_type_id'] ?? null),
             'status' => 'ĐÃ_DUYỆT',
             'updated_at' => date('Y-m-d H:i:s')
         ];
@@ -270,6 +360,7 @@ class KioskController extends Controller
                 $update['check_in_method'] = $method;
                 $update['check_in_latitude'] = $payload['lat'];
                 $update['check_in_longitude'] = $payload['lng'];
+                $update['late_minutes'] = $lateMinutes;
             } else {
                 $update['check_in_time_2'] = $time;
             }
@@ -279,6 +370,7 @@ class KioskController extends Controller
                 $update['check_out_method'] = $method;
                 $update['check_out_latitude'] = $payload['lat'];
                 $update['check_out_longitude'] = $payload['lng'];
+                $update['early_leave_minutes'] = $earlyMinutes;
             } else {
                 $update['check_out_time_2'] = $time;
             }
@@ -312,34 +404,65 @@ class KioskController extends Controller
         ]);
     }
 
-    private function errorResponse(string $message, string $resultCode, string $severity, array $employee = null, ?string $geoStatus = null): array
+    private function errorResponse(string $message, string $resultCode, string $severity, ?array $employee = null, ?string $geoStatus = null, int $status = 403, array $extra = []): array
     {
+        $data = array_merge([
+            'result_code' => $resultCode,
+            'severity' => $severity,
+            'event_effect' => 'none',
+            'employee' => $employee,
+            'geofence_status' => $geoStatus,
+            'message_code' => $resultCode,
+            'message' => $message,
+        ], $extra);
+
         return [
-            'status' => 403,
+            'status' => $status,
             'success' => false,
             'message' => $message,
-            'data' => [
-                'result_code' => $resultCode,
-                'severity' => $severity,
-                'event_effect' => 'none',
-                'employee' => $employee,
-                'geofence_status' => $geoStatus,
-                'message_code' => $resultCode,
-                'message' => $message
-            ]
+            'data' => $data,
         ];
     }
 
-    private function getMessageForCode(string $code, ?string $warning): string
+    private function getMessageForCode(string $code, ?string $warning, int $lateMinutes = 0, int $earlyMinutes = 0): string
     {
         $msg = 'Chấm công thành công.';
-        if ($code === 'CHECKIN_LATE') $msg = 'Check-in thành công (Đi trễ).';
-        if ($code === 'CHECKOUT_EARLY') $msg = 'Check-out thành công (Về sớm).';
+        if ($code === 'CHECKIN_LATE') {
+            $msg = sprintf('Chấm công thành công. Bạn đã đi trễ %d phút.', max(1, $lateMinutes));
+        }
+        if ($code === 'CHECKOUT_EARLY') {
+            $msg = $earlyMinutes > 0
+                ? sprintf('Check-out thành công. Bạn về sớm %d phút.', $earlyMinutes)
+                : 'Check-out thành công (Về sớm).';
+        }
         
         if ($warning === 'GPS_DRIFT_MINOR') $msg .= ' (Cảnh báo: Vị trí lệch nhẹ)';
         if ($warning === 'SIGNAL_WEAK') $msg .= ' (Cảnh báo: Tín hiệu GPS yếu)';
 
         return trim($msg);
+    }
+
+    private function buildRepeatScanMessage(int $retryAfterSeconds): string
+    {
+        return 'Bạn vừa chấm công rồi. Vui lòng chờ đủ 15 phút giữa hai lần quét.';
+    }
+
+    private function findLatestSuccessfulFaceEvent(int $employeeId): ?array
+    {
+        $db = \App\Core\Database::connection();
+        $sql = "SELECT event_type, event_time, result_code, warning_code
+                FROM attendance_events
+                WHERE employee_id = :employee_id
+                  AND source_type = 'face_quick_web'
+                  AND result_code IN ('CHECKIN_SUCCESS', 'CHECKIN_LATE', 'CHECKOUT_SUCCESS', 'CHECKOUT_EARLY')
+                ORDER BY event_time DESC
+                LIMIT 1";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([
+            'employee_id' => $employeeId,
+        ]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        return $row === false ? null : $row;
     }
 
     private function stripBase64Prefix(string $data): string

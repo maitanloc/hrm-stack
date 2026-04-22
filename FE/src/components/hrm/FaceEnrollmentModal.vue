@@ -126,12 +126,12 @@
       </div>
     </Transition>
   </Teleport>
-  <canvas ref="canvasRef" style="display: none;"></canvas>
 </template>
 
 <script setup>
 import { ref, onUnmounted, computed, watch } from 'vue';
 import { apiRequest } from '@/services/beApi.js';
+import { captureVideoFrame, waitForVideoReady } from '@/utils/videoCapture.js';
 
 const props = defineProps({
   show: Boolean,
@@ -142,7 +142,6 @@ const props = defineProps({
 const emit = defineEmits(['close', 'success']);
 
 const videoRef = ref(null);
-const canvasRef = ref(null);
 const currentStep = ref(1);
 const isProcessing = ref(false);
 const errorMessage = ref('');
@@ -157,6 +156,28 @@ const steps = [
 
 const allCaptured = computed(() => captures.value.every(c => c !== null));
 
+const mapEnrollmentError = (err) => {
+  const rawMessage = String(err?.payload?.message || err?.message || '').trim();
+
+  if (rawMessage === 'blank_frame') {
+    return 'Khung hình vừa chụp khong hop le. Vui long doi camera on dinh va chup lai.';
+  }
+  if (rawMessage === 'camera_frame_timeout' || rawMessage === 'camera_frame_unavailable') {
+    return 'Camera chua san sang. Vui long doi 1 chut roi chup lai.';
+  }
+  if (err?.status === 404) {
+    return 'Loi cau hinh he thong: API dang ky khuon mat chua duoc khai bao dung.';
+  }
+  if (err?.status === 422) {
+    return rawMessage || 'Du lieu khuon mat khong hop le. Vui long chup lai du 3 goc mat.';
+  }
+  if (!rawMessage || rawMessage.includes('<!DOCTYPE html>') || rawMessage.length > 200) {
+    return 'Khong the dang ky khuon mat luc nay. Vui long thu lai sau.';
+  }
+
+  return rawMessage;
+};
+
 const startCamera = async () => {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -168,9 +189,10 @@ const startCamera = async () => {
     });
     if (videoRef.value) {
       videoRef.value.srcObject = stream;
+      await waitForVideoReady(videoRef.value, 5000);
     }
   } catch (err) {
-    errorMessage.value = 'Lỗi camera: Không thể truy cập ống kính.';
+    errorMessage.value = 'Loi camera: khong the truy cap ong kinh.';
   }
 };
 
@@ -182,36 +204,32 @@ const stopCamera = () => {
 };
 
 const capture = () => {
-  const video = videoRef.value;
-  const canvas = canvasRef.value;
-  if (!video || !canvas) return;
+  void (async () => {
+    const video = videoRef.value;
+    if (!video || isProcessing.value) return;
 
-  // Optimize image size to reduce network payload (640x480 is sufficient for face embedding)
-  const targetWidth = 640;
-  const targetHeight = 480;
-  
-  canvas.width = targetWidth;
-  canvas.height = targetHeight;
-  
-  const ctx = canvas.getContext('2d');
-  // Use cover algorithm for resizing
-  const scale = Math.max(targetWidth / video.videoWidth, targetHeight / video.videoHeight);
-  const x = (targetWidth / 2) - (video.videoWidth / 2) * scale;
-  const y = (targetHeight / 2) - (video.videoHeight / 2) * scale;
-  
-  ctx.drawImage(video, x, y, video.videoWidth * scale, video.videoHeight * scale);
+    errorMessage.value = '';
 
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-  
-  // Show flash/snapshot effect
-  lastSnapshot.value = dataUrl;
-  setTimeout(() => {
-    lastSnapshot.value = null;
-    captures.value[currentStep.value - 1] = dataUrl;
-    if (currentStep.value < 3) {
-      currentStep.value++;
+    try {
+      const { dataUrl } = await captureVideoFrame(video, {
+        targetWidth: 640,
+        targetHeight: 480,
+        mirrored: true,
+        quality: 0.9,
+      });
+
+      lastSnapshot.value = dataUrl;
+      window.setTimeout(() => {
+        lastSnapshot.value = null;
+        captures.value[currentStep.value - 1] = dataUrl;
+        if (currentStep.value < 3) {
+          currentStep.value += 1;
+        }
+      }, 400);
+    } catch (err) {
+      errorMessage.value = mapEnrollmentError(err);
     }
-  }, 400);
+  })();
 };
 
 const resetStep = (index) => {
@@ -227,8 +245,13 @@ const submitEnrollment = async () => {
   }
   
   if (!props.employeeId) {
-    errorMessage.value = 'Hệ thống: Thiếu mã nhân viên để định danh.';
+    errorMessage.value = 'He thong thieu ma nhan vien de dinh danh.';
     console.error('SubmitEnrollment: Missing employeeId');
+    return;
+  }
+
+  if (!allCaptured.value) {
+    errorMessage.value = 'Can chup du 3 anh khuon mat hop le truoc khi gui dang ky.';
     return;
   }
 
@@ -247,12 +270,7 @@ const submitEnrollment = async () => {
     emit('success');
     handleClose();
   } catch (err) {
-    // Better error message handling for HTML responses
-    let msg = err.payload?.message || err.message || 'Lỗi phân tích khuôn mặt. Thử lại sau.';
-    if (msg.includes('<!DOCTYPE html>') || msg.length > 200) {
-      msg = `Lỗi hệ thống (${err.status}): Không tìm thấy API hoặc lỗi máy chủ.`;
-    }
-    errorMessage.value = msg;
+    errorMessage.value = mapEnrollmentError(err);
   } finally {
     isProcessing.value = false;
   }

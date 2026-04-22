@@ -32,6 +32,8 @@ class Validator
 
                 if ($rule === 'string' && !is_string($value)) {
                     $errors[$field][] = 'must be string';
+                } elseif ($rule === 'array' && !is_array($value)) {
+                    $errors[$field][] = 'must be array';
                 } elseif ($rule === 'integer' && filter_var($value, FILTER_VALIDATE_INT) === false) {
                     $errors[$field][] = 'must be integer';
                 } elseif ($rule === 'numeric' && !is_numeric($value)) {

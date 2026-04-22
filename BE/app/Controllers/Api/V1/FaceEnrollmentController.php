@@ -42,7 +42,16 @@ class FaceEnrollmentController extends Controller
             'images' => ['required', 'array'], // Array of Base64 strings
         ]);
 
-        $rawImages = array_map([$this, 'stripBase64Prefix'], $payload['images']);
+        $images = array_values(array_filter(
+            $payload['images'],
+            static fn($image): bool => is_string($image) && trim($image) !== ''
+        ));
+
+        if (count($images) < 3) {
+            throw new HttpException('At least 3 valid face images are required', 422, 'validation_error');
+        }
+
+        $rawImages = array_map([$this, 'stripBase64Prefix'], $images);
 
         // 1. Extract Embeddings from AI Service
         $extractResult = $this->faceService->extractMultiple($rawImages);

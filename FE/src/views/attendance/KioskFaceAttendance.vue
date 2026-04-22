@@ -3,7 +3,6 @@
     <!-- Full-screen Camera Background -->
     <div class="camera-stage">
       <video ref="videoRef" autoplay playsinline muted class="video-feed"></video>
-      <canvas ref="canvasRef" style="display: none;"></canvas>
       
       <!-- Visual Scanning Ring -->
       <ScannerRing 
@@ -57,13 +56,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { apiRequest } from '@/services/beApi.js';
 import ScannerRing from './ScannerRing.vue';
 import KioskResultOverlay from './KioskResultOverlay.vue';
+import { captureVideoFrame, waitForVideoReady } from '@/utils/videoCapture.js';
 
 const videoRef = ref(null);
-const canvasRef = ref(null);
 const now = ref(new Date());
 const isProcessing = ref(false);
 const showResult = ref(false);
@@ -71,8 +70,10 @@ const lastResult = ref(null);
 const gpsLocked = ref(false);
 const currentCoords = ref(null);
 const captureTimer = ref(null);
+const clockTimer = ref(null);
 const lastCaptureAt = ref(0);
 const instruction = ref('Vui lòng đưa gương mặt vào khung hình');
+const geoWatchId = ref(null);
 
 const resultData = ref({
   success: true,
@@ -86,10 +87,75 @@ const resultData = ref({
 
 // Settings
 const AUTO_CAPTURE_INTERVAL = 3000; // 3s
-const COOLDOWN_AFTER_SUCCESS = 5000; // 5s
-
 const formatTime = (d) => d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const formatDate = (d) => d.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+
+const mapCaptureError = (err) => {
+  const message = String(err?.message || '').trim();
+  if (message === 'blank_frame') {
+    return 'Khung hình chưa hợp lệ. Vui lòng nhìn rõ vào camera.';
+  }
+  if (message === 'camera_frame_timeout' || message === 'camera_frame_unavailable') {
+    return 'Camera chưa sẵn sàng. Vui lòng thử lại.';
+  }
+  return 'Không thể chụp ảnh từ camera.';
+};
+
+const formatShiftTimeLabel = (shiftInfo) => {
+  const start = String(shiftInfo?.start_time || '').slice(0, 5);
+  const end = String(shiftInfo?.end_time || '').slice(0, 5);
+  if (!start && !end) return '';
+  return `Ca làm: ${start || '--:--'} - ${end || '--:--'}`;
+};
+
+const buildCalcPayload = (data = {}) => ({
+  result_code: data.result_code || '',
+  severity: data.severity || '',
+  late_minutes: Number(data.late_minutes || 0),
+  early_checkout_minutes: Number(data.early_checkout_minutes || 0),
+  repeat_scan_blocked: Boolean(data.repeat_scan_blocked),
+  retry_after_seconds: Number(data.retry_after_seconds || 0),
+  geofence_status: data.geofence_status || '',
+  shift_label: data.shift_info?.shift_name
+    ? `${data.shift_info.shift_name}${data.shift_info.shift_code ? ` (${data.shift_info.shift_code})` : ''}`
+    : '',
+  shift_time_label: formatShiftTimeLabel(data.shift_info),
+});
+
+const buildSuccessTitle = (data = {}) => {
+  if (data.result_code === 'CHECKIN_LATE') return 'ĐI TRỄ';
+  if (data.event_effect === 'check_out') return 'HẸN GẶP LẠI!';
+  return 'CHẤM CÔNG THÀNH CÔNG';
+};
+
+const buildBlockedTitle = (data = {}, status = 0) => {
+  if (data.result_code === 'REPEAT_SCAN_BLOCKED') return 'BẠN VỪA QUÉT XONG';
+  if (data.result_code === 'NOT_READY_FOR_CHECKOUT') return 'CHƯA THỂ CHECK-OUT';
+  if (data.result_code === 'NO_SHIFT') return 'KHÔNG CÓ CA';
+  if (data.result_code === 'ATTENDANCE_COMPLETED') return 'ĐÃ HOÀN TẤT';
+  return status === 403 ? 'LƯU Ý' : 'THẤT BẠI';
+};
+
+const openResultOverlay = ({
+  success,
+  title,
+  message,
+  employee = null,
+  event = null,
+  calc = null,
+  risk = null,
+}) => {
+  resultData.value = {
+    success,
+    title,
+    message,
+    employee,
+    event,
+    calc,
+    risk,
+  };
+  showResult.value = true;
+};
 
 const startCamera = async () => {
   try {
@@ -102,6 +168,7 @@ const startCamera = async () => {
     });
     if (videoRef.value) {
       videoRef.value.srcObject = stream;
+      await waitForVideoReady(videoRef.value, 5000);
     }
   } catch (err) {
     console.error('Camera Error:', err);
@@ -117,7 +184,7 @@ const stopCamera = () => {
 
 const startGPS = () => {
   if (!navigator.geolocation) return;
-  navigator.geolocation.watchPosition(
+  geoWatchId.value = navigator.geolocation.watchPosition(
     (pos) => {
       currentCoords.value = {
         lat: pos.coords.latitude,
@@ -141,18 +208,21 @@ const captureAndIdentify = async () => {
   if (nowTs - lastCaptureAt.value < AUTO_CAPTURE_INTERVAL) return;
   lastCaptureAt.value = nowTs;
 
-  const canvas = canvasRef.value;
   const video = videoRef.value;
-  if (!canvas || !video) return;
+  if (!video) return;
 
-  // Prepare canvas
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(video, 0, 0);
-  
-  // Convert to Base64
-  const imageData = canvas.toDataURL('image/jpeg', 0.8);
+  let imageData = '';
+  try {
+    ({ dataUrl: imageData } = await captureVideoFrame(video, {
+      mirrored: true,
+      quality: 0.8,
+    }));
+  } catch (err) {
+    instruction.value = mapCaptureError(err);
+    lastResult.value = { success: false };
+    setTimeout(() => { lastResult.value = null; }, 1500);
+    return;
+  }
 
   isProcessing.value = true;
   instruction.value = 'Đang nhận diện gương mặt...';
@@ -174,7 +244,9 @@ const captureAndIdentify = async () => {
 
     if (response.success === true) {
       handleSuccess(response.data);
+      return;
     }
+    handleBusinessResult(response);
   } catch (err) {
     console.error('Kiosk Error:', err);
     handleError(err);
@@ -186,11 +258,10 @@ const captureAndIdentify = async () => {
 const handleSuccess = (data) => {
   console.log('Mapping success data:', data);
   lastResult.value = { success: true };
-  
-  resultData.value = {
+  openResultOverlay({
     success: true,
-    title: data.type === 'CHECKIN' ? 'CHÀO BUỔI SÁNG!' : 'HẸN GẶP LẠI!',
-    message: data.type === 'CHECKIN' ? 'Đã ghi nhận Giờ Vào thành công.' : 'Đã ghi nhận Giờ Ra thành công.',
+    title: buildSuccessTitle(data),
+    message: data.message || 'Chấm công thành công.',
     employee: {
       employee_id: data.employee?.employee_id || null,
       full_name: data.employee?.full_name || 'Nhân viên',
@@ -203,38 +274,75 @@ const handleSuccess = (data) => {
       time: data.event?.time || new Date().toLocaleTimeString('vi-VN'),
       date: data.event?.date || new Date().toLocaleDateString('vi-VN')
     },
-    calc: data.calc || null,
-    risk: data.risk || null
-  };
-  
-  showResult.value = true;
-  instruction.value = 'Chấm công thành công!';
+    calc: buildCalcPayload(data),
+    risk: data.risk || null,
+  });
+  instruction.value = data.message || 'Chấm công thành công!';
+};
+
+const handleBusinessResult = (response) => {
+  const data = response?.data || {};
+  lastResult.value = { success: false };
+  openResultOverlay({
+    success: false,
+    title: buildBlockedTitle(data, Number(response?.status || 0)),
+    message: data.message || response?.message || 'Không thể chấm công lúc này.',
+    employee: data.employee || null,
+    event: data.last_success_event
+      ? {
+          attendance_id: null,
+          time: String(data.last_success_event.event_time || '').slice(11, 19),
+          date: String(data.last_success_event.event_time || '').slice(0, 10),
+        }
+      : null,
+    calc: buildCalcPayload(data),
+    risk: null,
+  });
 };
 
 const handleError = (err) => {
   const payload = err.payload || {};
   const status = err.status;
+  const data = payload.data || {};
 
-  // Face not recognized is handled with simple text instruction
-  if (status === 403 && payload.error === 'face_not_recognized') {
-    instruction.value = 'Không nhận diện được khuôn mặt. Vui lòng nhìn thẳng.';
+  if (status === 404) {
+    lastResult.value = { success: false };
+    openResultOverlay({
+      success: false,
+      title: 'LỖI CẤU HÌNH',
+      message: 'API chấm công kiosk chưa được cấu hình đúng trên máy chủ.',
+    });
+    return;
+  }
+
+  if (status === 422 && data.result_code !== 'NO_SHIFT') {
+    instruction.value = payload.message || 'Ảnh khuôn mặt chưa hợp lệ. Vui lòng thử lại.';
     lastResult.value = { success: false };
     setTimeout(() => { lastResult.value = null; }, 1500);
     return;
   }
 
-  // Cooldown or other 403 errors
+  // Face not recognized is handled with simple text instruction
+  if (status === 403 && payload.error === 'face_not_recognized') {
+    instruction.value = payload.message || 'Không nhận diện được khuôn mặt. Vui lòng thử lại.';
+    lastResult.value = { success: false };
+    setTimeout(() => { lastResult.value = null; }, 1500);
+    return;
+  }
+
+  if (status === 409 || status === 422 || status === 403) {
+    handleBusinessResult(payload);
+    return;
+  }
+
   lastResult.value = { success: false };
-  resultData.value = {
+  openResultOverlay({
     success: false,
-    title: status === 403 ? 'LƯU Ý' : 'THẤT BẠI',
+    title: 'THẤT BẠI',
     message: payload.message || 'Có lỗi xảy ra khi chấm công.',
-    employee: payload.data?.employee || null,
-    event: null,
-    calc: null,
-    risk: null
-  };
-  showResult.value = true;
+    employee: data.employee || null,
+    calc: buildCalcPayload(data),
+  });
 };
 
 const closeResult = () => {
@@ -249,19 +357,23 @@ const triggerManualCapture = () => {
 };
 
 onMounted(() => {
-  startCamera();
+  void startCamera();
   startGPS();
   
   // Capture loop
   captureTimer.value = setInterval(captureAndIdentify, 1000);
   
   // Clock update
-  setInterval(() => { now.value = new Date(); }, 1000);
+  clockTimer.value = setInterval(() => { now.value = new Date(); }, 1000);
 });
 
 onUnmounted(() => {
   stopCamera();
   clearInterval(captureTimer.value);
+  clearInterval(clockTimer.value);
+  if (geoWatchId.value !== null && navigator.geolocation) {
+    navigator.geolocation.clearWatch(geoWatchId.value);
+  }
 });
 </script>
 

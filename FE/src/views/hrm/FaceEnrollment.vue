@@ -38,9 +38,6 @@
       </div>
     </div>
 
-    <!-- Hidden Canvas for Capture -->
-    <canvas ref="canvasRef" style="display: none;"></canvas>
-
     <!-- Success Feedback -->
     <Teleport to="body">
        <div v-if="showSuccess" class="success-pop">
@@ -59,18 +56,36 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { apiRequest } from '@/services/beApi.js';
+import { captureVideoFrame, waitForVideoReady } from '@/utils/videoCapture.js';
 
 const route = useRoute();
 const router = useRouter();
 const employeeId = route.params.id;
 
 const videoRef = ref(null);
-const canvasRef = ref(null);
 const employee = ref(null);
 const isProcessing = ref(false);
 const showSuccess = ref(false);
 const statusMessage = ref('');
 const statusType = ref('info'); // info, error
+
+const mapEnrollmentError = (err) => {
+  const rawMessage = String(err?.payload?.message || err?.message || '').trim();
+
+  if (rawMessage === 'blank_frame') {
+    return 'Khung hình vừa chụp không hợp lệ. Vui lòng chụp lại.';
+  }
+  if (rawMessage === 'camera_frame_timeout' || rawMessage === 'camera_frame_unavailable') {
+    return 'Camera chưa sẵn sàng. Vui lòng thử lại sau vài giây.';
+  }
+  if (err?.status === 404) {
+    return 'API đăng ký khuôn mặt chưa được cấu hình đúng.';
+  }
+  if (err?.status === 422) {
+    return rawMessage || 'Dữ liệu khuôn mặt không hợp lệ.';
+  }
+  return rawMessage || 'Không thể đăng ký khuôn mặt. Thử lại.';
+};
 
 const fetchEmployee = async () => {
   try {
@@ -94,6 +109,7 @@ const startCamera = async () => {
     });
     if (videoRef.value) {
       videoRef.value.srcObject = stream;
+      await waitForVideoReady(videoRef.value, 5000);
     }
   } catch (err) {
     statusMessage.value = 'Không thể truy cập camera. Vui lòng cấp quyền.';
@@ -110,26 +126,22 @@ const stopCamera = () => {
 const captureImage = async () => {
   if (isProcessing.value) return;
 
-  const canvas = canvasRef.value;
   const video = videoRef.value;
-  if (!canvas || !video) return;
+  if (!video) return;
 
   isProcessing.value = true;
   statusMessage.value = 'Đang xử lý khuôn mặt...';
   statusType.value = 'info';
 
-  // Draw to canvas
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(video, 0, 0);
-
-  const imageData = canvas.toDataURL('image/jpeg', 0.9);
-
   try {
+    const { dataUrl } = await captureVideoFrame(video, {
+      mirrored: true,
+      quality: 0.9,
+    });
+
     const res = await apiRequest(`/employees/${employeeId}/enroll-face`, {
       method: 'POST',
-      body: { image: imageData }
+      body: { images: [dataUrl, dataUrl, dataUrl] }
     });
 
     if (res.status === 200) {
@@ -137,8 +149,7 @@ const captureImage = async () => {
       statusMessage.value = '';
     }
   } catch (err) {
-    const msg = err.payload?.message || 'Không thể đăng ký khuôn mặt. Thử lại.';
-    statusMessage.value = msg;
+    statusMessage.value = mapEnrollmentError(err);
     statusType.value = 'error';
   } finally {
     isProcessing.value = false;
