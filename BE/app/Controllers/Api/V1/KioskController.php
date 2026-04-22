@@ -16,6 +16,7 @@ use App\Services\PlanningContextService;
 
 class KioskController extends Controller
 {
+    private const APP_TIMEZONE = 'Asia/Ho_Chi_Minh';
     private const FACE_REPEAT_BLOCK_SECONDS = 900;
     private const FACE_CHECKOUT_MIN_SECONDS = 1800;
 
@@ -51,7 +52,9 @@ class KioskController extends Controller
 
         // 1. Time Handling
         $clientTime = $payload['client_time'] ?? null;
-        $dt = $clientTime ? new \DateTime($clientTime) : new \DateTime('now', new \DateTimeZone('Asia/Ho_Chi_Minh'));
+        $timezone = new \DateTimeZone(self::APP_TIMEZONE);
+        $dt = $clientTime ? new \DateTime($clientTime) : new \DateTime('now', $timezone);
+        $dt->setTimezone($timezone);
         $today = $dt->format('Y-m-d');
         $now = $dt->format('Y-m-d H:i:s');
         $nowTs = $dt->getTimestamp();
@@ -129,13 +132,15 @@ class KioskController extends Controller
         // 5. State Machine & Cooldown Rules
         $existing = $this->attendances->findByEmployeeDate($employeeId, $today);
         $recentSuccess = $this->findLatestSuccessfulFaceEvent($employeeId);
-        if ($recentSuccess !== null) {
-            $recentTs = strtotime((string) ($recentSuccess['event_time'] ?? ''));
+        $latestScan = $this->resolveLatestSuccessfulScan($existing, $recentSuccess);
+        if ($latestScan !== null) {
+            $recentTs = $this->parseLocalTimestamp((string) ($latestScan['event_time'] ?? ''));
             if ($recentTs !== false) {
                 $diffSeconds = $nowTs - $recentTs;
                 if ($diffSeconds >= 0 && $diffSeconds < self::FACE_REPEAT_BLOCK_SECONDS) {
                     $retryAfterSeconds = self::FACE_REPEAT_BLOCK_SECONDS - $diffSeconds;
                     $waitMessage = $this->buildRepeatScanMessage($retryAfterSeconds);
+                    $lastEventType = (string) ($latestScan['event_type'] ?? 'unknown');
                     $this->logEvent(
                         $employeeId,
                         $today,
@@ -150,9 +155,10 @@ class KioskController extends Controller
                         $ipAddress,
                         $userAgent,
                         sprintf(
-                            'Repeat face scan blocked after %d seconds from %s',
+                            'Repeat face scan blocked after %d seconds from %s via %s',
                             $diffSeconds,
-                            (string) ($recentSuccess['event_type'] ?? 'unknown')
+                            $lastEventType,
+                            (string) ($latestScan['source'] ?? 'unknown')
                         )
                     );
 
@@ -167,8 +173,9 @@ class KioskController extends Controller
                             'repeat_scan_blocked' => true,
                             'retry_after_seconds' => $retryAfterSeconds,
                             'last_success_event' => [
-                                'event_type' => (string) ($recentSuccess['event_type'] ?? 'unknown'),
-                                'event_time' => (string) ($recentSuccess['event_time'] ?? ''),
+                                'event_type' => $lastEventType,
+                                'event_time' => (string) ($latestScan['event_time'] ?? ''),
+                                'source' => (string) ($latestScan['source'] ?? 'attendance_events'),
                             ],
                             'shift_info' => [
                                 'shift_code' => $shift['shift_code'] ?? null,
@@ -200,8 +207,18 @@ class KioskController extends Controller
             }
         } else {
             $lastTimeTs = 0;
-            if (!empty($existing['check_in_time'])) $lastTimeTs = strtotime($existing['check_in_time']);
-            if (!empty($existing['check_out_time'])) $lastTimeTs = strtotime($existing['check_out_time']);
+            if (!empty($existing['check_in_time'])) {
+                $parsedCheckIn = $this->parseLocalTimestamp((string) $existing['check_in_time']);
+                if ($parsedCheckIn !== false) {
+                    $lastTimeTs = $parsedCheckIn;
+                }
+            }
+            if (!empty($existing['check_out_time'])) {
+                $parsedCheckOut = $this->parseLocalTimestamp((string) $existing['check_out_time']);
+                if ($parsedCheckOut !== false) {
+                    $lastTimeTs = $parsedCheckOut;
+                }
+            }
 
             $diffSeconds = $nowTs - $lastTimeTs;
 
@@ -462,7 +479,73 @@ class KioskController extends Controller
             'employee_id' => $employeeId,
         ]);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-        return $row === false ? null : $row;
+        if ($row === false) {
+            return null;
+        }
+
+        $row['source'] = 'attendance_events';
+        return $row;
+    }
+
+    private function resolveLatestSuccessfulScan(?array $existingAttendance, ?array $eventLog): ?array
+    {
+        $candidates = [];
+
+        if ($eventLog !== null && !empty($eventLog['event_time'])) {
+            $candidates[] = [
+                'event_type' => (string) ($eventLog['event_type'] ?? 'unknown'),
+                'event_time' => (string) $eventLog['event_time'],
+                'source' => (string) ($eventLog['source'] ?? 'attendance_events'),
+            ];
+        }
+
+        if ($existingAttendance !== null) {
+            if (!empty($existingAttendance['check_in_time'])) {
+                $candidates[] = [
+                    'event_type' => 'check_in',
+                    'event_time' => (string) $existingAttendance['check_in_time'],
+                    'source' => 'attendances.check_in_time',
+                ];
+            }
+            if (!empty($existingAttendance['check_out_time'])) {
+                $candidates[] = [
+                    'event_type' => 'check_out',
+                    'event_time' => (string) $existingAttendance['check_out_time'],
+                    'source' => 'attendances.check_out_time',
+                ];
+            }
+        }
+
+        if ($candidates === []) {
+            return null;
+        }
+
+        usort($candidates, static function (array $left, array $right): int {
+            $timezone = new \DateTimeZone(self::APP_TIMEZONE);
+            $leftTime = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', (string) ($left['event_time'] ?? ''), $timezone);
+            $rightTime = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', (string) ($right['event_time'] ?? ''), $timezone);
+            $leftTs = $leftTime ? $leftTime->getTimestamp() : 0;
+            $rightTs = $rightTime ? $rightTime->getTimestamp() : 0;
+            return $rightTs <=> $leftTs;
+        });
+
+        return $candidates[0];
+    }
+
+    private function parseLocalTimestamp(string $value): int|false
+    {
+        $raw = trim($value);
+        if ($raw === '') {
+            return false;
+        }
+
+        $timezone = new \DateTimeZone(self::APP_TIMEZONE);
+        $parsed = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $raw, $timezone);
+        if ($parsed instanceof \DateTimeImmutable) {
+            return $parsed->getTimestamp();
+        }
+
+        return strtotime($raw);
     }
 
     private function stripBase64Prefix(string $data): string
