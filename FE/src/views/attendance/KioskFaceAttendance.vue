@@ -77,6 +77,7 @@ const geoWatchId = ref(null);
 
 const resultData = ref({
   success: true,
+  variant: 'success',
   title: '',
   message: '',
   employee: null,
@@ -138,6 +139,7 @@ const buildBlockedTitle = (data = {}, status = 0) => {
 
 const openResultOverlay = ({
   success,
+  variant = success ? 'success' : 'error',
   title,
   message,
   employee = null,
@@ -147,6 +149,7 @@ const openResultOverlay = ({
 }) => {
   resultData.value = {
     success,
+    variant,
     title,
     message,
     employee,
@@ -260,6 +263,7 @@ const handleSuccess = (data) => {
   lastResult.value = { success: true };
   openResultOverlay({
     success: true,
+    variant: 'success',
     title: buildSuccessTitle(data),
     message: data.message || 'Chấm công thành công.',
     employee: {
@@ -285,6 +289,7 @@ const handleBusinessResult = (response) => {
   lastResult.value = { success: false };
   openResultOverlay({
     success: false,
+    variant: data.result_code === 'REPEAT_SCAN_BLOCKED' ? 'warning' : 'error',
     title: buildBlockedTitle(data, Number(response?.status || 0)),
     message: data.message || response?.message || 'Không thể chấm công lúc này.',
     employee: data.employee || null,
@@ -309,6 +314,7 @@ const handleError = (err) => {
     lastResult.value = { success: false };
     openResultOverlay({
       success: false,
+      variant: 'error',
       title: 'LỖI CẤU HÌNH',
       message: 'API chấm công kiosk chưa được cấu hình đúng trên máy chủ.',
     });
@@ -338,6 +344,7 @@ const handleError = (err) => {
   lastResult.value = { success: false };
   openResultOverlay({
     success: false,
+    variant: 'error',
     title: 'THẤT BẠI',
     message: payload.message || 'Có lỗi xảy ra khi chấm công.',
     employee: data.employee || null,

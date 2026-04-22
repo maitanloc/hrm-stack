@@ -1,9 +1,10 @@
 <template>
   <Transition name="fade">
-    <div v-if="visible" class="result-overlay" :class="data.success ? 'bg-success' : 'bg-error'">
+    <div v-if="visible" class="result-overlay" :class="overlayClass">
       <div class="result-content">
         <div class="icon-wrapper">
           <span v-if="data.success" class="material-symbols-outlined icon-main anim-pop">check_circle</span>
+          <span v-else-if="data.variant === 'warning'" class="material-symbols-outlined icon-main anim-pop">warning</span>
           <span v-else class="material-symbols-outlined icon-main anim-shake">error</span>
         </div>
 
@@ -112,6 +113,11 @@ const hasCalcDetails = computed(() => {
   );
 });
 
+const overlayClass = computed(() => {
+  if (props.data?.variant === 'warning') return 'bg-warning';
+  return props.data?.success ? 'bg-success' : 'bg-error';
+});
+
 const formatRetryAfter = (seconds) => {
   const total = Math.max(0, Number(seconds || 0));
   const minutes = Math.floor(total / 60);
@@ -177,6 +183,12 @@ onUnmounted(() => {
 
 .bg-error {
   background: rgba(239, 68, 68, 0.95);
+}
+
+.bg-warning {
+  background:
+    linear-gradient(135deg, rgba(245, 158, 11, 0.96), rgba(234, 179, 8, 0.94));
+  color: #fffdf5;
 }
 
 .result-content {
