@@ -7,8 +7,7 @@
     route {
         @api path /api/*
         handle @api {
-            root * /srv/app/public
-            php_fastcgi hrm-be:9000
+            reverse_proxy hrm-be:8080
         }
 
         handle_path /hrm-api/* {

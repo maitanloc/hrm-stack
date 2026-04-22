@@ -64,7 +64,7 @@
         <div class="flex items-center justify-between mt-auto">
           <span class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-lg uppercase">An toàn</span>
           <button 
-            @click="store.previewSuggestion('copy_week')"
+            @click="handleCopyWeekPreview"
             class="text-sm font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
           >
             Xem trước <span class="material-symbols-outlined text-[16px]">chevron_right</span>
@@ -102,4 +102,12 @@
 <script setup>
 import { useScheduleStore } from '@/stores/useScheduleStore';
 const store = useScheduleStore();
+
+const handleCopyWeekPreview = async () => {
+  try {
+    await store.previewSuggestion('copy_week');
+  } catch (error) {
+    alert(error.message);
+  }
+};
 </script>

@@ -55,7 +55,7 @@
        
        <p v-if="!isReadyToPublish && !store.isPublished" class="text-center text-xs text-rose-500 font-bold bg-rose-50 px-4 py-2 rounded-lg border border-rose-100">
           <span class="material-symbols-outlined text-[14px] align-middle mr-1">warning</span>
-          Bạn cần phân ca đầy đủ cho tất cả nhân viên trước khi công bố.
+          {{ store.selectedDepartmentId ? 'Bạn cần phân ca đầy đủ cho tất cả nhân viên trước khi công bố.' : 'Vui lòng chọn phòng ban cụ thể trước khi công bố lịch.' }}
        </p>
     </div>
   </div>
@@ -89,7 +89,7 @@ const checklist = computed(() => [
 ]);
 
 const isReadyToPublish = computed(() => {
-  return store.unassignedEmployees === 0 && store.totalEmployees > 0;
+  return !!store.selectedDepartmentId && store.unassignedEmployees === 0 && store.totalEmployees > 0;
 });
 
 const formatDate = (date) => date ? new Date(date).toLocaleString('vi-VN') : '';

@@ -270,8 +270,10 @@ const showToast = ref(false);
 
 watch(() => store.modals.overrideEdit.open, (val) => {
   if (val) {
-    // Ensure we match shift_type_id
-    selectedShiftId.value = store.modals.overrideEdit.data.current?.shift_type_id || null;
+    selectedShiftId.value =
+      store.modals.overrideEdit.data.current?.shift_type_id ||
+      store.modals.overrideEdit.data.override?.shift_type_id ||
+      null;
     reason.value = store.modals.overrideEdit.data.override?.reason || '';
   }
 });
@@ -284,9 +286,14 @@ const triggerToast = () => {
 };
 
 const handleApplySuggestion = async () => {
-  const { items } = store.modals.suggestionPreview.data;
+  const modalData = store.modals.suggestionPreview.data;
   try {
-    const res = await store.applySuggestionBatch(items);
+    let res;
+    if (modalData.type === 'COPY_WEEK') {
+      res = await store.copyScheduleWeek(modalData);
+    } else {
+      res = await store.applySuggestionBatch(modalData.items || []);
+    }
     if (res.success) {
       store.closeModal('suggestionPreview');
       triggerToast();

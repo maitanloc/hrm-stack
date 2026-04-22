@@ -181,7 +181,18 @@ const fetchLogs = async () => {
     try {
         const res = await apiRequest('/workflow-governance/audit-logs?per_page=100', { method: 'GET' });
         if (res.success) {
-            let data = res.data;
+            let data = (res.data || []).map((item) => ({
+                audit_id: item.audit_log_id,
+                performer_id: item.actor_id,
+                performer_name: item.actor_name,
+                entity_type: item.entity_type,
+                entity_id: item.entity_ref,
+                action_type: item.action_type,
+                old_state: item.from_state,
+                new_state: item.to_state,
+                snapshot_metadata: item.context_json,
+                action_timestamp: item.created_at,
+            }));
             if(filter.value.performer) {
                  data = data.filter(d => String(d.performer_id) === String(filter.value.performer))
             }

@@ -23,7 +23,9 @@ use App\Controllers\Api\V1\RecruitmentController;
 use App\Controllers\Api\V1\RequestController;
 use App\Controllers\Api\V1\RequestTypeController;
 use App\Controllers\Api\V1\SettingController;
+use App\Controllers\Api\V1\TimesheetController;
 use App\Controllers\Api\V1\WorkforceController;
+use App\Controllers\Api\V1\WorkflowGovernanceController;
 use App\Middlewares\AuthMiddleware;
 use App\Middlewares\HierarchyEmployeeBodyMiddleware;
 use App\Middlewares\HierarchyEmployeeParamMiddleware;
@@ -143,6 +145,9 @@ $router->group('/api/v1', function ($router): void {
         $router->post('/team-schedule/publish', [WorkforceController::class, 'publishSchedule'], [
             [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'edit'],
         ]);
+        $router->get('/team-schedule/publish-logs', [WorkforceController::class, 'publishLogs'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
         $router->post('/face/register', [FaceController::class, 'register'], [
             // Cả NV và Admin đều có thể quét đăng ký mặt
         ]);
@@ -156,6 +161,36 @@ $router->group('/api/v1', function ($router): void {
             [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
         ]);
         $router->get('/attendance-results', [WorkforceController::class, 'attendanceResultIndex'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->get('/workflow-governance/overview', [WorkflowGovernanceController::class, 'overview'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->get('/workflow-governance/catalog', [WorkflowGovernanceController::class, 'catalog'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->get('/workflow-governance/transitions', [WorkflowGovernanceController::class, 'transitions'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->post('/workflow-governance/validate-transition', [WorkflowGovernanceController::class, 'validateTransition'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->post('/workflow-governance/validate-schedule-publish', [WorkflowGovernanceController::class, 'validateSchedulePublish'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'edit'],
+        ]);
+        $router->get('/workflow-governance/audit-logs', [WorkflowGovernanceController::class, 'auditLogs'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->post('/timesheet/period-summary', [TimesheetController::class, 'periodSummary'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->post('/timesheet/exceptions', [TimesheetController::class, 'exceptions'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
+        ]);
+        $router->post('/timesheet/import', [TimesheetController::class, 'import'], [
+            [PermissionMiddleware::class, 'ATTENDANCE_EDIT', 'create'],
+        ]);
+        $router->post('/timesheet/payroll-export', [TimesheetController::class, 'payrollExport'], [
             [PermissionMiddleware::class, 'ATTENDANCE_VIEW', 'access'],
         ]);
         $router->get('/holidays', [WorkforceController::class, 'holidayIndex'], [

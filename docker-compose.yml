@@ -1,7 +1,6 @@
 services:
   mysql:
-    # Sử dụng image đã load từ file .tar của bạn
-    image: hrm-db-hoanchinh:v1
+    image: mysql:8.4
     container_name: hrm-mysql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     environment:
@@ -22,9 +21,11 @@ services:
       retries: 5
 
   hrm-be:
-    # Sử dụng image đã load từ file .tar của bạn
-    image: hrm-be-hoanchinh:v1
+    build:
+      context: .
+      dockerfile: Dockerfile.be
     container_name: hrm-be
+    command: ["sh", "-c", "php -S 0.0.0.0:8080 -t public"]
     environment:
       APP_ENV: production
       APP_DEBUG: "false"
@@ -73,8 +74,8 @@ services:
       - hrm-fe
       - ai-service
     ports:
-      - "80:80"
-      - "443:443"
+      - "8088:80"
+      - "8443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./BE:/srv/app:ro

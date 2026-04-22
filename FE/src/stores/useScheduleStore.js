@@ -110,29 +110,78 @@ export const useScheduleStore = defineStore('schedule', () => {
           summary: { affected: items.length, ignored: 0 }
         };
       } else if (type === 'copy_week') {
-        // For copy week, we need to fetch the diff from backend or simulate it
+        if (!selectedDepartmentId.value) {
+          throw new Error('Vui lòng chọn phòng ban cụ thể trước khi sao chép tuần.');
+        }
         const start = new Date(selectedDateRange.value.from + 'T00:00:00');
         start.setDate(start.getDate() - 7);
         const prevWeekFrom = start.getFullYear() + '-' + 
                            String(start.getMonth() + 1).padStart(2, '0') + '-' + 
                            String(start.getDate()).padStart(2, '0');
-        // Fetch prev week data to show diff
-        const resPrev = await apiRequest('/team-schedule', { 
-          query: { department_id: selectedDepartmentId.value, from_date: prevWeekFrom, to_date: prevWeekFrom } 
-        });
+        const currentWeekTo = selectedDateRange.value.to;
+        const prevWeekToDate = new Date(prevWeekFrom + 'T00:00:00');
+        prevWeekToDate.setDate(prevWeekToDate.getDate() + 6);
+        const prevWeekTo = prevWeekToDate.getFullYear() + '-' +
+          String(prevWeekToDate.getMonth() + 1).padStart(2, '0') + '-' +
+          String(prevWeekToDate.getDate()).padStart(2, '0');
 
-        // Simulating diff logic for preview
+        const [resPrev, resCurrent] = await Promise.all([
+          apiRequest('/team-schedule', { 
+            query: { department_id: selectedDepartmentId.value, from_date: prevWeekFrom, to_date: prevWeekTo },
+            noGetCache: true,
+          }),
+          apiRequest('/team-schedule', {
+            query: { department_id: selectedDepartmentId.value, from_date: selectedDateRange.value.from, to_date: currentWeekTo },
+            noGetCache: true,
+          })
+        ]);
+
+        const prevRows = Array.isArray(resPrev?.data) ? resPrev.data : [];
+        const currentRows = Array.isArray(resCurrent?.data) ? resCurrent.data : [];
+        const currentMap = new Map(
+          currentRows.map((row) => [`${row.employee?.employee_id}|${row.work_date}`, row])
+        );
+
         const items = [];
         let ignored = 0;
-        // ... (complex diff logic here would be ideally from BE, but we can build a strong FE preview)
+        prevRows.forEach((row) => {
+          if (!row?.shift?.shift_type_id || !row?.employee?.employee_id || !row?.work_date) return;
+          const offsetDays = Math.floor(
+            (new Date(row.work_date + 'T00:00:00').getTime() - new Date(prevWeekFrom + 'T00:00:00').getTime()) / 86400000
+          );
+          if (offsetDays < 0 || offsetDays > 6) return;
+
+          const targetDate = new Date(selectedDateRange.value.from + 'T00:00:00');
+          targetDate.setDate(targetDate.getDate() + offsetDays);
+          const targetDateStr = targetDate.getFullYear() + '-' +
+            String(targetDate.getMonth() + 1).padStart(2, '0') + '-' +
+            String(targetDate.getDate()).padStart(2, '0');
+
+          const currentRow = currentMap.get(`${row.employee.employee_id}|${targetDateStr}`);
+          const currentShiftId = currentRow?.shift?.shift_type_id || null;
+          if (currentShiftId === row.shift.shift_type_id) {
+            ignored += 1;
+            return;
+          }
+
+          items.push({
+            employee: row.employee,
+            date: targetDateStr,
+            old_shift: currentRow?.shift || null,
+            new_shift: row.shift,
+            reason: `Sao chép từ tuần ${prevWeekFrom} - ${prevWeekTo}`
+          });
+        });
         
         modals.value.suggestionPreview.open = true;
         modals.value.suggestionPreview.data = {
           type: 'COPY_WEEK',
           title: 'Xem trước: Sao chép tuần trước',
-          description: 'Lấy lịch làm việc của tuần trước áp dụng cho tuần này. Chỉ điền vào ô trống, không ghi đè dữ liệu quan trọng.',
-          items: [], // Will be populated based on current state vs prev state
-          summary: { affected: 0, ignored: 0 }
+          description: 'Lấy lịch làm việc của tuần trước áp dụng cho tuần này. Backend sẽ lưu thật xuống DB khi bạn xác nhận.',
+          items,
+          summary: { affected: items.length, ignored },
+          source_from_date: prevWeekFrom,
+          target_from_date: selectedDateRange.value.from,
         };
       }
     } finally {
@@ -220,62 +269,65 @@ export const useScheduleStore = defineStore('schedule', () => {
   };
 
   const fetchScheduleData = async (deptId, dateFrom, dateTo, forceRefresh = false) => {
-    if (!deptId || !dateFrom || !dateTo) return;
+    if (!dateFrom || !dateTo) return;
     loading.value = true;
     if (forceRefresh) resetState();
     try {
       const [resSchedule, resWarnings] = await Promise.allSettled([
         apiRequest('/team-schedule', { 
-          query: { department_id: deptId, from_date: dateFrom, to_date: dateTo }, 
+          query: { department_id: deptId ?? undefined, from_date: dateFrom, to_date: dateTo }, 
           noGetCache: true 
         }),
         apiRequest('/team-schedule/warnings', { 
-          query: { department_id: deptId, from_date: dateFrom, to_date: dateTo }, 
+          query: { department_id: deptId ?? undefined, from_date: dateFrom, to_date: dateTo }, 
           noGetCache: true 
         })
       ]);
-      
-      if (resSchedule.status === 'fulfilled' && resSchedule.value?.success && Array.isArray(resSchedule.value.data)) {
-        const data = resSchedule.value.data;
-        const empMap = new Map();
-        const assigns = [];
-        const overs = [];
-        let hasPublishedRow = false;
-        let pubInfo = null;
 
-        data.forEach(row => {
-          if (row.employee && !empMap.has(row.employee.employee_id)) {
-            empMap.set(row.employee.employee_id, {
-              ...row.employee,
-              id: row.employee.employee_id // Unified ID
-            });
-          }
-          if (row.shift && row.shift.shift_type_id) {
-             const record = { 
-               employee_id: row.employee.employee_id, 
-               work_date: row.work_date, 
-               shift_type_id: row.shift.shift_type_id, 
-               reason: row.shift.reason || '' 
-             };
-             if (row.shift.source?.toUpperCase() === 'OVERRIDE') overs.push(record);
-             else assigns.push(record);
-          }
-          if (row.workflow?.code === 'PUBLISHED' || row.workflow?.code === 'ADJUSTED_AFTER_PUBLISH') {
-             hasPublishedRow = true;
-             if (row.workflow.publish_log) pubInfo = row.workflow.publish_log;
-          }
-        });
-
-        employees.value = Array.from(empMap.values());
-        assignments.value = assigns;
-        overrides.value = overs;
-        isPublished.value = hasPublishedRow;
-        isLockedForEditing.value = hasPublishedRow;
-        if (pubInfo) {
-           publishedAt.value = pubInfo.published_at;
-           publishedBy.value = pubInfo.published_by_name || pubInfo.published_by;
-        }
+      if (resSchedule.status !== 'fulfilled' || !resSchedule.value?.success || !Array.isArray(resSchedule.value.data)) {
+        const message = resSchedule.status === 'rejected'
+          ? (resSchedule.reason?.message || 'Không tải được dữ liệu phân ca')
+          : (resSchedule.value?.message || 'Không tải được dữ liệu phân ca');
+        throw new Error(message);
       }
+      
+      const data = resSchedule.value.data;
+      const empMap = new Map();
+      const assigns = [];
+      const overs = [];
+      let hasPublishedRow = false;
+      let pubInfo = null;
+
+      data.forEach(row => {
+        if (row.employee && !empMap.has(row.employee.employee_id)) {
+          empMap.set(row.employee.employee_id, {
+            ...row.employee,
+            id: row.employee.employee_id
+          });
+        }
+        if (row.shift && row.shift.shift_type_id) {
+           const record = { 
+             employee_id: row.employee.employee_id, 
+             work_date: row.work_date, 
+             shift_type_id: row.shift.shift_type_id, 
+             reason: row.shift.meta?.reason || row.shift.reason || '',
+           };
+           if (row.shift.source?.toUpperCase() === 'OVERRIDE') overs.push(record);
+           else assigns.push(record);
+        }
+        if (row.workflow?.code === 'PUBLISHED' || row.workflow?.code === 'ADJUSTED_AFTER_PUBLISH') {
+           hasPublishedRow = true;
+           if (row.workflow.publish_log) pubInfo = row.workflow.publish_log;
+        }
+      });
+
+      employees.value = Array.from(empMap.values());
+      assignments.value = assigns;
+      overrides.value = overs;
+      isPublished.value = hasPublishedRow;
+      isLockedForEditing.value = hasPublishedRow;
+      publishedAt.value = pubInfo?.published_at || null;
+      publishedBy.value = pubInfo?.published_by_name || pubInfo?.published_by || null;
       
       if (resWarnings.status === 'fulfilled' && resWarnings.value?.success && resWarnings.value.data) {
          const w = resWarnings.value.data;
@@ -285,9 +337,12 @@ export const useScheduleStore = defineStore('schedule', () => {
             late_risk: w.late_risk || [],
             overtime_risk: w.overtime_risk || []
          };
+      } else {
+        warnings.value = { unassigned: [], leave_conflicts: [], late_risk: [], overtime_risk: [] };
       }
     } catch (error) {
       console.error('Failed to fetch schedule:', error);
+      throw error;
     } finally {
       loading.value = false;
     }
@@ -360,7 +415,7 @@ export const useScheduleStore = defineStore('schedule', () => {
     try {
       const response = await apiRequest('/team-schedule/override', { method: 'PATCH', body: payload });
       if (response?.success) {
-        await fetchScheduleData(selectedDepartmentId.value, selectedDateRange.value.from, selectedDateRange.value.to);
+        await fetchScheduleData(selectedDepartmentId.value, selectedDateRange.value.from, selectedDateRange.value.to, true);
         return response;
       }
       throw new Error(response?.message || 'Failed to override');
@@ -372,24 +427,41 @@ export const useScheduleStore = defineStore('schedule', () => {
     try {
       const response = await apiRequest('/team-schedule/override', { method: 'PATCH', body: { employee_id: employeeId, work_date: workDate, shift_type_id: null, reason: 'Deleted' } });
       if (response?.success) {
-        await fetchScheduleData(selectedDepartmentId.value, selectedDateRange.value.from, selectedDateRange.value.to);
+        await fetchScheduleData(selectedDepartmentId.value, selectedDateRange.value.from, selectedDateRange.value.to, true);
         return response;
       }
       throw new Error(response?.message || 'Failed to delete override');
     } finally { submitting.value = false; }
   };
 
-  const copyScheduleWeek = async () => {
+  const copyScheduleWeek = async (options = {}) => {
     submitting.value = true;
     try {
-      const start = new Date(selectedDateRange.value.from + 'T00:00:00');
-      start.setDate(start.getDate() - 7);
-      const prevWeekFrom = start.getFullYear() + '-' + 
-                         String(start.getMonth() + 1).padStart(2, '0') + '-' + 
-                         String(start.getDate()).padStart(2, '0');
-      const response = await apiRequest('/team-schedule/copy-week', { method: 'POST', body: { scope_type: 'DEPARTMENT', scope_id: selectedDepartmentId.value, source_from_date: prevWeekFrom, target_from_date: selectedDateRange.value.from } });
+      if (!selectedDepartmentId.value) {
+        throw new Error('Vui lòng chọn phòng ban cụ thể trước khi sao chép tuần.');
+      }
+
+      const sourceFromDate = options.source_from_date || (() => {
+        const start = new Date(selectedDateRange.value.from + 'T00:00:00');
+        start.setDate(start.getDate() - 7);
+        return start.getFullYear() + '-' + 
+          String(start.getMonth() + 1).padStart(2, '0') + '-' + 
+          String(start.getDate()).padStart(2, '0');
+      })();
+
+      const targetFromDate = options.target_from_date || selectedDateRange.value.from;
+      const response = await apiRequest('/team-schedule/copy-week', {
+        method: 'POST',
+        body: {
+          scope_type: 'DEPARTMENT',
+          scope_id: selectedDepartmentId.value,
+          source_from_date: sourceFromDate,
+          target_from_date: targetFromDate,
+          notes: options.notes,
+        }
+      });
       if (response?.success) {
-        await fetchScheduleData(selectedDepartmentId.value, selectedDateRange.value.from, selectedDateRange.value.to);
+        await fetchScheduleData(selectedDepartmentId.value, selectedDateRange.value.from, selectedDateRange.value.to, true);
         return response;
       }
       throw new Error(response?.message || 'Lỗi khi sao chép tuần');
@@ -397,12 +469,18 @@ export const useScheduleStore = defineStore('schedule', () => {
   };
 
   const validatePublish = async () => {
+    if (!selectedDepartmentId.value) {
+      throw new Error('Vui lòng chọn phòng ban cụ thể trước khi kiểm tra publish.');
+    }
     return await apiRequest('/workflow-governance/validate-schedule-publish', { method: 'POST', body: { scope_type: 'DEPARTMENT', scope_id: selectedDepartmentId.value, from_date: selectedDateRange.value.from, to_date: selectedDateRange.value.to } });
   };
 
   const publishSchedule = async () => {
     submitting.value = true;
     try {
+      if (!selectedDepartmentId.value) {
+        throw new Error('Vui lòng chọn phòng ban cụ thể trước khi publish lịch.');
+      }
       const response = await apiRequest('/team-schedule/publish', { 
         method: 'POST', 
         body: { 

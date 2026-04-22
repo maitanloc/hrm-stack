@@ -12,17 +12,16 @@ use App\Models\AttendanceResult;
 use App\Models\Employee;
 use App\Models\Holiday;
 use App\Models\Notification;
-use App\Models\SalaryPeriod;
 use App\Models\SchedulePublishLog;
 use App\Models\ShiftAssignment;
 use App\Models\ShiftAssignmentOverride;
 use App\Models\ShiftChangeLog;
 use App\Models\ShiftType;
 use App\Services\AttendanceResultService;
+use App\Services\PayrollLockService;
 use App\Services\PlanningContextService;
 use App\Services\WorkflowAuditService;
 use App\Services\WorkflowRuleEngineService;
-use App\Services\WorkflowTransitionGuardService;
 
 class WorkforceController extends Controller
 {
@@ -38,8 +37,7 @@ class WorkforceController extends Controller
     private SchedulePublishLog $schedulePublishLogs;
     private ShiftChangeLog $shiftChangeLogs;
     private WorkflowRuleEngineService $workflowRuleEngine;
-    private SalaryPeriod $salaryPeriods;
-    private WorkflowTransitionGuardService $workflowTransitionGuard;
+    private PayrollLockService $payrollLockService;
     private WorkflowAuditService $workflowAuditService;
 
     public function __construct()
@@ -56,8 +54,7 @@ class WorkforceController extends Controller
         $this->schedulePublishLogs = new SchedulePublishLog();
         $this->shiftChangeLogs = new ShiftChangeLog();
         $this->workflowRuleEngine = new WorkflowRuleEngineService();
-        $this->salaryPeriods = new SalaryPeriod();
-        $this->workflowTransitionGuard = new WorkflowTransitionGuardService();
+        $this->payrollLockService = new PayrollLockService();
         $this->workflowAuditService = new WorkflowAuditService();
     }
 
@@ -483,17 +480,9 @@ class WorkforceController extends Controller
         }
         $this->assertDateRangeNotLocked($fromDate, $toDate, 'publish schedule');
 
-        $employeeIds = [];
-        if ($scopeType === 'EMPLOYEE') {
-            $this->assertCanManageEmployee($authUser, $scopeId);
-            $employeeIds[] = $scopeId;
-        } else {
-            $this->assertCanManageDepartment($authUser, $scopeId);
-            // Only fetch active employees to validate schedule
-            $page = $this->employees->paginateList(0, 1000, null, 'ĐANG_LÀM_VIỆC', $scopeId);
-            foreach ($page['items'] ?? [] as $employee) {
-                $employeeIds[] = (int) ($employee['employee_id'] ?? 0);
-            }
+        $employeeIds = $this->resolveScopedEmployeeIds($authUser, $scopeType, $scopeId);
+        if ($employeeIds === []) {
+            throw new HttpException('No employees found in the selected schedule scope.', 422, 'validation_error');
         }
 
         $strictMode = array_key_exists('strict_mode', $payload) ? !empty($payload['strict_mode']) : false;
@@ -885,8 +874,11 @@ class WorkforceController extends Controller
         bool $includeWorkflow = false
     ): array
     {
-        $hierarchyIdsRaw = $authUser['hierarchy_employee_ids'] ?? [];
-        $employeeIds = array_values(array_unique(array_map('intval', is_array($hierarchyIdsRaw) ? $hierarchyIdsRaw : [])));
+        $employeeIds = null;
+        if (!Auth::isPrivileged($authUser)) {
+            $hierarchyIdsRaw = $authUser['hierarchy_employee_ids'] ?? [];
+            $employeeIds = array_values(array_unique(array_map('intval', is_array($hierarchyIdsRaw) ? $hierarchyIdsRaw : [])));
+        }
         if ($employeeIds === [] && !Auth::isPrivileged($authUser)) {
             throw new HttpException('Bạn chưa có phạm vi quản lý nhân sự để xem lịch phòng ban.', 403, 'forbidden');
         }
@@ -982,28 +974,7 @@ class WorkforceController extends Controller
 
     private function assertDateRangeNotLocked(string $fromDate, string $toDate, string $operation): void
     {
-        if ($toDate < $fromDate) {
-            [$fromDate, $toDate] = [$toDate, $fromDate];
-        }
-
-        $lockedPeriod = $this->salaryPeriods->findLockedWithinRange(
-            $fromDate,
-            $toDate,
-            $this->workflowTransitionGuard->payrollTerminalStatuses()
-        );
-        if ($lockedPeriod === null) {
-            return;
-        }
-
-        $status = strtoupper((string) ($lockedPeriod['status'] ?? 'LOCKED'));
-        $periodCode = (string) ($lockedPeriod['period_code'] ?? '');
-        $label = $periodCode !== '' ? ($periodCode . ' (' . $status . ')') : $status;
-
-        throw new HttpException(
-            sprintf('Cannot %s because payroll period %s overlaps %s to %s.', $operation, $label, $fromDate, $toDate),
-            422,
-            'validation_error'
-        );
+        $this->payrollLockService->assertRangeUnlocked($fromDate, $toDate, $operation);
     }
 
     private function normalizeHolidayType(string $value): string

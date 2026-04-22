@@ -117,7 +117,11 @@ const handleBulkAssign = async () => {
   }
 };
 
-const handleCopyWeek = () => {
-  store.previewSuggestion('copy_week');
+const handleCopyWeek = async () => {
+  try {
+    await store.previewSuggestion('copy_week');
+  } catch (err) {
+    alert(err.message);
+  }
 };
 </script>

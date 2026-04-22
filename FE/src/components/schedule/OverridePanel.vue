@@ -75,7 +75,10 @@ import { useScheduleStore } from '@/stores/useScheduleStore';
 const store = useScheduleStore();
 
 const getEmp = (id) => store.employees?.find(e => e.employee_id === id);
-const getShiftCode = (id) => store.shifts?.find(s => s.id === id)?.code || 'N/A';
+const getShiftCode = (id) => {
+  const shift = store.shifts?.find(s => (s.shift_type_id || s.id) === id);
+  return shift?.shift_code || shift?.code || 'N/A';
+};
 
 const formatDate = (date) => {
   if (!date) return '';
@@ -90,7 +93,7 @@ const getInitials = (name) => {
 
 const editOverride = (o) => {
   const emp = getEmp(o.employee_id) || { employee_id: o.employee_id, full_name: 'Nhân viên ' + o.employee_id };
-  store.openModal('overrideEdit', { emp, date: o.work_date, override: o });
+  store.openModal('overrideEdit', { emp, date: o.work_date, current: o, override: o });
 };
 
 const deleteOverride = (o) => {

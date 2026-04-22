@@ -312,9 +312,9 @@ const mapRoleFromBackend = (roles = []) => {
     .map((r) => String(r?.role_code || "").toUpperCase())
     .filter(Boolean);
   if (roleCodes.includes("ADMIN")) return "admin";
-  if (roleCodes.includes("HR")) return "hr";
   if (roleCodes.includes("DIRECTOR")) return "director";
   if (roleCodes.includes("MANAGER")) return "manager";
+  if (roleCodes.includes("HR")) return "hr";
   return "employee";
 };
 

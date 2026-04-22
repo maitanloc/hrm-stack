@@ -14,7 +14,6 @@
           class="bg-slate-50 border-none rounded-lg text-sm font-medium px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
           @change="handleRefresh"
         >
-          <option :value="null" disabled>Chọn phòng ban</option>
           <option v-for="dept in departments" :key="dept.id" :value="dept.id">
             {{ dept.name }}
           </option>
@@ -232,13 +231,16 @@ const changeWeek = (offset) => {
   handleRefresh();
 };
 
-const handleRefresh = () => {
-  if (store.selectedDepartmentId) {
-    store.fetchScheduleData(
+const handleRefresh = async () => {
+  try {
+    loadError.value = null;
+    await store.fetchScheduleData(
       store.selectedDepartmentId,
       store.selectedDateRange.from,
       store.selectedDateRange.to
     );
+  } catch (err) {
+    loadError.value = err?.message || 'Không tải được dữ liệu phân ca';
   }
 };
 
@@ -248,13 +250,13 @@ const loadDepartments = async () => {
   try {
     const res = await apiRequest('/departments', { query: { page: 1, per_page: 500 } });
     if (res?.success && res.data) {
-      departments.value = res.data.map(d => ({
+      departments.value = [
+        { id: null, name: 'Tất cả phòng ban' },
+        ...res.data.map(d => ({
         id: Number(d.departmentId || d.department_id || d.id),
         name: d.departmentName || d.department_name || d.name
-      }));
-      if (departments.value.length > 0 && !store.selectedDepartmentId) {
-        store.selectedDepartmentId = departments.value[0].id;
-      }
+      }))
+      ];
     } else {
       throw new Error(res?.message || 'Không thể tải danh sách phòng ban');
     }
@@ -283,11 +285,7 @@ onMounted(async () => {
     }
 
     // 3. Trigger data load
-    if (store.selectedDepartmentId) {
-      handleRefresh();
-    } else {
-      loadError.value = "Vui lòng chọn phòng ban để bắt đầu";
-    }
+    await handleRefresh();
   } catch (err) {
     loadError.value = "Lỗi khởi tạo hệ thống. Vui lòng kiểm tra Backend.";
   } finally {

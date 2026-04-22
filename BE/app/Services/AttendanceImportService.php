@@ -44,21 +44,37 @@ class AttendanceImportService
 
                 // Basic pairing logic:
                 // Find attendance record for this date
-                $stmt = $db->prepare("SELECT attendance_id, check_in_time, check_out_time, location 
+                $stmt = $db->prepare("SELECT attendance_id, check_in_time, check_out_time, notes
                                       FROM attendances 
-                                      WHERE employee_id = :eid AND DATE(check_in_time) = :wdate 
+                                      WHERE employee_id = :eid AND attendance_date = :wdate 
                                       ORDER BY attendance_id DESC LIMIT 1");
                 $stmt->execute(['eid' => $employeeId, 'wdate' => $workDate]);
                 $attendance = $stmt->fetch();
 
                 if (!$attendance) {
                     // Create new check-in
-                    $ins = $db->prepare("INSERT INTO attendances (employee_id, check_in_time, status, location, device_info, created_at) 
-                                         VALUES (:eid, :chk, 'PENDING', 'IMPORTED', :inf, NOW())");
+                    $ins = $db->prepare("INSERT INTO attendances (
+                                            employee_id,
+                                            attendance_date,
+                                            check_in_time,
+                                            check_in_method,
+                                            notes,
+                                            created_at,
+                                            updated_at
+                                         ) VALUES (
+                                            :eid,
+                                            :wdate,
+                                            :chk,
+                                            'MANUAL',
+                                            :note,
+                                            NOW(),
+                                            NOW()
+                                         )");
                     $ins->execute([
                         'eid' => $employeeId,
+                        'wdate' => $workDate,
                         'chk' => $checkTime,
-                        'inf' => "Import by {$importedBy}",
+                        'note' => "Imported by {$importedBy}",
                     ]);
                     $successCount++;
                 } else {
@@ -72,13 +88,31 @@ class AttendanceImportService
 
                     if (!$outTime) {
                         // Update checkout
-                        $upd = $db->prepare("UPDATE attendances SET check_out_time = :chk, sync_status = 'SYNCED', location = CONCAT(location, ',IMPORTED') WHERE attendance_id = :aid");
-                        $upd->execute(['chk' => $checkTime, 'aid' => $attendance['attendance_id']]);
+                        $existingNotes = trim((string) ($attendance['notes'] ?? ''));
+                        $mergedNotes = $existingNotes === '' ? "Imported by {$importedBy}" : $existingNotes . '; Imported update';
+                        $upd = $db->prepare("UPDATE attendances
+                                             SET check_out_time = :chk,
+                                                 check_out_method = 'MANUAL',
+                                                 notes = :notes,
+                                                 updated_at = NOW()
+                                             WHERE attendance_id = :aid");
+                        $upd->execute([
+                            'chk' => $checkTime,
+                            'notes' => $mergedNotes,
+                            'aid' => $attendance['attendance_id'],
+                        ]);
                         $successCount++;
                     } else if (strtotime($checkTime) > strtotime((string)$outTime)) {
                          // Update later check out
-                        $upd = $db->prepare("UPDATE attendances SET check_out_time = :chk WHERE attendance_id = :aid");
-                        $upd->execute(['chk' => $checkTime, 'aid' => $attendance['attendance_id']]);
+                        $upd = $db->prepare("UPDATE attendances
+                                             SET check_out_time = :chk,
+                                                 check_out_method = 'MANUAL',
+                                                 updated_at = NOW()
+                                             WHERE attendance_id = :aid");
+                        $upd->execute([
+                            'chk' => $checkTime,
+                            'aid' => $attendance['attendance_id'],
+                        ]);
                         $successCount++;
                     }
                 }

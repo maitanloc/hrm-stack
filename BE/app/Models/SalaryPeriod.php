@@ -78,4 +78,47 @@ class SalaryPeriod extends Model
         $row = $stmt->fetch();
         return $row === false ? null : $row;
     }
+
+    public function findLockedWithinRange(string $fromDate, string $toDate, array $terminalStatuses = ['PAID', 'CLOSED']): ?array
+    {
+        if ($toDate < $fromDate) {
+            [$fromDate, $toDate] = [$toDate, $fromDate];
+        }
+
+        $statuses = array_values(array_unique(array_filter(array_map(
+            static fn(mixed $value): string => strtoupper(trim((string) $value)),
+            $terminalStatuses
+        ))));
+        if ($statuses === []) {
+            return null;
+        }
+
+        $statusPlaceholders = [];
+        $params = [
+            'from_date' => $fromDate,
+            'to_date' => $toDate,
+        ];
+        foreach ($statuses as $index => $status) {
+            $key = 'status_' . $index;
+            $statusPlaceholders[] = ':' . $key;
+            $params[$key] = $status;
+        }
+
+        $sql = "SELECT sp.*, e.full_name AS closed_by_name
+                FROM salary_periods sp
+                LEFT JOIN employees e ON e.employee_id = sp.closed_by
+                WHERE sp.start_date <= :to_date
+                  AND sp.end_date >= :from_date
+                  AND UPPER(sp.status) IN (" . implode(', ', $statusPlaceholders) . ")
+                ORDER BY sp.start_date ASC, sp.period_id ASC
+                LIMIT 1";
+        $stmt = $this->db->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue(':' . $key, (string) $value, PDO::PARAM_STR);
+        }
+        $stmt->execute();
+
+        $row = $stmt->fetch();
+        return $row === false ? null : $row;
+    }
 }
