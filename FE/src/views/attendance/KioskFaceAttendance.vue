@@ -251,7 +251,11 @@ const captureAndIdentify = async () => {
     }
     handleBusinessResult(response);
   } catch (err) {
-    console.error('Kiosk Error:', err);
+    if (err?.status === 403 && err?.payload?.error === 'face_not_recognized') {
+      console.debug('Kiosk face not recognized');
+    } else {
+      console.error('Kiosk Error:', err);
+    }
     handleError(err);
   } finally {
     isProcessing.value = false;

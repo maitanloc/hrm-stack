@@ -40,18 +40,30 @@ defineProps({
 }
 
 .scanner-ring.scanning {
-  border-color: var(--sys-brand-solid, #2563eb);
-  box-shadow: 0 0 20px rgba(37, 99, 235, 0.2);
+  border-color: rgba(37, 99, 235, 0.5);
+  background: rgba(37, 99, 235, 0.04);
+  box-shadow:
+    0 0 0 1px rgba(96, 165, 250, 0.16),
+    0 0 22px rgba(37, 99, 235, 0.16),
+    inset 0 0 24px rgba(37, 99, 235, 0.06);
 }
 
 .scanner-ring.success {
-  border-color: #10b981;
-  box-shadow: 0 0 30px rgba(16, 185, 129, 0.4);
+  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(16, 185, 129, 0.05);
+  box-shadow:
+    0 0 0 1px rgba(110, 231, 183, 0.18),
+    0 0 30px rgba(16, 185, 129, 0.18),
+    inset 0 0 24px rgba(16, 185, 129, 0.08);
 }
 
 .scanner-ring.error {
-  border-color: #ef4444;
-  box-shadow: 0 0 30px rgba(239, 68, 68, 0.4);
+  border-color: rgba(239, 68, 68, 0.52);
+  background: rgba(239, 68, 68, 0.05);
+  box-shadow:
+    0 0 0 1px rgba(252, 165, 165, 0.18),
+    0 0 30px rgba(239, 68, 68, 0.18),
+    inset 0 0 24px rgba(239, 68, 68, 0.08);
 }
 
 .scanner-line {
@@ -61,7 +73,7 @@ defineProps({
   width: 100%;
   height: 2px;
   background: linear-gradient(to right, transparent, var(--sys-brand-solid, #2563eb), transparent);
-  box-shadow: 0 0 15px var(--sys-brand-solid, #2563eb);
+  box-shadow: 0 0 15px rgba(37, 99, 235, 0.45);
   opacity: 0;
   transition: opacity 0.3s;
 }
@@ -87,7 +99,15 @@ defineProps({
 }
 
 .scanning .corner {
-  border-color: var(--sys-brand-solid, #2563eb);
+  border-color: rgba(96, 165, 250, 0.8);
+}
+
+.success .corner {
+  border-color: rgba(110, 231, 183, 0.78);
+}
+
+.error .corner {
+  border-color: rgba(252, 165, 165, 0.78);
 }
 
 .top-left {

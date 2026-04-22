@@ -4,6 +4,7 @@ import numpy as np
 import base64
 import requests
 import faiss
+import time
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
@@ -25,7 +26,7 @@ index = faiss.IndexFlatIP(dimension)
 employee_map = [] # Lưu index tương ứng với employee_code
 
 # URL của Backend PHP để lấy dữ liệu embeddings ban đầu
-BE_API_URL = os.getenv("BE_API_URL", "http://hrm-proxy")
+BE_API_URL = os.getenv("BE_API_URL", "http://hrm-be:8080")
 
 
 @app.get("/health")
@@ -79,9 +80,7 @@ def decode_base64_image(base64_str: str):
 async def startup_event():
     """Tải toàn bộ embedding từ DB lên FAISS khi khởi động"""
     print("Loading embeddings from DB...")
-    # Lưu ý: Bạn cần có API ở BE trả về toàn bộ vector (internal)
-    # Ví dụ mock loading:
-    load_embeddings_from_db()
+    load_embeddings_with_retry()
 
 def load_embeddings_from_db():
     global index, employee_map
@@ -95,7 +94,7 @@ def load_embeddings_from_db():
         payload = response.json().get("data", [])
     except Exception as exc:
         print(f"Failed to load embeddings from BE: {exc}")
-        return
+        return False
 
     vectors = []
     for item in payload:
@@ -119,8 +118,19 @@ def load_embeddings_from_db():
     if vectors:
         index.add(np.stack(vectors))
         print(f"Loaded {len(employee_map)} embeddings into FAISS")
+        return True
     else:
         print("No embeddings available to load into FAISS")
+        return False
+
+def load_embeddings_with_retry(max_attempts=5, delay_seconds=3):
+    for attempt in range(1, max_attempts + 1):
+        if load_embeddings_from_db():
+            return True
+        if attempt < max_attempts:
+            print(f"Retry loading embeddings ({attempt}/{max_attempts}) in {delay_seconds}s...")
+            time.sleep(delay_seconds)
+    return False
 
 @app.post("/extract")
 async def extract_embeddings(req: RegisterRequest):
@@ -165,6 +175,9 @@ async def search_face(req: RecognizeRequest):
     query_emb = query_emb.reshape(1, -1).astype('float32')
 
     if index.ntotal == 0:
+        print("FAISS index empty on /search, attempting lazy reload...")
+        load_embeddings_with_retry(max_attempts=2, delay_seconds=1)
+    if index.ntotal == 0:
         return {"match": False, "message": "Database is empty"}
 
     # Search top-1
@@ -198,6 +211,9 @@ async def search_face_v2(req: RecognizeRequest):
     query_emb = query_emb / np.linalg.norm(query_emb)
     query_emb = query_emb.reshape(1, -1).astype('float32')
 
+    if index.ntotal == 0:
+        print("FAISS index empty on /search_v2, attempting lazy reload...")
+        load_embeddings_with_retry(max_attempts=2, delay_seconds=1)
     if index.ntotal == 0:
         return {"match": False, "message": "Database is empty"}
 

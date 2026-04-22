@@ -114,8 +114,8 @@ const hasCalcDetails = computed(() => {
 });
 
 const overlayClass = computed(() => {
-  if (props.data?.variant === 'warning') return 'bg-warning';
-  return props.data?.success ? 'bg-success' : 'bg-error';
+  if (props.data?.variant === 'warning') return 'overlay-warning';
+  return props.data?.success ? 'overlay-success' : 'overlay-error';
 });
 
 const formatRetryAfter = (seconds) => {
@@ -174,20 +174,45 @@ onUnmounted(() => {
   justify-content: center;
   color: white;
   padding: 20px;
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(18px);
+  --overlay-page: rgba(15, 23, 42, 0.22);
+  --overlay-tint: rgba(255, 255, 255, 0.1);
+  --overlay-border: rgba(255, 255, 255, 0.18);
+  --overlay-glow: rgba(255, 255, 255, 0.18);
+  --overlay-shadow: rgba(15, 23, 42, 0.3);
+  --panel-accent: rgba(255, 255, 255, 0.06);
+  --chip-accent: rgba(255, 255, 255, 0.08);
+  background-color: var(--overlay-page);
 }
 
-.bg-success {
-  background: rgba(16, 185, 129, 0.95);
+.overlay-success {
+  --overlay-page: rgba(22, 101, 52, 0.14);
+  --overlay-tint: rgba(34, 197, 94, 0.16);
+  --overlay-border: rgba(134, 239, 172, 0.24);
+  --overlay-glow: rgba(34, 197, 94, 0.2);
+  --overlay-shadow: rgba(22, 101, 52, 0.24);
+  --panel-accent: rgba(34, 197, 94, 0.08);
+  --chip-accent: rgba(134, 239, 172, 0.1);
 }
 
-.bg-error {
-  background: rgba(239, 68, 68, 0.95);
+.overlay-error {
+  --overlay-page: rgba(153, 27, 27, 0.14);
+  --overlay-tint: rgba(239, 68, 68, 0.16);
+  --overlay-border: rgba(252, 165, 165, 0.24);
+  --overlay-glow: rgba(239, 68, 68, 0.2);
+  --overlay-shadow: rgba(127, 29, 29, 0.24);
+  --panel-accent: rgba(239, 68, 68, 0.08);
+  --chip-accent: rgba(252, 165, 165, 0.1);
 }
 
-.bg-warning {
-  background:
-    linear-gradient(135deg, rgba(245, 158, 11, 0.96), rgba(234, 179, 8, 0.94));
+.overlay-warning {
+  --overlay-page: rgba(146, 64, 14, 0.14);
+  --overlay-tint: rgba(250, 204, 21, 0.16);
+  --overlay-border: rgba(253, 224, 71, 0.26);
+  --overlay-glow: rgba(250, 204, 21, 0.2);
+  --overlay-shadow: rgba(146, 64, 14, 0.24);
+  --panel-accent: rgba(250, 204, 21, 0.08);
+  --chip-accent: rgba(253, 224, 71, 0.1);
   color: #fffdf5;
 }
 
@@ -199,11 +224,20 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 16px;
+  padding: 28px 24px;
+  background-color: var(--overlay-tint);
+  border: 1px solid var(--overlay-border);
+  border-radius: 32px;
+  box-shadow:
+    0 18px 48px var(--overlay-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(28px) saturate(145%);
 }
 
 .icon-wrapper .icon-main {
   font-size: 80px;
-  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.1));
+  filter: drop-shadow(0 10px 22px var(--overlay-glow));
 }
 
 .status-title {
@@ -219,7 +253,7 @@ onUnmounted(() => {
 }
 
 .employee-info {
-  background: rgba(255, 255, 255, 0.15);
+  background-color: var(--panel-accent);
   padding: 20px;
   border-radius: 24px;
   width: 100%;
@@ -227,16 +261,19 @@ onUnmounted(() => {
   align-items: center;
   gap: 16px;
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 24px rgba(15, 23, 42, 0.12);
 }
 
 .avatar-ring {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  border: 3px solid white;
+  border: 3px solid rgba(255, 255, 255, 0.82);
   overflow: hidden;
-  background: rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.12);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -272,7 +309,7 @@ onUnmounted(() => {
   font-size: 0.85rem;
   margin-top: 4px;
   font-weight: 600;
-  background: rgba(0,0,0,0.1);
+  background: rgba(255,255,255,0.12);
   padding: 2px 8px;
   border-radius: 6px;
   display: inline-block;
@@ -288,11 +325,14 @@ onUnmounted(() => {
 .calc-panel {
   width: 100%;
   max-width: 420px;
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  background-color: var(--panel-accent);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 20px;
   padding: 14px 16px;
   backdrop-filter: blur(10px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 10px 24px rgba(15, 23, 42, 0.12);
 }
 
 .calc-line {
@@ -330,13 +370,19 @@ onUnmounted(() => {
 }
 
 .chip-warning {
-  background: rgba(251, 191, 36, 0.18);
-  border: 1px solid rgba(251, 191, 36, 0.45);
+  background-color: var(--chip-accent);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 6px 16px rgba(15, 23, 42, 0.08);
 }
 
 .chip-neutral {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 6px 16px rgba(15, 23, 42, 0.08);
 }
 
 .meta-item {
