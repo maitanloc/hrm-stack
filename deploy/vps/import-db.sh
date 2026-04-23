@@ -21,6 +21,37 @@ compose() {
   docker compose --env-file .env.deploy "$@"
 }
 
+fail_reseed_if_text_corrupted() {
+  file_path="$1"
+
+  if command -v python3 >/dev/null 2>&1; then
+    if ! python3 -c "import pathlib, re, sys; raw = pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'); patterns = [r'Ã', r'Â', r'Æ', r'Ä', r'Ð', r'Ñ', r'áº', r'á»', r'�']; score = sum(len(re.findall(pattern, raw)) for pattern in patterns); question_marks = raw.count('?'); sys.exit(3 if score >= 20 or (score >= 5 and question_marks >= 20) else 0)" "$file_path"; then
+      echo "Blocked import: base data file appears text-corrupted and is unsafe for reseed: $file_path"
+      exit 1
+    fi
+    return 0
+  fi
+
+  if command -v python >/dev/null 2>&1; then
+    if ! python -c "import io, re, sys; raw = io.open(sys.argv[1], 'r', encoding='utf-8').read(); patterns = [u'Ã', u'Â', u'Æ', u'Ä', u'Ð', u'Ñ', u'áº', u'á»', u'�']; score = sum(len(re.findall(pattern, raw)) for pattern in patterns); question_marks = raw.count('?'); sys.exit(3 if score >= 20 or (score >= 5 and question_marks >= 20) else 0)" "$file_path"; then
+      echo "Blocked import: base data file appears text-corrupted and is unsafe for reseed: $file_path"
+      exit 1
+    fi
+    return 0
+  fi
+
+  if command -v php >/dev/null 2>&1; then
+    if ! php -r '$raw = file_get_contents($argv[1]); if ($raw === false || !mb_check_encoding($raw, "UTF-8")) { exit(1); } $patterns = ["/Ã/u", "/Â/u", "/Æ/u", "/Ä/u", "/Ð/u", "/Ñ/u", "/áº/u", "/á»/u", "/�/u"]; $score = 0; foreach ($patterns as $pattern) { $count = preg_match_all($pattern, $raw, $matches); if ($count === false) { exit(1); } $score += $count; } $questionMarks = substr_count($raw, "?"); if ($score >= 20 || ($score >= 5 && $questionMarks >= 20)) { exit(3); }' "$file_path"; then
+      echo "Blocked import: base data file appears text-corrupted and is unsafe for reseed: $file_path"
+      exit 1
+    fi
+    return 0
+  fi
+
+  echo "Cannot inspect text quality for $file_path. Install python, python3, or php+mbstring."
+  exit 1
+}
+
 require_utf8_file() {
   file_path="$1"
 
@@ -85,6 +116,17 @@ import_sql_file() {
     "${target_db}"
 }
 
+require_clean_base_sql_file() {
+  file_path="$1"
+
+  require_utf8_file "$file_path"
+  fail_reseed_if_text_corrupted "$file_path"
+}
+
+echo "Validate approved base SQL files..."
+require_utf8_file "SQL_hackathon v4.sql"
+require_clean_base_sql_file "data.sql"
+
 import_sql_if_exists() {
   file_path="$1"
   if [ -f "$file_path" ]; then
@@ -135,9 +177,7 @@ import_sql_if_exists "BE/scripts/20260415_attendance_method_columns.sql"
 import_sql_if_exists "BE/scripts/20260415_attendance_performance_indexes.sql"
 import_sql_if_exists "BE/scripts/20260415_company_geo_policy.sql"
 import_sql_if_exists "BE/scripts/20260415_role_permission_hardening.sql"
-import_sql_if_exists "BE/scripts/20260415_fix_vietnamese_mojibake.sql"
 import_sql_if_exists "BE/scripts/20260416_phase1_workforce_schedule.sql"
-import_sql_if_exists "BE/scripts/20260417_fix_core_text_and_enums.sql"
 
 echo "Apply permission seed..."
 if [ -f "BE/scripts/grant_portal_permissions.php" ]; then

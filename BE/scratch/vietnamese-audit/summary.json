@@ -1,0 +1,341 @@
+{
+    "generated_at": "2026-04-23T14:20:40+07:00",
+    "archive_path": "/tmp/hrm-stack.tar.gz",
+    "output_dir": "/srv/app/scratch/vietnamese-audit",
+    "connection": {
+        "label": "config",
+        "host": "mysql",
+        "port": 3306
+    },
+    "runtime": {
+        "database_name": "hrm_db",
+        "character_set_server": "utf8mb4",
+        "collation_server": "utf8mb4_unicode_ci",
+        "character_set_database": "utf8mb4",
+        "collation_database": "utf8mb4_unicode_ci",
+        "character_set_connection": "utf8mb4",
+        "character_set_client": "utf8mb4",
+        "character_set_results": "utf8mb4"
+    },
+    "decoder_fixtures": {
+        "ok": true,
+        "results": [
+            {
+                "input": "LÃª Há»“ng Quang",
+                "expected": "Lê Hồng Quang",
+                "actual": "Lê Hồng Quang",
+                "ok": true
+            },
+            {
+                "input": "Trá»‹nh Quá»‘c Äáº¡i",
+                "expected": "Trịnh Quốc Đại",
+                "actual": "Trịnh Quốc Đại",
+                "ok": true
+            },
+            {
+                "input": "Phiáº¿u lÆ°Æ¡ng thÃ¡ng 03/2024",
+                "expected": "Phiếu lương tháng 03/2024",
+                "actual": "Phiếu lương tháng 03/2024",
+                "ok": true
+            },
+            {
+                "input": "ThÃ´ng bÃ¡o lá»‹ch nghá»‰ lá»… 30/04 vÃ  01/05",
+                "expected": "Thông báo lịch nghỉ lễ 30/04 và 01/05",
+                "actual": "Thông báo lịch nghỉ lễ 30/04 và 01/05",
+                "ok": true
+            }
+        ]
+    },
+    "source_files": {
+        "repo:SQL_hackathon v4.sql": {
+            "location": "/srv/app/SQL_hackathon v4.sql",
+            "status": "missing"
+        },
+        "repo:data.sql": {
+            "location": "/srv/app/data.sql",
+            "status": "missing"
+        },
+        "repo:BE/scripts/test_accounts.tsv": {
+            "location": "/srv/app/scripts/test_accounts.tsv",
+            "utf8_ok": true,
+            "question_marks": 0,
+            "mojibake_markers": 282,
+            "status": "utf8_but_text_corrupted"
+        },
+        "repo:BE/scripts/test_accounts_by_role.md": {
+            "location": "/srv/app/scripts/test_accounts_by_role.md",
+            "utf8_ok": true,
+            "question_marks": 0,
+            "mojibake_markers": 0,
+            "status": "clean_utf8"
+        },
+        "archive:SQL_hackathon v4.sql": {
+            "location": "./SQL_hackathon v4.sql",
+            "utf8_ok": true,
+            "question_marks": 0,
+            "mojibake_markers": 0,
+            "status": "clean_utf8"
+        },
+        "archive:data.sql": {
+            "location": "./data.sql",
+            "utf8_ok": true,
+            "question_marks": 25913,
+            "mojibake_markers": 7955,
+            "status": "unsafe_for_reseed"
+        },
+        "archive:BE/scripts/test_accounts.tsv": {
+            "location": "./BE/scripts/test_accounts.tsv",
+            "utf8_ok": true,
+            "question_marks": 0,
+            "mojibake_markers": 282,
+            "status": "utf8_but_text_corrupted"
+        },
+        "archive:BE/scripts/test_accounts_by_role.md": {
+            "location": "./BE/scripts/test_accounts_by_role.md",
+            "utf8_ok": true,
+            "question_marks": 0,
+            "mojibake_markers": 0,
+            "status": "clean_utf8"
+        }
+    },
+    "schema_issues": [
+        {
+            "table": "employees",
+            "column": "gender",
+            "column_type": "enum('NAM','N?','KH?C')",
+            "default": null,
+            "corruption_kind": "literal_question_mark"
+        },
+        {
+            "table": "employees",
+            "column": "marital_status",
+            "column_type": "enum('??C_TH?N','??_K?T_H?N','LY_H?N','G?A')",
+            "default": null,
+            "corruption_kind": "literal_question_mark"
+        }
+    ],
+    "datasets": [
+        {
+            "dataset": "employees.full_name",
+            "table": "employees",
+            "column": "full_name",
+            "affected_rows": 0,
+            "recoverability": {
+                "class": "mixed_clean_and_mojibake_sources",
+                "source_used": "repo:BE/scripts/test_accounts.tsv + archive:data.sql",
+                "reason": "employee_recovery_depends_on_code_range"
+            },
+            "samples": []
+        },
+        {
+            "dataset": "shift_types.shift_name",
+            "table": "shift_types",
+            "column": "shift_name",
+            "affected_rows": 0,
+            "recoverability": {
+                "class": "recoverable_from_deterministic_mapping",
+                "source_used": "deterministic_mapping:shift_types",
+                "reason": "safe_shift_code_mapping"
+            },
+            "samples": []
+        },
+        {
+            "dataset": "leave_types.leave_type_name",
+            "table": "leave_types",
+            "column": "leave_type_name",
+            "affected_rows": 0,
+            "recoverability": {
+                "class": "recoverable_from_deterministic_mapping",
+                "source_used": "deterministic_mapping:leave_types",
+                "reason": "safe_leave_type_code_mapping"
+            },
+            "samples": []
+        },
+        {
+            "dataset": "news.title",
+            "table": "news",
+            "column": "title",
+            "affected_rows": 0,
+            "recoverability": {
+                "class": "recoverable_from_mojibake_source",
+                "source_used": "archive:data.sql",
+                "reason": "archived_rows_available"
+            },
+            "samples": []
+        },
+        {
+            "dataset": "news.summary",
+            "table": "news",
+            "column": "summary",
+            "affected_rows": 0,
+            "recoverability": {
+                "class": "recoverable_from_mojibake_source",
+                "source_used": "archive:data.sql",
+                "reason": "archived_rows_available"
+            },
+            "samples": []
+        },
+        {
+            "dataset": "news.content",
+            "table": "news",
+            "column": "content",
+            "affected_rows": 0,
+            "recoverability": {
+                "class": "recoverable_from_mojibake_source",
+                "source_used": "archive:data.sql",
+                "reason": "archived_rows_available"
+            },
+            "samples": []
+        },
+        {
+            "dataset": "news.status",
+            "table": "news",
+            "column": "status",
+            "affected_rows": 0,
+            "recoverability": {
+                "class": "recoverable_from_mojibake_source",
+                "source_used": "archive:data.sql",
+                "reason": "archived_rows_available"
+            },
+            "samples": []
+        },
+        {
+            "dataset": "news.priority",
+            "table": "news",
+            "column": "priority",
+            "affected_rows": 0,
+            "recoverability": {
+                "class": "recoverable_from_mojibake_source",
+                "source_used": "archive:data.sql",
+                "reason": "archived_rows_available"
+            },
+            "samples": []
+        },
+        {
+            "dataset": "notifications.title",
+            "table": "notifications",
+            "column": "title",
+            "affected_rows": 0,
+            "recoverability": {
+                "class": "recoverable_from_mojibake_source",
+                "source_used": "archive:data.sql",
+                "reason": "archived_rows_available"
+            },
+            "samples": []
+        },
+        {
+            "dataset": "notifications.content",
+            "table": "notifications",
+            "column": "content",
+            "affected_rows": 0,
+            "recoverability": {
+                "class": "recoverable_from_mojibake_source",
+                "source_used": "archive:data.sql",
+                "reason": "archived_rows_available"
+            },
+            "samples": []
+        },
+        {
+            "dataset": "notifications.priority",
+            "table": "notifications",
+            "column": "priority",
+            "affected_rows": 0,
+            "recoverability": {
+                "class": "recoverable_from_mojibake_source",
+                "source_used": "archive:data.sql",
+                "reason": "archived_rows_available"
+            },
+            "samples": []
+        },
+        {
+            "dataset": "report_templates.template_name",
+            "table": "report_templates",
+            "column": "template_name",
+            "affected_rows": 0,
+            "recoverability": {
+                "class": "recoverable_from_deterministic_mapping",
+                "source_used": "deterministic_mapping:report_templates",
+                "reason": "template_codes_define_safe_replacements"
+            },
+            "samples": []
+        },
+        {
+            "dataset": "report_templates.columns_config",
+            "table": "report_templates",
+            "column": "columns_config",
+            "affected_rows": 0,
+            "recoverability": {
+                "class": "recoverable_from_deterministic_mapping",
+                "source_used": "deterministic_mapping:report_templates",
+                "reason": "template_codes_define_safe_replacements"
+            },
+            "samples": []
+        },
+        {
+            "dataset": "report_templates.sql_query",
+            "table": "report_templates",
+            "column": "sql_query",
+            "affected_rows": 0,
+            "recoverability": {
+                "class": "recoverable_from_deterministic_mapping",
+                "source_used": "deterministic_mapping:report_templates",
+                "reason": "template_codes_define_safe_replacements"
+            },
+            "samples": []
+        },
+        {
+            "dataset": "contracts.work_location",
+            "table": "contracts",
+            "column": "work_location",
+            "affected_rows": 10,
+            "recoverability": {
+                "class": "unrecoverable_exactly",
+                "source_used": null,
+                "reason": "free_text_fields_have_no_trusted_source"
+            },
+            "samples": [
+                {
+                    "primary_key": 1,
+                    "value": "H? N?i"
+                },
+                {
+                    "primary_key": 2,
+                    "value": "H? Ch? Minh"
+                },
+                {
+                    "primary_key": 3,
+                    "value": "?? N?ng"
+                }
+            ]
+        },
+        {
+            "dataset": "contracts.job_title",
+            "table": "contracts",
+            "column": "job_title",
+            "affected_rows": 10,
+            "recoverability": {
+                "class": "unrecoverable_exactly",
+                "source_used": null,
+                "reason": "free_text_fields_have_no_trusted_source"
+            },
+            "samples": [
+                {
+                    "primary_key": 1,
+                    "value": "Tr??ng ph?ng Nh?n s?"
+                },
+                {
+                    "primary_key": 2,
+                    "value": "K? to?n vi?n"
+                },
+                {
+                    "primary_key": 3,
+                    "value": "Tr??ng ph?ng Kinh doanh"
+                }
+            ]
+        }
+    ],
+    "totals": {
+        "affected_records": 20,
+        "datasets_with_issues": 2
+    }
+}

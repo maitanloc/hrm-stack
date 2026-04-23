@@ -1,0 +1,181 @@
+{
+    "generated_at": "2026-04-23T14:20:40+07:00",
+    "datasets": [
+        {
+            "dataset": "employees.full_name",
+            "table": "employees",
+            "column": "full_name",
+            "recoverability": {
+                "class": "mixed_clean_and_mojibake_sources",
+                "source_used": "repo:BE/scripts/test_accounts.tsv + archive:data.sql",
+                "reason": "employee_recovery_depends_on_code_range"
+            },
+            "affected_rows": 0
+        },
+        {
+            "dataset": "shift_types.shift_name",
+            "table": "shift_types",
+            "column": "shift_name",
+            "recoverability": {
+                "class": "recoverable_from_deterministic_mapping",
+                "source_used": "deterministic_mapping:shift_types",
+                "reason": "safe_shift_code_mapping"
+            },
+            "affected_rows": 0
+        },
+        {
+            "dataset": "leave_types.leave_type_name",
+            "table": "leave_types",
+            "column": "leave_type_name",
+            "recoverability": {
+                "class": "recoverable_from_deterministic_mapping",
+                "source_used": "deterministic_mapping:leave_types",
+                "reason": "safe_leave_type_code_mapping"
+            },
+            "affected_rows": 0
+        },
+        {
+            "dataset": "news.title",
+            "table": "news",
+            "column": "title",
+            "recoverability": {
+                "class": "recoverable_from_mojibake_source",
+                "source_used": "archive:data.sql",
+                "reason": "archived_rows_available"
+            },
+            "affected_rows": 0
+        },
+        {
+            "dataset": "news.summary",
+            "table": "news",
+            "column": "summary",
+            "recoverability": {
+                "class": "recoverable_from_mojibake_source",
+                "source_used": "archive:data.sql",
+                "reason": "archived_rows_available"
+            },
+            "affected_rows": 0
+        },
+        {
+            "dataset": "news.content",
+            "table": "news",
+            "column": "content",
+            "recoverability": {
+                "class": "recoverable_from_mojibake_source",
+                "source_used": "archive:data.sql",
+                "reason": "archived_rows_available"
+            },
+            "affected_rows": 0
+        },
+        {
+            "dataset": "news.status",
+            "table": "news",
+            "column": "status",
+            "recoverability": {
+                "class": "recoverable_from_mojibake_source",
+                "source_used": "archive:data.sql",
+                "reason": "archived_rows_available"
+            },
+            "affected_rows": 0
+        },
+        {
+            "dataset": "news.priority",
+            "table": "news",
+            "column": "priority",
+            "recoverability": {
+                "class": "recoverable_from_mojibake_source",
+                "source_used": "archive:data.sql",
+                "reason": "archived_rows_available"
+            },
+            "affected_rows": 0
+        },
+        {
+            "dataset": "notifications.title",
+            "table": "notifications",
+            "column": "title",
+            "recoverability": {
+                "class": "recoverable_from_mojibake_source",
+                "source_used": "archive:data.sql",
+                "reason": "archived_rows_available"
+            },
+            "affected_rows": 0
+        },
+        {
+            "dataset": "notifications.content",
+            "table": "notifications",
+            "column": "content",
+            "recoverability": {
+                "class": "recoverable_from_mojibake_source",
+                "source_used": "archive:data.sql",
+                "reason": "archived_rows_available"
+            },
+            "affected_rows": 0
+        },
+        {
+            "dataset": "notifications.priority",
+            "table": "notifications",
+            "column": "priority",
+            "recoverability": {
+                "class": "recoverable_from_mojibake_source",
+                "source_used": "archive:data.sql",
+                "reason": "archived_rows_available"
+            },
+            "affected_rows": 0
+        },
+        {
+            "dataset": "report_templates.template_name",
+            "table": "report_templates",
+            "column": "template_name",
+            "recoverability": {
+                "class": "recoverable_from_deterministic_mapping",
+                "source_used": "deterministic_mapping:report_templates",
+                "reason": "template_codes_define_safe_replacements"
+            },
+            "affected_rows": 0
+        },
+        {
+            "dataset": "report_templates.columns_config",
+            "table": "report_templates",
+            "column": "columns_config",
+            "recoverability": {
+                "class": "recoverable_from_deterministic_mapping",
+                "source_used": "deterministic_mapping:report_templates",
+                "reason": "template_codes_define_safe_replacements"
+            },
+            "affected_rows": 0
+        },
+        {
+            "dataset": "report_templates.sql_query",
+            "table": "report_templates",
+            "column": "sql_query",
+            "recoverability": {
+                "class": "recoverable_from_deterministic_mapping",
+                "source_used": "deterministic_mapping:report_templates",
+                "reason": "template_codes_define_safe_replacements"
+            },
+            "affected_rows": 0
+        },
+        {
+            "dataset": "contracts.work_location",
+            "table": "contracts",
+            "column": "work_location",
+            "recoverability": {
+                "class": "unrecoverable_exactly",
+                "source_used": null,
+                "reason": "free_text_fields_have_no_trusted_source"
+            },
+            "affected_rows": 10
+        },
+        {
+            "dataset": "contracts.job_title",
+            "table": "contracts",
+            "column": "job_title",
+            "recoverability": {
+                "class": "unrecoverable_exactly",
+                "source_used": null,
+                "reason": "free_text_fields_have_no_trusted_source"
+            },
+            "affected_rows": 10
+        }
+    ]
+}

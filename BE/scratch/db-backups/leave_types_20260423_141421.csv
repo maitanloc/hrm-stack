@@ -1,0 +1,4 @@
+leave_type_id,leave_type_code,leave_type_name,category,is_paid,is_social_insurance,payment_source,max_days_per_year,min_days_per_request,max_days_per_request,requires_document,document_required,can_carry_forward,carry_forward_limit,carry_forward_expiry_months,seniority_applicable,description,status,created_at,updated_at
+1,PHEP_NAM,"Ngh? ph?p n?m",ANNUAL,1,0,COMPANY,12,0.50,30,0,,1,5,3,1,"Ngh? ph?p n?m c? b?n",1,"2026-04-15 01:44:34","2026-04-15 01:44:34"
+2,OM_DAU,"Ngh? ?m ?au",SICK,1,1,SOCIAL_INSURANCE,30,0.50,30,1,"Gi?y kh?m b?nh",0,0,0,0,"Ngh? ?m h??ng BHXH",1,"2026-04-15 01:44:34","2026-04-15 01:44:34"
+3,KHONG_LUONG,"Ngh? kh?ng l??ng",UNPAID,0,0,COMPANY,30,0.50,30,0,,0,0,0,0,"Ngh? kh?ng h??ng l??ng",1,"2026-04-15 01:44:34","2026-04-15 01:44:34"

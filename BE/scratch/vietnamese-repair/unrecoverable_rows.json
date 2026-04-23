@@ -1,0 +1,202 @@
+[
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 1,
+        "match_key": "HD0001",
+        "column": "work_location",
+        "current_value": "H? N?i",
+        "hex_value": "483F204E3F69",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    },
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 1,
+        "match_key": "HD0001",
+        "column": "job_title",
+        "current_value": "Tr??ng ph?ng Nh?n s?",
+        "hex_value": "54723F3F6E672070683F6E67204E683F6E20733F",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    },
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 2,
+        "match_key": "HD0002",
+        "column": "work_location",
+        "current_value": "H? Ch? Minh",
+        "hex_value": "483F2043683F204D696E68",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    },
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 2,
+        "match_key": "HD0002",
+        "column": "job_title",
+        "current_value": "K? to?n vi?n",
+        "hex_value": "4B3F20746F3F6E2076693F6E",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    },
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 3,
+        "match_key": "HD0003",
+        "column": "work_location",
+        "current_value": "?? N?ng",
+        "hex_value": "3F3F204E3F6E67",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    },
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 3,
+        "match_key": "HD0003",
+        "column": "job_title",
+        "current_value": "Tr??ng ph?ng Kinh doanh",
+        "hex_value": "54723F3F6E672070683F6E67204B696E6820646F616E68",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    },
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 4,
+        "match_key": "HD0004",
+        "column": "work_location",
+        "current_value": "H? Ch? Minh",
+        "hex_value": "483F2043683F204D696E68",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    },
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 4,
+        "match_key": "HD0004",
+        "column": "job_title",
+        "current_value": "L?p tr?nh vi?n",
+        "hex_value": "4C3F702074723F6E682076693F6E",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    },
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 5,
+        "match_key": "HD0005",
+        "column": "work_location",
+        "current_value": "H? N?i",
+        "hex_value": "483F204E3F69",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    },
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 5,
+        "match_key": "HD0005",
+        "column": "job_title",
+        "current_value": "Ph? Gi?m ??c",
+        "hex_value": "50683F2047693F6D203F3F63",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    },
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 6,
+        "match_key": "HD0006",
+        "column": "work_location",
+        "current_value": "H? Ch? Minh",
+        "hex_value": "483F2043683F204D696E68",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    },
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 6,
+        "match_key": "HD0006",
+        "column": "job_title",
+        "current_value": "Nh?n vi?n Marketing",
+        "hex_value": "4E683F6E2076693F6E204D61726B6574696E67",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    },
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 7,
+        "match_key": "HD0007",
+        "column": "work_location",
+        "current_value": "C?n Th?",
+        "hex_value": "433F6E2054683F",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    },
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 7,
+        "match_key": "HD0007",
+        "column": "job_title",
+        "current_value": "Ph? ph?ng CSKH",
+        "hex_value": "50683F2070683F6E672043534B48",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    },
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 8,
+        "match_key": "HD0008",
+        "column": "work_location",
+        "current_value": "H? Ch? Minh",
+        "hex_value": "483F2043683F204D696E68",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    },
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 8,
+        "match_key": "HD0008",
+        "column": "job_title",
+        "current_value": "Nh?n vi?n kho",
+        "hex_value": "4E683F6E2076693F6E206B686F",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    },
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 9,
+        "match_key": "HD0009",
+        "column": "work_location",
+        "current_value": "H? N?i",
+        "hex_value": "483F204E3F69",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    },
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 9,
+        "match_key": "HD0009",
+        "column": "job_title",
+        "current_value": "Gi?m ??c",
+        "hex_value": "47693F6D203F3F63",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    },
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 10,
+        "match_key": "HD0010",
+        "column": "work_location",
+        "current_value": "B?nh D??ng",
+        "hex_value": "423F6E6820443F3F6E67",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    },
+    {
+        "table": "contracts",
+        "primary_key": "contract_id",
+        "primary_key_value": 10,
+        "match_key": "HD0010",
+        "column": "job_title",
+        "current_value": "Nh?n vi?n s?n xu?t",
+        "hex_value": "4E683F6E2076693F6E20733F6E2078753F74",
+        "reason": "original_vietnamese_lost_without_trusted_source"
+    }
+]

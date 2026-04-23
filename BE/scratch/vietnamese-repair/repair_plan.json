@@ -1,0 +1,15 @@
+{
+    "generated_at": "2026-04-23T14:20:29+07:00",
+    "mode": "dry-run",
+    "archive_path": "/tmp/hrm-stack.tar.gz",
+    "backup_dir": "/srv/app/scratch/db-backups",
+    "report_dir": "/srv/app/scratch/vietnamese-repair",
+    "connection": {
+        "label": "config",
+        "host": "mysql",
+        "port": 3306
+    },
+    "operations": [],
+    "operation_count": 0,
+    "unrecoverable_count": 20
+}

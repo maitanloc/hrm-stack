@@ -55,6 +55,8 @@ if (!function_exists('env')) {
     }
 }
 
+load_env(dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env');
+load_env(dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env.deploy');
 load_env(base_path('.env'));
 date_default_timezone_set((string) env('APP_TIMEZONE', 'Asia/Ho_Chi_Minh'));
 
