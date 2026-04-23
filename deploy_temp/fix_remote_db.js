@@ -1,3 +1,6 @@
+console.error('Deprecated: deploy_temp/fix_remote_db.js is blocked because it bypasses utf8mb4-safe import validation. Use import-db.sh or deploy/vps/import-db.sh instead.');
+process.exit(1);
+
 const { NodeSSH } = require('node-ssh');
 
 async function cleanStart() {

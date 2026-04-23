@@ -20,6 +20,14 @@ if (-not $mysql) {
     exit 1
 }
 
+try {
+    $utf8Strict = [System.Text.UTF8Encoding]::new($false, $true)
+    [void]$utf8Strict.GetString([System.IO.File]::ReadAllBytes($sqlFile))
+} catch {
+    Write-Error "seed_test.sql is not valid UTF-8."
+    exit 1
+}
+
 $args = @(
     "-h", $HostName,
     "-P", $Port,
@@ -31,7 +39,8 @@ if ($Password -ne "") {
     $env:MYSQL_PWD = $Password
 }
 
-$args += @($Database, "-e", "source $sqlFile")
+$resolvedSqlFile = (Resolve-Path $sqlFile).Path.Replace('\', '/')
+$args += @($Database, "-e", "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci; source $resolvedSqlFile")
 
 Write-Host "Running seed_test.sql on $Database..."
 & mysql @args

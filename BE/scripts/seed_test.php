@@ -17,9 +17,14 @@ if ($sql === false) {
     exit(1);
 }
 
+if (!mb_check_encoding($sql, 'UTF-8')) {
+    fwrite(STDERR, "seed_test.sql is not valid UTF-8\n");
+    exit(1);
+}
+
 $db = Database::connection();
-$db->beginTransaction();
 try {
+    $db->exec("SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_ci'");
     $statements = array_filter(array_map('trim', explode(';', $sql)));
     foreach ($statements as $statement) {
         if ($statement === '') {
@@ -27,10 +32,8 @@ try {
         }
         $db->exec($statement);
     }
-    $db->commit();
     fwrite(STDOUT, "seed_test.sql executed successfully.\n");
 } catch (Throwable $exception) {
-    $db->rollBack();
     fwrite(STDERR, "Seed failed: " . $exception->getMessage() . "\n");
     exit(1);
 }
